@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() { return request.auth != null; }
+    function hasRole(role) { return isSignedIn() && request.auth.token.role == role; }
+    function hasAnyRole(roles) { return isSignedIn() && request.auth.token.role in roles; }
+    
+    // Developer & Super Admin always have full access
+    function isPrivileged() { return hasAnyRole(['developer', 'superAdmin']); }
+    
+    // Check if user is approved (not pending)
+    // Note: This relies on custom claims. For Firestore-only roles, this might need get().
+    function isApproved() { 
+      return isSignedIn() && request.auth.token.role != 'pending' && request.auth.token.role != null; 
+    }
+    
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isPrivileged());
+      allow create: if isSignedIn() && request.auth.uid == userId && request.resource.data.role == 'pending';
+      allow update, delete: if isPrivileged();
+    }
+
+    match /customers/{customerId} {
+      allow read: if isApproved() || isPrivileged();
+      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin']);
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if isApproved() || isPrivileged();
+      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin']);
+    }
+
+    match /staff/{staffId} {
+      allow read: if isApproved() || isPrivileged();
+      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin', 'operations']);
+    }
+
+    match /fleet/{vehicleId} {
+      allow read: if isApproved() || isPrivileged();
+      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin', 'operations']);
+    }
+
+    match /logs/{logId} {
+      allow read: if isApproved() || isPrivileged();
+      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin', 'operations', 'driver']);
+    }
+
+    match /maintenance/{maintenanceId} {
+      allow read: if isApproved() || isPrivileged();
+      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin', 'operations']);
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if isApproved() || isPrivileged();
+      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin', 'accounts']);
+    }
+    
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

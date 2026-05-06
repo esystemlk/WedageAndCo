@@ -1,0 +1,17 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() { return request.auth != null; }
+    function hasAnyRole(roles) { return isSignedIn() && request.auth.token.role in roles; }
+
+    match /customers/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin']);
+    }
+    
+    match /agreements/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin']);
+    }
+  }
+}

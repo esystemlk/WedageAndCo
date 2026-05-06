@@ -1,0 +1,167 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user with role-based access",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["developer", "superAdmin", "admin", "operations", "accounts", "driver"] },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "active"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Client company details and agreements",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "nickname": { "type": "string" },
+        "brNo": { "type": "string" },
+        "brImage": { "type": "string" },
+        "officialContact": { "type": "string" },
+        "vatNo": { "type": "string" },
+        "opsContactName": { "type": "string" },
+        "opsContactNumber": { "type": "string" },
+        "billingContactName": { "type": "string" },
+        "billingContactNumber": { "type": "string" },
+        "agreementUrl": { "type": "string" },
+        "agreementStart": { "type": "string", "format": "date" },
+        "agreementEnd": { "type": "string", "format": "date" }
+      },
+      "required": ["name", "brNo", "officialContact", "agreementStart", "agreementEnd"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Vendor and supplier contact data",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "contactName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "brNo": { "type": "string" },
+        "vatNo": { "type": "string" }
+      },
+      "required": ["name", "email", "phone"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "HR records for employees",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["driver", "helper", "cleaning", "office"] },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "licenseNo": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["name", "type", "active"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Fleet vehicle specifications and status",
+      "type": "object",
+      "properties": {
+        "plateNo": { "type": "string" },
+        "type": { "type": "string", "enum": ["prime-mover", "lorry", "container", "other"] },
+        "make": { "type": "string" },
+        "model": { "type": "string" },
+        "chassisNo": { "type": "string" },
+        "engineNo": { "type": "string" },
+        "fuelType": { "type": "string", "enum": ["diesel", "petrol"] },
+        "status": { "type": "string", "enum": ["active", "maintenance", "unavailable"] },
+        "ownership": { "type": "string", "enum": ["owned", "rented"] }
+      },
+      "required": ["plateNo", "type", "status", "ownership"]
+    },
+    "LogSheet": {
+      "title": "LogSheet",
+      "description": "Daily operational trip details",
+      "type": "object",
+      "properties": {
+        "vehicleId": { "type": "string" },
+        "driverId": { "type": "string" },
+        "helperId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "startMileage": { "type": "number" },
+        "endMileage": { "type": "number" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "purpose": { "type": "string" },
+        "status": { "type": "string", "enum": ["on-trip", "completed"] },
+        "authorisedBy": { "type": "string" }
+      },
+      "required": ["vehicleId", "driverId", "customerId", "startMileage", "startTime", "status"]
+    },
+    "Maintenance": {
+      "title": "Maintenance",
+      "description": "Garage and repair records",
+      "type": "object",
+      "properties": {
+        "vehicleId": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "cost": { "type": "number" },
+        "partsReplaced": { "type": "string" },
+        "billUrl": { "type": "string" }
+      },
+      "required": ["vehicleId", "date", "description", "cost"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Financial billing to customers",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "invoiceNo": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "dueDate": { "type": "string", "format": "date" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["draft", "sent", "paid", "overdue"] }
+      },
+      "required": ["customerId", "invoiceNo", "date", "totalAmount", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Customer profiles"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Supplier profiles"
+    },
+    "/staff/{staffId}": {
+      "schema": "Staff",
+      "description": "Staff records"
+    },
+    "/fleet/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Vehicle records"
+    },
+    "/logs/{logId}": {
+      "schema": "LogSheet",
+      "description": "Operational logs"
+    },
+    "/maintenance/{maintenanceId}": {
+      "schema": "Maintenance",
+      "description": "Vehicle maintenance records"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Billing records"
+    }
+  }
+}
