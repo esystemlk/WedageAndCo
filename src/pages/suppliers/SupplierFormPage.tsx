@@ -97,23 +97,23 @@ const SupplierFormPage: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#0a0a0a] p-8 lg:p-12 rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden"
+        className="bg-white p-8 lg:p-12 rounded-[2.5rem] border border-gray-200 shadow-xl relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 p-8 opacity-5">
-           <Package className="w-32 h-32 text-white" />
+           <Package className="w-32 h-32 text-indigo-600" />
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
             <div className="md:col-span-2 space-y-3">
-              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Supplier Entity Name</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Supplier Entity Name</label>
               <div className="relative group">
-                <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 w-5 h-5 transition-colors" />
+                <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
                 <input
                   {...register('name')}
                   placeholder="e.g. Total Energy Solutions"
                   className={cn(
-                    "w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600",
+                    "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
                     errors.name && "border-red-500/50"
                   )}
                 />
@@ -122,26 +122,26 @@ const SupplierFormPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Lead Contact Person</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Lead Contact Person</label>
               <div className="relative group">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 w-5 h-5 transition-colors" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
                 <input
                   {...register('contactName')}
                   placeholder="Full Name"
-                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
                 />
               </div>
             </div>
 
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Primary Phone</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Primary Phone</label>
               <div className="relative group">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 w-5 h-5 transition-colors" />
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
                 <input
                   {...register('phone')}
                   placeholder="+94 11 XXXXXXX"
                   className={cn(
-                    "w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600",
+                    "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
                     errors.phone && "border-red-500/50"
                   )}
                 />
@@ -149,15 +149,15 @@ const SupplierFormPage: React.FC = () => {
             </div>
 
             <div className="md:col-span-2 space-y-3">
-              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Business Email</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Business Email</label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 w-5 h-5 transition-colors" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
                 <input
                   {...register('email')}
                   type="email"
                   placeholder="sales@vendor.com"
                   className={cn(
-                    "w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600",
+                    "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
                     errors.email && "border-red-500/50"
                   )}
                 />
@@ -165,35 +165,35 @@ const SupplierFormPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">BR Number (Verification)</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">BR Number (Verification)</label>
               <div className="relative group">
-                <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 w-5 h-5 transition-colors" />
+                <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
                 <input
                   {...register('brNo')}
                   placeholder="Optional"
-                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
                 />
               </div>
             </div>
 
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">VAT Certificate No.</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">VAT Certificate No.</label>
               <div className="relative group">
-                <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 w-5 h-5 transition-colors" />
+                <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
                 <input
                   {...register('vatNo')}
                   placeholder="Optional"
-                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
                 />
               </div>
             </div>
           </div>
 
-          <div className="pt-10 border-t border-white/10 flex items-center justify-end">
+          <div className="pt-10 border-t border-gray-100 flex items-center justify-end">
             <button
               type="submit"
               disabled={loading}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-4 rounded-xl transition-all shadow-xl shadow-indigo-500/10 flex items-center space-x-3 disabled:bg-indigo-900 disabled:text-gray-500 group"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-4 rounded-xl transition-all shadow-xl shadow-indigo-500/10 flex items-center space-x-3 disabled:bg-indigo-200 disabled:text-gray-500 group"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

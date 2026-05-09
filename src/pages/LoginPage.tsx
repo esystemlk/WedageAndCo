@@ -45,10 +45,10 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen flex bg-[var(--bg-main)] font-sans transition-colors duration-300 overflow-hidden">
       
       {/* Left Panel: Branding & Features (Hidden on mobile) */}
-      <div className="hidden lg:flex w-1/2 relative flex-col justify-between p-16 bg-[#050505] overflow-hidden border-r border-white/5">
-        <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
-           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/30 blur-[120px] rounded-full" />
-           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full" />
+      <div className="hidden lg:flex w-1/2 relative flex-col justify-between p-16 bg-gray-50 overflow-hidden border-r border-gray-200">
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 blur-[120px] rounded-full" />
+           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 blur-[120px] rounded-full" />
         </div>
 
         <div className="relative z-10">
@@ -57,11 +57,11 @@ const LoginPage: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             className="flex items-center gap-4 mb-12"
           >
-            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-500/40">
+            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Truck className="text-white w-7 h-7" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white tracking-tight uppercase italic leading-none">Wedage & Co.</h1>
+              <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase italic leading-none">Wedage & Co.</h1>
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.3em] mt-1">Fleet Management Systems</p>
             </div>
           </motion.div>
@@ -72,8 +72,8 @@ const LoginPage: React.FC = () => {
             transition={{ delay: 0.2 }}
             className="space-y-8"
           >
-            <h2 className="text-5xl font-light text-white font-serif italic leading-tight max-w-md">
-              WEDAGE & COMPANY <br/> <span className="text-indigo-400 font-sans not-italic font-black uppercase text-3xl tracking-widest">PVT LTD</span>
+            <h2 className="text-5xl font-light text-gray-900 font-serif italic leading-tight max-w-md">
+              WEDAGE & COMPANY <br/> <span className="text-indigo-600 font-sans not-italic font-black uppercase text-3xl tracking-widest">PVT LTD</span>
             </h2>
             
             <div className="grid grid-cols-1 gap-6 max-w-xs">
@@ -82,8 +82,8 @@ const LoginPage: React.FC = () => {
                 { icon: Globe, text: "Real-time Fleet Telemetry" },
                 { icon: LogIn, text: "Advanced CRM & Asset Tracking" }
               ].map((item, i) => (
-                <div key={i} className="flex items-center gap-4 text-gray-400 group">
-                  <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/5 group-hover:border-indigo-500/30 transition-all">
+                <div key={i} className="flex items-center gap-4 text-gray-500 group">
+                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center border border-gray-200 group-hover:border-indigo-500/30 transition-all shadow-sm">
                     <item.icon className="w-4 h-4" />
                   </div>
                   <span className="text-[11px] font-black uppercase tracking-wider">{item.text}</span>
@@ -103,11 +103,11 @@ const LoginPage: React.FC = () => {
             href="https://www.esystemlk.com" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-3 px-5 py-3 bg-white/[0.03] border border-white/5 rounded-2xl group hover:border-indigo-500/30 transition-all"
+            className="inline-flex items-center gap-3 px-5 py-3 bg-white border border-gray-200 rounded-2xl group hover:border-indigo-500/30 transition-all shadow-sm"
           >
-            <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">Powered by</span>
-            <span className="text-xs font-black text-gray-300 uppercase tracking-widest border-l border-white/10 pl-3">Esystemlk.com</span>
-            <ArrowRight className="w-3 h-3 text-gray-600 group-hover:text-indigo-400 transform group-hover:translate-x-1 transition-all" />
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest group-hover:text-indigo-600 transition-colors">Powered by</span>
+            <span className="text-xs font-black text-gray-700 uppercase tracking-widest border-l border-gray-100 pl-3">Esystemlk.com</span>
+            <ArrowRight className="w-3 h-3 text-gray-400 group-hover:text-indigo-600 transform group-hover:translate-x-1 transition-all" />
           </a>
         </motion.div>
       </div>

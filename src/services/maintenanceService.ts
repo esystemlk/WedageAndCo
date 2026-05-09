@@ -1,6 +1,7 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, orderBy, Timestamp, where } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
+import { recordChange } from './auditService';
 
 const COLLECTION = 'maintenance';
 
@@ -47,6 +48,7 @@ export const createMaintenanceRecord = async (data: Omit<Maintenance, 'id'>) => 
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
+    await recordChange(OperationType.CREATE, COLLECTION, docRef.id, `Created maintenance record for vehicle ${data.vehicleId}`);
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, COLLECTION);
@@ -60,6 +62,7 @@ export const updateMaintenanceRecord = async (id: string, data: Partial<Maintena
       ...data,
       updatedAt: Timestamp.now()
     });
+    await recordChange(OperationType.UPDATE, COLLECTION, id, `Updated maintenance record fields: ${Object.keys(data).join(', ')}`);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION}/${id}`);
   }
@@ -68,6 +71,7 @@ export const updateMaintenanceRecord = async (id: string, data: Partial<Maintena
 export const deleteMaintenanceRecord = async (id: string) => {
   try {
     await deleteDoc(doc(db, COLLECTION, id));
+    await recordChange(OperationType.DELETE, COLLECTION, id, `Deleted maintenance record`);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `${COLLECTION}/${id}`);
   }

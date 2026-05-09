@@ -1,10 +1,11 @@
-import React from 'react';
-import { LayoutDashboard, Users, Users2, Package, Truck, UserSquare2, ShieldCheck, Wrench, ClipboardList } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { LayoutDashboard, Users, Users2, Package, Truck, UserSquare2, ShieldCheck, Wrench, ClipboardList, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLogs } from '../hooks/useLogs';
 import { useFleet } from '../hooks/useFleet';
 import { useStaff } from '../hooks/useStaff';
 import { useCustomers } from '../hooks/useCustomers';
+import { useNotifications } from '../contexts/NotificationContext';
 import PageHeader from '../components/shared/PageHeader';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
@@ -16,6 +17,43 @@ const DashboardPage: React.FC = () => {
   const { vehicles } = useFleet();
   const { staff } = useStaff();
   const { customers } = useCustomers();
+  const { addNotification } = useNotifications();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      addNotification({
+        type: 'success',
+        title: 'Welcome back!',
+        message: 'Your dashboard has been updated with the latest data.',
+      });
+    }, 1000);
+
+    const timer2 = setTimeout(() => {
+      addNotification({
+        type: 'info',
+        title: 'New trip logged',
+        message: 'A new delivery trip has been recorded by driver John Doe.',
+        actionUrl: '/logs',
+        actionLabel: 'View',
+      });
+    }, 3000);
+
+    const timer3 = setTimeout(() => {
+      addNotification({
+        type: 'warning',
+        title: 'Vehicle maintenance due',
+        message: 'Vehicle WL-001 is due for scheduled maintenance in 3 days.',
+        actionUrl: '/garage',
+        actionLabel: 'Schedule',
+      });
+    }, 5000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
+  }, [addNotification]);
 
   const activeTrips = logs.filter(l => l.status === 'on-trip').length;
   const operationalVehicles = vehicles.filter(v => v.status === 'active').length;
@@ -23,10 +61,10 @@ const DashboardPage: React.FC = () => {
   const customersCount = customers.length;
 
   const stats = [
-    { label: 'Active Drivers', value: driversCount.toString(), icon: UserSquare2, color: 'text-indigo-400', progress: 100, progressColor: 'bg-indigo-500', trackColor: 'bg-indigo-500/10' },
-    { label: 'Fleet Assets', value: operationalVehicles.toString(), icon: Truck, color: 'text-emerald-400', progress: (operationalVehicles / (vehicles.length || 1) * 100), progressColor: 'bg-emerald-500', trackColor: 'bg-emerald-500/10' },
-    { label: 'Live Engagement', value: activeTrips.toString(), icon: ClipboardList, color: 'text-amber-400', progress: activeTrips > 0 ? 100 : 0, progressColor: 'bg-amber-500', trackColor: 'bg-amber-500/10' },
-    { label: 'Client Base', value: customersCount.toString(), icon: Users, color: 'text-purple-400', progress: 100, progressColor: 'bg-purple-500', trackColor: 'bg-purple-500/10' },
+    { label: 'Active Drivers', value: driversCount.toString(), icon: UserSquare2, color: 'text-indigo-600', progress: 100, progressColor: 'bg-indigo-600', trackColor: 'bg-indigo-50' },
+    { label: 'Fleet Assets', value: operationalVehicles.toString(), icon: Truck, color: 'text-emerald-600', progress: (operationalVehicles / (vehicles.length || 1) * 100), progressColor: 'bg-emerald-600', trackColor: 'bg-emerald-50' },
+    { label: 'Live Engagement', value: activeTrips.toString(), icon: ClipboardList, color: 'text-amber-600', progress: activeTrips > 0 ? 100 : 0, progressColor: 'bg-amber-600', trackColor: 'bg-amber-50' },
+    { label: 'Client Base', value: customersCount.toString(), icon: Users, color: 'text-purple-600', progress: 100, progressColor: 'bg-purple-600', trackColor: 'bg-purple-50' },
   ];
 
   const modules = [
@@ -95,18 +133,18 @@ const DashboardPage: React.FC = () => {
             >
               <Link 
                 to={mod.path}
-                className="block p-8 bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-3xl hover:border-indigo-500/30 hover:bg-[var(--bg-nav)] transition-all group shadow-xl shadow-black/5"
+                className="block p-8 bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-3xl hover:border-indigo-500/30 hover:bg-gray-50 transition-all group shadow-sm"
               >
                 <div className="flex items-center space-x-5 mb-6">
-                  <div className="w-12 h-12 bg-[var(--bg-main)] rounded-2xl flex items-center justify-center group-hover:bg-indigo-500/10 group-hover:text-indigo-400 transition-all border border-[var(--border-main)]">
-                    <mod.icon className="w-6 h-6 text-[var(--text-muted)] group-hover:text-indigo-500 transition-colors" />
+                  <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-all border border-gray-100">
+                    <mod.icon className="w-6 h-6 text-gray-400 group-hover:text-indigo-600 transition-colors" />
                   </div>
-                  <h3 className="text-[14px] font-black text-[var(--text-main)] uppercase tracking-widest group-hover:text-indigo-500 transition-colors">{mod.name}</h3>
+                  <h3 className="text-[14px] font-black text-[var(--text-main)] uppercase tracking-widest group-hover:text-indigo-600 transition-colors">{mod.name}</h3>
                 </div>
                 <p className="text-[11px] text-[var(--text-muted)] font-medium leading-relaxed italic">
                   {mod.desc}
                 </p>
-                <div className="mt-6 flex items-center text-[10px] font-black text-indigo-400 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
+                <div className="mt-6 flex items-center text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
                   <span>Enter Module</span>
                   <LayoutDashboard className="w-3 h-3 ml-2" />
                 </div>

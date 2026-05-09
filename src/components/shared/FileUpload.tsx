@@ -62,9 +62,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
       
       <div 
         className={cn(
-          "relative border-2 border-dashed rounded-2xl p-6 transition-all",
-          isDragging ? "border-indigo-500 bg-indigo-500/5" : "border-white/10 bg-white/5 hover:border-white/20",
-          error ? "border-red-500/50" : ""
+          "relative border-2 border-dashed rounded-2xl p-6 transition-all shadow-sm",
+          isDragging ? "border-indigo-500 bg-indigo-50" : "border-gray-100 bg-gray-50 hover:border-indigo-200 hover:bg-white",
+          error ? "border-rose-200 bg-rose-50" : ""
         )}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
@@ -80,17 +80,17 @@ const FileUpload: React.FC<FileUploadProps> = ({
               className="flex items-center justify-between"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+                <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 border border-emerald-100 shadow-sm">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-white uppercase tracking-tight">File Secured</p>
-                  <a href={preview} target="_blank" rel="noreferrer" className="text-[10px] text-indigo-400 font-bold hover:underline">View Document</a>
+                  <p className="text-xs font-bold text-gray-900 uppercase tracking-tight">File Secured</p>
+                  <a href={preview} target="_blank" rel="noreferrer" className="text-[10px] text-indigo-600 font-bold hover:underline">View Document</a>
                 </div>
               </div>
               <button 
                 onClick={() => { setPreview(null); onUploadComplete(''); }}
-                className="p-2 hover:bg-red-500/10 text-gray-500 hover:text-red-400 rounded-lg transition-colors"
+                className="p-2 hover:bg-rose-50 text-gray-400 hover:text-rose-600 rounded-lg transition-colors shadow-sm"
                 type="button"
               >
                 <X className="w-4 h-4" />
@@ -101,7 +101,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
               key="loading"
               className="flex items-center gap-4 py-2"
             >
-              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Encrypting and Storing...</p>
             </motion.div>
           ) : (
@@ -109,9 +109,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
               key="input"
               className="flex flex-col items-center justify-center cursor-pointer py-2"
             >
-              <FileText className="w-8 h-8 text-gray-600 mb-3" />
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Drop file or <span className="text-indigo-400">browse</span></p>
-              <p className="text-[10px] text-gray-600 mt-1 uppercase tracking-tighter">Support: Image, PDF (Max 10MB)</p>
+              <FileText className="w-8 h-8 text-gray-400 mb-3" />
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Drop file or <span className="text-indigo-600">browse</span></p>
+              <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-tighter">Support: Image, PDF (Max 10MB)</p>
               <input 
                 type="file" 
                 className="hidden" 
@@ -123,7 +123,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         </AnimatePresence>
 
         {error && (
-          <div className="absolute inset-x-0 -bottom-8 flex items-center gap-2 text-red-400 text-[10px] font-bold uppercase tracking-tight">
+          <div className="absolute inset-x-0 -bottom-8 flex items-center gap-2 text-rose-600 text-[10px] font-bold uppercase tracking-tight">
             <AlertCircle className="w-3 h-3" />
             <span>{error}</span>
           </div>

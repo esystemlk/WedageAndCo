@@ -23,27 +23,15 @@
 }
 
 :root {
-  --bg-main: #ffffff;
-  --bg-surface: #f8fafc;
-  --bg-nav: #f1f5f9;
+  --bg-main: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-nav: #ffffff;
   --text-main: #0f172a;
   --text-muted: #64748b;
-  --border-main: rgba(0, 0, 0, 0.08);
-  --input-bg: rgba(0, 0, 0, 0.02);
+  --border-main: #e2e8f0;
+  --input-bg: #f1f5f9;
   --primary-color: #4f46e5;
   --accent-color: #4f46e5;
-}
-
-.dark {
-  --bg-main: #050505;
-  --bg-surface: #0a0a0a;
-  --bg-nav: #080808;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --border-main: rgba(255, 255, 255, 0.05);
-  --input-bg: rgba(255, 255, 255, 0.03);
-  --primary-color: #6366f1;
-  --accent-color: #6366f1;
 }
 
 @layer base {
@@ -68,7 +56,7 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 10px;
 }
 
@@ -77,9 +65,9 @@
 }
 
 .glass-morphism {
-  @apply bg-[#0a0a0a]/50 backdrop-blur-md border border-white/10;
+  @apply bg-white/70 backdrop-blur-md border border-gray-200;
 }
 
 .dark-card {
-  @apply bg-white/5 border border-white/10 rounded-2xl shadow-2xl;
+  @apply bg-white border border-gray-200 rounded-2xl shadow-sm;
 }

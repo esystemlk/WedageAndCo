@@ -52,6 +52,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: firebaseUser.email,
               displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
               role: defaultRole,
+              department: 'None',
+              nicNumber: '',
+              phoneNumber: firebaseUser.phoneNumber || '',
+              status: 'active',
               createdAt: new Date().toISOString(),
               lastLogin: new Date().toISOString(),
               isApproved: false

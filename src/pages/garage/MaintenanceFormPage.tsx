@@ -103,59 +103,59 @@ const MaintenanceFormPage: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#0a0a0a] p-8 lg:p-12 rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden"
+        className="bg-white p-8 lg:p-12 rounded-[2.5rem] border border-gray-200 shadow-xl relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 p-8 opacity-5">
-           <Wrench className="w-32 h-32 text-white" />
+           <Wrench className="w-32 h-32 text-indigo-600" />
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
             {/* Primary Context */}
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">Target Asset</label>
+              <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">Target Asset</label>
               <div className="relative group">
                 <Truck className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 w-5 h-5 transition-colors" />
                 <select
                   {...register('vehicleId')}
                   className={cn(
-                    "w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-black text-white uppercase appearance-none",
+                    "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-black text-gray-900 uppercase appearance-none",
                     errors.vehicleId && "border-red-500/50"
                   )}
                 >
-                  <option value="" className="bg-[#0a0a0a]">-- Select Vehicle --</option>
+                  <option value="" className="bg-white text-gray-400 italic">-- Select Vehicle --</option>
                   {vehicles.map(v => (
-                    <option key={v.id} value={v.id} className="bg-[#0a0a0a]">{v.plateNo} ({v.type})</option>
+                    <option key={v.id} value={v.id} className="bg-white text-gray-900 font-bold">{v.plateNo} ({v.type})</option>
                   ))}
                 </select>
               </div>
             </div>
 
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Service Provider / Garage</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Service Provider / Garage</label>
               <div className="relative group">
-                <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5 transition-colors" />
+                <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 transition-colors" />
                 <select
                   {...register('supplierId')}
-                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white appearance-none"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 appearance-none"
                 >
-                  <option value="" className="bg-[#0a0a0a]">-- Internal / Third Party --</option>
+                  <option value="" className="bg-white text-gray-400 italic">-- Internal / Third Party --</option>
                   {suppliers.map(s => (
-                    <option key={s.id} value={s.id} className="bg-[#0a0a0a] uppercase tracking-tighter">{s.name}</option>
+                    <option key={s.id} value={s.id} className="bg-white text-gray-900 uppercase tracking-tighter">{s.name}</option>
                   ))}
                 </select>
               </div>
             </div>
 
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Intervention Date</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Intervention Date</label>
               <div className="relative group">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5 transition-colors" />
+                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 transition-colors" />
                 <input
                   {...register('date')}
                   type="date"
                   className={cn(
-                    "w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white",
+                    "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900",
                     errors.date && "border-red-500/50"
                   )}
                 />
@@ -163,16 +163,16 @@ const MaintenanceFormPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-amber-400 uppercase tracking-widest px-1">Financial Expenditure (LKR)</label>
+              <label className="block text-[10px] font-black text-amber-600 uppercase tracking-widest px-1">Financial Expenditure (LKR)</label>
               <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-400 text-xs font-black">LKR</div>
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-600 text-xs font-black">LKR</div>
                 <input
                   {...register('cost', { valueAsNumber: true })}
                   type="number"
                   placeholder="0.00"
                   step="0.01"
                   className={cn(
-                    "w-full pl-14 pr-4 py-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl focus:ring-1 focus:ring-amber-500/50 outline-none transition-all font-black text-white",
+                    "w-full pl-14 pr-4 py-4 bg-amber-50 border border-amber-200 rounded-2xl focus:ring-1 focus:ring-amber-500/50 outline-none transition-all font-black text-gray-900",
                     errors.cost && "border-red-500/50"
                   )}
                 />
@@ -180,24 +180,24 @@ const MaintenanceFormPage: React.FC = () => {
             </div>
 
             <div className="md:col-span-2 space-y-3">
-              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Technical Work Description</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Technical Work Description</label>
               <textarea
                 {...register('description')}
                 rows={3}
                 placeholder="Exhaustive details of structural, mechanical, or electrical work performed..."
                 className={cn(
-                  "w-full p-6 bg-white/5 border border-white/10 rounded-3xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-medium text-gray-300 placeholder:text-gray-600 resize-none",
+                  "w-full p-6 bg-gray-50 border border-gray-200 rounded-3xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-medium text-gray-900 placeholder:text-gray-400 resize-none",
                   errors.description && "border-red-500/50"
                 )}
               />
             </div>
 
             <div className="md:col-span-2 space-y-3">
-              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Components / Parts Exchanged</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Components / Parts Exchanged</label>
               <input
                 {...register('partsReplaced')}
                 placeholder="e.g. Brake Pads (Front), Filter Set, Lube Exchange"
-                className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600"
+                className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
               />
             </div>
 
@@ -211,11 +211,11 @@ const MaintenanceFormPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-10 border-t border-white/10 flex items-center justify-end">
+          <div className="pt-10 border-t border-gray-100 flex items-center justify-end">
             <button
               type="submit"
               disabled={loading}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-4 rounded-xl transition-all shadow-xl shadow-indigo-500/10 flex items-center space-x-3 disabled:bg-indigo-900 disabled:text-gray-500 group"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-4 rounded-xl transition-all shadow-xl shadow-indigo-500/10 flex items-center space-x-3 disabled:bg-indigo-200 disabled:text-gray-500 group"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

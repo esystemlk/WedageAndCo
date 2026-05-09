@@ -12,6 +12,15 @@ export enum UserRole {
   PENDING = 'pending'
 }
 
+export enum UserDepartment {
+  OPERATIONS = 'Operations',
+  ACCOUNTS = 'Accounts',
+  HR = 'HR',
+  GARAGE = 'Garage',
+  SECURITY = 'Security',
+  NONE = 'None'
+}
+
 export type Permission = 
   | 'view_users' | 'manage_users'
   | 'view_customers' | 'edit_customers'
@@ -20,20 +29,20 @@ export type Permission =
   | 'view_fleet' | 'edit_fleet'
   | 'view_logs' | 'edit_logs'
   | 'view_garage' | 'edit_garage'
-  | 'view_reports' | 'view_billing';
+  | 'view_reports' | 'view_billing' | 'view_audit_logs';
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.DEVELOPER]: [
     'view_users', 'manage_users', 'view_customers', 'edit_customers',
     'view_suppliers', 'edit_suppliers', 'view_staff', 'edit_staff',
     'view_fleet', 'edit_fleet', 'view_logs', 'edit_logs',
-    'view_garage', 'edit_garage', 'view_reports', 'view_billing'
+    'view_garage', 'edit_garage', 'view_reports', 'view_billing', 'view_audit_logs'
   ],
   [UserRole.SUPER_ADMIN]: [
     'view_users', 'manage_users', 'view_customers', 'edit_customers',
     'view_suppliers', 'edit_suppliers', 'view_staff', 'edit_staff',
     'view_fleet', 'edit_fleet', 'view_logs', 'edit_logs',
-    'view_garage', 'edit_garage', 'view_reports', 'view_billing'
+    'view_garage', 'edit_garage', 'view_reports', 'view_billing', 'view_audit_logs'
   ],
   [UserRole.ADMIN]: [
     'view_customers', 'edit_customers', 'view_suppliers', 'edit_suppliers',

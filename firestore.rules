@@ -1,68 +1,150 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    
+    // -------------------------------------------------------------------------
+    // 1. GLOBAL HELPERS
+    // -------------------------------------------------------------------------
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isSignedIn() && getUserData().role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('superAdmin') || hasRole('admin') || hasRole('developer');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidString(val, max) {
+      return val is string && val.size() <= max;
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. DEFAULT DENY
+    // -------------------------------------------------------------------------
+    
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Helper functions
-    function isSignedIn() { return request.auth != null; }
-    function hasRole(role) { return isSignedIn() && request.auth.token.role == role; }
-    function hasAnyRole(roles) { return isSignedIn() && request.auth.token.role in roles; }
-    
-    // Developer & Super Admin always have full access
-    function isPrivileged() { return hasAnyRole(['developer', 'superAdmin']); }
-    
-    // Check if user is approved (not pending)
-    // Note: This relies on custom claims. For Firestore-only roles, this might need get().
-    function isApproved() { 
-      return isSignedIn() && request.auth.token.role != 'pending' && request.auth.token.role != null; 
-    }
-    
+    // -------------------------------------------------------------------------
+    // 3. COLLECTION RULES
+    // -------------------------------------------------------------------------
+
+    // USERS
     match /users/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || isPrivileged());
-      allow create: if isSignedIn() && request.auth.uid == userId && request.resource.data.role == 'pending';
-      allow update, delete: if isPrivileged();
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'uid']));
     }
 
+    // CUSTOMERS
     match /customers/{customerId} {
-      allow read: if isApproved() || isPrivileged();
-      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin']);
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || hasRole('operations') || hasRole('accounts');
     }
 
+    // SUPPLIERS
     match /suppliers/{supplierId} {
-      allow read: if isApproved() || isPrivileged();
-      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin']);
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || hasRole('operations') || hasRole('accounts');
     }
 
+    // STAFF
     match /staff/{staffId} {
-      allow read: if isApproved() || isPrivileged();
-      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin', 'operations']);
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || hasRole('operations');
     }
 
+    // FLEET (VEHICLES)
     match /fleet/{vehicleId} {
-      allow read: if isApproved() || isPrivileged();
-      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin', 'operations']);
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || hasRole('operations');
     }
 
+    // LOG SHEETS
     match /logs/{logId} {
-      allow read: if isApproved() || isPrivileged();
-      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin', 'operations', 'driver']);
+      function isValidLog(data) {
+        return isValidString(data.logSheetCode, 32) &&
+               isValidId(data.vehicleId) &&
+               isValidId(data.driverId) &&
+               isValidId(data.customerId) &&
+               data.status in ['On Trip', 'Completed', 'Breakdown', 'Cancelled'];
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidLog(incoming());
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (existing().status != 'Completed' && isValidLog(incoming()))
+      );
+      allow delete: if isAdmin();
     }
 
+    // PURCHASE ORDERS
+    match /purchase_orders/{poId} {
+      function isValidPO(data) {
+        return isValidString(data.poNumber, 32) &&
+               isValidId(data.supplierId) &&
+               data.grandTotal is number &&
+               data.status in ['Draft', 'Sent', 'Partially Received', 'Fully Received', 'Cancelled'];
+      }
+
+      allow read: if isSignedIn();
+      allow create: if (isAdmin() || hasRole('accounts') || hasRole('operations')) && isValidPO(incoming());
+      allow update: if (isAdmin() || hasRole('accounts') || hasRole('operations')) && isValidPO(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // GRNS
+    match /grns/{grnId} {
+      allow read: if isSignedIn();
+      allow create: if (isAdmin() || hasRole('operations') || hasRole('accounts'));
+      allow update: if isAdmin();
+    }
+
+    // DAILY UPDATES
+    match /daily_updates/{updateId} {
+      allow read: if isSignedIn();
+      allow create: if (isAdmin() || hasRole('operations'));
+      allow update: if (isAdmin() || hasRole('operations'));
+    }
+
+    // GATE PASSES
+    match /gate_passes/{passId} {
+      allow read: if isSignedIn();
+      allow create: if (isAdmin() || hasRole('operations') || hasRole('security'));
+      allow update: if (isAdmin() || hasRole('operations') || hasRole('security'));
+    }
+
+    // MAINTENANCE
     match /maintenance/{maintenanceId} {
-      allow read: if isApproved() || isPrivileged();
-      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin', 'operations']);
-    }
-
-    match /invoices/{invoiceId} {
-      allow read: if isApproved() || isPrivileged();
-      allow write: if hasAnyRole(['developer', 'superAdmin', 'admin', 'accounts']);
-    }
-    
-    match /test/connection {
-      allow read: if true;
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || hasRole('operations');
     }
   }
 }

@@ -76,28 +76,92 @@
         "engineNo": { "type": "string" },
         "fuelType": { "type": "string", "enum": ["diesel", "petrol"] },
         "status": { "type": "string", "enum": ["active", "maintenance", "unavailable"] },
-        "ownership": { "type": "string", "enum": ["owned", "rented"] }
+        "ownership": { "type": "string", "enum": ["owned", "rented"] },
+        "length": { "type": "number", "description": "Length in feet" },
+        "width": { "type": "number", "description": "Width in feet" },
+        "height": { "type": "number", "description": "Height in feet" },
+        "weightCapacity": { "type": "number", "description": "Weight capacity in tons" }
       },
       "required": ["plateNo", "type", "status", "ownership"]
     },
     "LogSheet": {
       "title": "LogSheet",
-      "description": "Daily operational trip details",
+      "description": "Daily operational trip details with meter and freezer tracking",
       "type": "object",
       "properties": {
+        "logSheetCode": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "customerId": { "type": "string" },
+        "representative": { "type": "string" },
         "vehicleId": { "type": "string" },
         "driverId": { "type": "string" },
         "helperId": { "type": "string" },
-        "customerId": { "type": "string" },
+        "meterStatus": { "type": "string", "enum": ["Working", "Not Working"] },
         "startMileage": { "type": "number" },
         "endMileage": { "type": "number" },
-        "startTime": { "type": "string", "format": "date-time" },
-        "endTime": { "type": "string", "format": "date-time" },
-        "purpose": { "type": "string" },
-        "status": { "type": "string", "enum": ["on-trip", "completed"] },
-        "authorisedBy": { "type": "string" }
+        "totalKm": { "type": "number" },
+        "outTime": { "type": "string" },
+        "inTime": { "type": "string" },
+        "meterNonWorkingReason": { "type": "string" },
+        "vehicleHasFreezer": { "type": "boolean" },
+        "freezerOnTime": { "type": "string" },
+        "freezerOffTime": { "type": "string" },
+        "freezerTotalHours": { "type": "number" },
+        "freezerTemp": { "type": "number" },
+        "freezerRemarks": { "type": "string" },
+        "freezerStatus": { "type": "string", "enum": ["ON", "OFF"] },
+        "status": { "type": "string", "enum": ["On Trip", "Completed", "Breakdown", "Cancelled"] },
+        "breakdownReason": { "type": "string" },
+        "isApproved": { "type": "boolean" },
+        "approvedBy": { "type": "string" },
+        "enteredBy": { "type": "string" }
       },
-      "required": ["vehicleId", "driverId", "customerId", "startMileage", "startTime", "status"]
+      "required": ["logSheetCode", "date", "vehicleId", "driverId", "customerId", "status"]
+    },
+    "PurchaseOrder": {
+      "title": "Purchase Order",
+      "description": "Inventory or service procurement records",
+      "type": "object",
+      "properties": {
+        "poNumber": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "items": { "type": "array" },
+        "grandTotal": { "type": "number" },
+        "status": { "type": "string", "enum": ["Draft", "Sent", "Partially Received", "Fully Received", "Cancelled"] }
+      },
+      "required": ["poNumber", "date", "supplierId", "grandTotal", "status"]
+    },
+    "GRN": {
+      "title": "Goods Received Note",
+      "description": "Verified physical delivery records",
+      "type": "object",
+      "properties": {
+        "grnNo": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "purchaseOrderRef": { "type": "string" },
+        "conditionOfGoods": { "type": "string", "enum": ["Good", "Damaged", "Partial", "Rejected"] },
+        "items": { "type": "array" }
+      },
+      "required": ["grnNo", "date", "supplierId", "conditionOfGoods"]
+    },
+    "DailyVehicleUpdate": {
+      "title": "Daily Vehicle Update",
+      "description": "Daily operational snapshot of an asset",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "dayOfWeek": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "vehicleNo": { "type": "string" },
+        "actualDriverId": { "type": "string" },
+        "actualDriverName": { "type": "string" },
+        "status": { "type": "string", "enum": ["On Trip", "Breakdown", "Yard Parking", "Under Repair", "Personal Use", "Other"] }
+      },
+      "required": ["date", "vehicleId", "actualDriverId", "status"]
     },
     "Maintenance": {
       "title": "Maintenance",
@@ -128,6 +192,22 @@
         "status": { "type": "string", "enum": ["draft", "sent", "paid", "overdue"] }
       },
       "required": ["customerId", "invoiceNo", "date", "totalAmount", "status"]
+    },
+    "GatePass": {
+      "title": "GatePass",
+      "description": "Vehicle entry/exit security records",
+      "type": "object",
+      "properties": {
+        "gatePassNo": { "type": "string" },
+        "linkedLogSheetNo": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "vehicleNo": { "type": "string" },
+        "driverName": { "type": "string" },
+        "timeOut": { "type": "string" },
+        "timeIn": { "type": "string" },
+        "status": { "type": "string", "enum": ["Open", "Returned", "Cancelled"] }
+      },
+      "required": ["gatePassNo", "date", "vehicleNo", "driverName", "timeOut", "status"]
     }
   },
   "firestore": {
@@ -162,6 +242,22 @@
     "/invoices/{invoiceId}": {
       "schema": "Invoice",
       "description": "Billing records"
+    },
+    "/purchase_orders/{poId}": {
+      "schema": "PurchaseOrder",
+      "description": "Purchase order records"
+    },
+    "/grns/{grnId}": {
+      "schema": "GRN",
+      "description": "Goods received notes"
+    },
+    "/daily_updates/{updateId}": {
+      "schema": "DailyVehicleUpdate",
+      "description": "Daily fleet status updates"
+    },
+    "/gate_passes/{passId}": {
+      "schema": "GatePass",
+      "description": "Security gate pass records"
     }
   }
 }

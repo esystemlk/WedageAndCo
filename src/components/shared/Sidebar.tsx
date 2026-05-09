@@ -14,17 +14,24 @@ import {
   ShieldCheck,
   DollarSign,
   Settings,
-  Sun,
-  Moon
+  Wallet,
+  Activity,
+  Menu,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { auth } from '../../firebase/config';
 import { cn } from '../../lib/utils';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { UserRole } from '../../config/roles';
 
-const Sidebar = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const { user, role, can } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -32,46 +39,73 @@ const Sidebar = () => {
   const handleLogout = async () => {
     await auth.signOut();
     navigate('/login');
+    onClose?.();
   };
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard, permission: null },
+    { type: 'header', name: 'CRM & Workforce' },
     { name: 'Customers', path: '/customers', icon: Users, permission: 'view_customers' },
-    { name: 'Suppliers', path: '/suppliers', icon: Package, permission: 'view_suppliers' },
     { name: 'Staff / HR', path: '/staff', icon: UserSquare2, permission: 'view_staff' },
+    
+    { type: 'header', name: 'Procurement' },
+    { name: 'Suppliers', path: '/suppliers', icon: Package, permission: 'view_suppliers' },
+    { name: 'Purchase Orders', path: '/purchase-orders', icon: ClipboardList, permission: 'view_logs' },
+    { name: 'GRN Registry', path: '/grn', icon: Package, permission: 'view_logs' },
+
+    { type: 'header', name: 'Operations' },
+    { name: 'Daily Updates', path: '/daily-updates', icon: LayoutDashboard, permission: 'view_logs' },
     { name: 'Fleet', path: '/fleet', icon: Truck, permission: 'view_fleet' },
     { name: 'Log Sheets', path: '/logs', icon: ClipboardList, permission: 'view_logs' },
+    { name: 'Security Book', path: '/security', icon: ShieldCheck, permission: 'view_logs' },
     { name: 'Garage', path: '/garage', icon: Wrench, permission: 'view_garage' },
-    { name: 'Financials', path: '/invoices', icon: DollarSign, permission: 'view_reports' },
+    
+    { type: 'header', name: 'Analytics' },
+    { name: 'Invoices', path: '/invoices', icon: DollarSign, permission: 'view_reports' },
+    { name: 'Financial Dashboard', path: '/financial-dashboard', icon: Wallet, permission: 'view_reports' },
+    { name: 'Fleet Analytics', path: '/fleet/analytics', icon: Activity, permission: 'view_fleet' },
     { name: 'Reports', path: '/reports', icon: FileBarChart, permission: 'view_reports' },
     { name: 'User Management', path: '/users', icon: ShieldCheck, permission: 'manage_users' },
+    { name: 'System Logs', path: '/audit', icon: ClipboardList, permission: 'view_audit_logs' },
   ];
 
-  return (
+  const sidebarContent = (
     <div className="flex flex-col w-64 bg-[var(--bg-nav)] border-r border-[var(--border-main)] h-screen sticky top-0 overflow-hidden shadow-sm transition-colors duration-300">
       <div className="p-6 flex items-center space-x-3">
         <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
           <Truck className="text-white w-6 h-6" />
         </div>
-        <div>
-          <h1 className="text-lg font-black tracking-tight text-[var(--text-main)] leading-tight uppercase italic">Wedage & Co.</h1>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg font-black tracking-tight text-[var(--text-main)] leading-tight uppercase italic truncate">Wedage & Co.</h1>
           <p className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest leading-none opacity-60">Company PVT LTD</p>
         </div>
+        <button onClick={onClose} className="md:hidden p-2 hover:bg-gray-100 rounded-lg">
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-        {menuItems.map((item) => {
+        {menuItems.map((item, idx) => {
+          if (item.type === 'header') {
+            return (
+              <p key={idx} className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 pt-6 pb-2 px-3 opacity-50">
+                {item.name}
+              </p>
+            );
+          }
+
           if (item.permission && !can(item.permission as any)) return null;
           
           return (
             <NavLink
               key={item.path}
-              to={item.path}
+              to={item.path!}
+              onClick={() => onClose?.()}
               className={({ isActive }) => cn(
                 "group flex items-center justify-between px-3 py-2 text-sm transition-all duration-200 rounded-lg",
                 isActive 
                   ? "text-indigo-500 bg-indigo-500/5 border border-indigo-500/10 font-bold" 
-                  : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-black/5 dark:hover:bg-white/5"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-black/5"
               )}
             >
               <div className="flex items-center space-x-3">
@@ -87,17 +121,10 @@ const Sidebar = () => {
       </nav>
 
       <div className="mt-auto p-4 border-t border-[var(--border-main)] space-y-4">
-        <div className="flex items-center justify-between px-2">
-          <button 
-            onClick={toggleTheme}
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-indigo-500 hover:bg-indigo-500/5 transition-all"
-            title={theme === 'light' ? 'Switch to Obscured' : 'Switch to Luminous'}
-          >
-            {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </button>
-          
+        <div className="flex items-center justify-end px-2">
           <NavLink 
             to="/settings"
+            onClick={() => onClose?.()}
             className={({ isActive }) => cn(
               "p-2 rounded-lg transition-all",
               isActive 
@@ -129,6 +156,37 @@ const Sidebar = () => {
         </button>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <div className="hidden md:block">
+        {sidebarContent}
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            />
+            <motion.div
+              initial={{ x: -300 }}
+              animate={{ x: 0 }}
+              exit={{ x: -300 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed left-0 top-0 z-50 md:hidden"
+            >
+              {sidebarContent}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 

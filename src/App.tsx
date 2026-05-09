@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { ProtectedRoute, RoleRoute } from './components/auth/RouteGuards';
 import AppShell from './components/shared/AppShell';
 
@@ -26,6 +27,12 @@ import LogDetailPage from './pages/logs/LogDetailPage';
 import GaragePage from './pages/garage/GaragePage';
 import MaintenanceFormPage from './pages/garage/MaintenanceFormPage';
 import MaintenanceDetailPage from './pages/garage/MaintenanceDetailPage';
+import DailyVehicleUpdatePage from './pages/ops/DailyVehicleUpdatePage';
+import DailyUpdateFormPage from './pages/ops/DailyUpdateFormPage';
+import PurchaseOrderListPage from './pages/procurement/PurchaseOrderListPage';
+import PurchaseOrderFormPage from './pages/procurement/PurchaseOrderFormPage';
+import GRNListPage from './pages/procurement/GRNListPage';
+import GRNFormPage from './pages/procurement/GRNFormPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import InvoiceListPage from './pages/financial/InvoiceListPage';
 import InvoiceFormPage from './pages/financial/InvoiceFormPage';
@@ -33,84 +40,108 @@ import { UserRole } from './config/roles';
 
 import UserListPage from './pages/users/UserListPage';
 import SettingsPage from './pages/SettingsPage';
+import GatePassListPage from './pages/security/GatePassListPage';
+import GatePassFormPage from './pages/security/GatePassFormPage';
+import AuditLogPage from './pages/admin/AuditLogPage';
+import AdvancedFleetDashboard from './pages/fleet/AdvancedFleetDashboard';
+import FinancialDashboard from './pages/financial/FinancialDashboard';
 
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/pending" element={<PendingApprovalPage />} />
-            
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AppShell />}>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
+        <NotificationProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/pending" element={<PendingApprovalPage />} />
               
-              {/* Module 2: Customers */}
-              <Route path="/customers" element={<CustomerListPage />} />
-              <Route path="/customers/new" element={<CustomerFormPage />} />
-              <Route path="/customers/:id" element={<CustomerDetailPage />} />
-              <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
-              
-              {/* Module 3: Suppliers */}
-              <Route path="/suppliers" element={<SupplierListPage />} />
-              <Route path="/suppliers/new" element={<SupplierFormPage />} />
-              <Route path="/suppliers/:id/edit" element={<SupplierFormPage />} />
-              
-              {/* Module 5: Fleet */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppShell />}>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                
+                {/* Module 2: Customers */}
+                <Route path="/customers" element={<CustomerListPage />} />
+                <Route path="/customers/new" element={<CustomerFormPage />} />
+                <Route path="/customers/:id" element={<CustomerDetailPage />} />
+                <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
+                
+                {/* Module: Procurement & Supply Chain */}
+                <Route path="/suppliers" element={<SupplierListPage />} />
+                <Route path="/suppliers/new" element={<SupplierFormPage />} />
+                <Route path="/suppliers/:id/edit" element={<SupplierFormPage />} />
+                <Route path="/purchase-orders" element={<PurchaseOrderListPage />} />
+                <Route path="/purchase-orders/new" element={<PurchaseOrderFormPage />} />
+                <Route path="/grn" element={<GRNListPage />} />
+                <Route path="/grn/new" element={<GRNFormPage />} />
+                
+                {/* Module 4: Staff */}
+                <Route path="/staff" element={<StaffListPage />} />
+                <Route path="/staff/new" element={<StaffFormPage />} />
+                <Route path="/staff/:id" element={<StaffDetailPage />} />
+                <Route path="/staff/:id/edit" element={<StaffFormPage />} />
+
+                {/* Module: Assets & Logistics */}
               <Route path="/fleet" element={<FleetListPage />} />
               <Route path="/fleet/new" element={<VehicleFormPage />} />
               <Route path="/fleet/:id" element={<VehicleDetailPage />} />
               <Route path="/fleet/:id/edit" element={<VehicleFormPage />} />
-              
-              {/* Module 6: Log Sheets */}
-              <Route path="/logs" element={<LogListPage />} />
-              <Route path="/logs/new" element={<LogFormPage />} />
-              <Route path="/logs/:id" element={<LogDetailPage />} />
-              <Route path="/logs/:id/edit" element={<LogFormPage />} />
-              
-              {/* Module 7: Garage */}
-              <Route path="/garage" element={<GaragePage />} />
-              <Route path="/garage/new" element={<MaintenanceFormPage />} />
-              <Route path="/garage/:id" element={<MaintenanceDetailPage />} />
-              <Route path="/garage/:id/edit" element={<MaintenanceFormPage />} />
+              <Route path="/fleet/analytics" element={<AdvancedFleetDashboard />} />
+                
+                {/* Module: Operations Management */}
+                <Route path="/daily-updates" element={<DailyVehicleUpdatePage />} />
+                <Route path="/daily-updates/new" element={<DailyUpdateFormPage />} />
+                <Route path="/logs" element={<LogListPage />} />
+                <Route path="/logs/new" element={<LogFormPage />} />
+                <Route path="/logs/:id" element={<LogDetailPage />} />
+                <Route path="/logs/:id/edit" element={<LogFormPage />} />
 
-              {/* Module 8: Invoices */}
+                {/* Module: Security (Gate Pass) */}
+                <Route path="/security" element={<GatePassListPage />} />
+                <Route path="/security/new" element={<GatePassFormPage />} />
+                <Route path="/security/:id" element={<GatePassFormPage />} />
+                <Route path="/security/:id/edit" element={<GatePassFormPage />} />
+                
+                {/* Module 7: Garage */}
+                <Route path="/garage" element={<GaragePage />} />
+                <Route path="/garage/new" element={<MaintenanceFormPage />} />
+                <Route path="/garage/:id" element={<MaintenanceDetailPage />} />
+                <Route path="/garage/:id/edit" element={<MaintenanceFormPage />} />
+
+                {/* Module 8: Invoices */}
               <Route path="/invoices" element={<InvoiceListPage />} />
               <Route path="/invoices/new" element={<InvoiceFormPage />} />
-              
-              {/* Module 4: Staff */}
-              <Route path="/staff" element={<StaffListPage />} />
-              <Route path="/staff/new" element={<StaffFormPage />} />
-              <Route path="/staff/:id" element={<StaffDetailPage />} />
-              <Route path="/staff/:id/edit" element={<StaffFormPage />} />
-              
-              {/* Placeholders for other modules */}
-              <Route path="/reports" element={<ReportsPage />} />
-              
-              <Route element={<RoleRoute minRole={UserRole.SUPER_ADMIN} />}>
-                <Route path="/users" element={<UserListPage />} />
+              <Route path="/invoices/:id" element={<InvoiceFormPage />} />
+              <Route path="/invoices/:id/edit" element={<InvoiceFormPage />} />
+              <Route path="/financial-dashboard" element={<FinancialDashboard />} />
+                
+                {/* Placeholders for other modules */}
+                <Route path="/reports" element={<ReportsPage />} />
+                
+                <Route element={<RoleRoute minRole={UserRole.SUPER_ADMIN} />}>
+                  <Route path="/users" element={<UserListPage />} />
+                  <Route path="/audit" element={<AuditLogPage />} />
+                </Route>
               </Route>
             </Route>
-          </Route>
 
-          <Route path="/unauthorized" element={
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h1>
-                <p className="text-gray-500 mb-6">You don't have permission to view this section.</p>
-                <button onClick={() => window.history.back()} className="text-indigo-600 font-bold hover:underline">Go Back</button>
+            <Route path="/unauthorized" element={
+              <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h1>
+                  <p className="text-gray-500 mb-6">You don't have permission to view this section.</p>
+                  <button onClick={() => window.history.back()} className="text-indigo-600 font-bold hover:underline">Go Back</button>
+                </div>
               </div>
-            </div>
-          } />
-          
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  </ThemeProvider>
+            } />
+            
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          </BrowserRouter>
+        </NotificationProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

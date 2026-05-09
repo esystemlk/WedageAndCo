@@ -16,24 +16,23 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const saved = localStorage.getItem('fleet-theme');
-    return (saved as Theme) || 'dark';
+    return 'light';
   });
 
   const [primaryColor, setPrimaryColorState] = useState(() => {
-    return localStorage.getItem('fleet-primary-color') || (theme === 'dark' ? '#6366f1' : '#4f46e5');
+    return localStorage.getItem('fleet-primary-color') || '#4f46e5';
   });
 
   const [accentColor, setAccentColorState] = useState(() => {
-    return localStorage.getItem('fleet-accent-color') || (theme === 'dark' ? '#6366f1' : '#4f46e5');
+    return localStorage.getItem('fleet-accent-color') || '#4f46e5';
   });
 
   useEffect(() => {
     const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
-    localStorage.setItem('fleet-theme', theme);
-  }, [theme]);
+    root.classList.remove('dark');
+    root.classList.add('light');
+    localStorage.setItem('fleet-theme', 'light');
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;

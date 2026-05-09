@@ -24,43 +24,43 @@ const ROLE_DETAILS: Record<UserRole, { label: string; description: string; color
   [UserRole.DEVELOPER]: { 
     label: 'System Architect', 
     description: 'Full infrastructure access and security bypass capability.', 
-    color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    color: 'text-rose-600 bg-rose-50 border-rose-100',
     icon: ShieldAlert
   },
   [UserRole.SUPER_ADMIN]: { 
     label: 'Owner / Director', 
     description: 'Complete organizational control and member management.', 
-    color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
+    color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
     icon: ShieldCheck
   },
   [UserRole.ADMIN]: { 
     label: 'Fleet Manager', 
     description: 'Operational & Financial oversight without user management.', 
-    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
     icon: UserSquare2
   },
   [UserRole.OPERATIONS]: { 
     label: 'Operations Coordinator', 
     description: 'Manages fleet assets and trip logs.', 
-    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    color: 'text-amber-600 bg-amber-50 border-amber-100',
     icon: Key
   },
   [UserRole.ACCOUNTS]: { 
     label: 'Finance / Accounts', 
     description: 'Billing, invoicing, and financial reporting access.', 
-    color: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+    color: 'text-purple-600 bg-purple-50 border-purple-100',
     icon: Users
   },
   [UserRole.DRIVER]: { 
     label: 'Field Staff', 
     description: 'Basic log access for trip reporting.', 
-    color: 'text-gray-400 bg-white/5 border-white/10',
+    color: 'text-gray-500 bg-gray-50 border-gray-200',
     icon: Users
   },
   [UserRole.PENDING]: {
     label: 'Access Requested',
     description: 'Awaiting administrator verification and role assignment.',
-    color: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+    color: 'text-amber-600 bg-amber-50 border-amber-100',
     icon: Clock
   }
 };
@@ -150,7 +150,7 @@ const UserListPage: React.FC = () => {
              <div className="bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/5 flex-grow">
                 <div className="overflow-x-auto relative z-10">
                   <table className="w-full text-left border-collapse">
-                    <thead className="bg-black/5 dark:bg-white/[0.01] text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)] border-b border-[var(--border-main)]">
+                    <thead className="bg-gray-50 text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)] border-b border-[var(--border-main)]">
                       <tr>
                         <th className="px-10 py-6 font-black text-[10px]">Member</th>
                         <th className="px-10 py-6 font-black text-[10px]">Role</th>
@@ -172,15 +172,15 @@ const UserListPage: React.FC = () => {
                             transition={{ delay: i * 0.05 }}
                             className={cn(
                               "group transition-all",
-                              isSelf ? "bg-indigo-500/[0.05]" : "hover:bg-black/5 dark:hover:bg-white/[0.01]",
-                              u.role === UserRole.PENDING && "bg-amber-500/[0.03]"
+                              isSelf ? "bg-indigo-50" : "hover:bg-gray-50/50",
+                              u.role === UserRole.PENDING && "bg-amber-50/30"
                             )}
                           >
                             <td className="px-10 py-6">
                               <div className="flex items-center gap-5">
                                 <div className={cn(
                                   "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl group-hover:scale-105 transition-transform shadow-sm",
-                                  u.role === UserRole.PENDING ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-[var(--bg-main)] border border-[var(--border-main)] text-indigo-500"
+                                  u.role === UserRole.PENDING ? "bg-amber-50 text-amber-600 border border-amber-100" : "bg-gray-50 border border-gray-100 text-indigo-600"
                                 )}>
                                   {u.role === UserRole.PENDING ? <Clock className="w-6 h-6" /> : (u.displayName?.charAt(0) || u.email?.charAt(0).toUpperCase())}
                                 </div>
@@ -300,7 +300,7 @@ const UserListPage: React.FC = () => {
        <div className="bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/5 p-10">
           <div className="overflow-x-auto scrollbar-hide">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-black/5 dark:bg-white/[0.01] text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)] border-b border-[var(--border-main)]">
+               <thead className="bg-gray-50 text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)] border-b border-[var(--border-main)]">
                 <tr>
                   <th className="px-6 py-6 font-black">Role Name</th>
                   {Object.values(UserRole).map(r => (
@@ -317,7 +317,7 @@ const UserListPage: React.FC = () => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.02 }}
-                    className="hover:bg-black/5 dark:hover:bg-white/[0.01] transition-colors"
+                    className="hover:bg-gray-50 transition-colors"
                   >
                     <td className="px-6 py-5">
                       <p className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-widest">{perm.replace(/_/g, ' ')}</p>

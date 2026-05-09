@@ -1,6 +1,7 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
+import { recordChange } from './auditService';
 
 const COLLECTION = 'customers';
 
@@ -50,6 +51,7 @@ export const createCustomer = async (data: Omit<Customer, 'id'>) => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
+    await recordChange(OperationType.CREATE, COLLECTION, docRef.id, `Created customer: ${data.name}`);
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, COLLECTION);
@@ -63,6 +65,7 @@ export const updateCustomer = async (id: string, data: Partial<Customer>) => {
       ...data,
       updatedAt: Timestamp.now()
     });
+    await recordChange(OperationType.UPDATE, COLLECTION, id, `Updated customer: ${id}`);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION}/${id}`);
   }
@@ -71,6 +74,7 @@ export const updateCustomer = async (id: string, data: Partial<Customer>) => {
 export const deleteCustomer = async (id: string) => {
   try {
     await deleteDoc(doc(db, COLLECTION, id));
+    await recordChange(OperationType.DELETE, COLLECTION, id, `Deleted customer`);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `${COLLECTION}/${id}`);
   }

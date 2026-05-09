@@ -48,13 +48,13 @@ const SupplierListPage: React.FC = () => {
         actions={
           <div className="flex gap-4">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input 
                 type="text"
                 placeholder="Search vendors..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-full pl-11 pr-5 py-2.5 text-sm w-64 focus:outline-none focus:border-indigo-500/50 transition-all font-medium text-white"
+                className="bg-white border border-gray-200 rounded-full pl-11 pr-5 py-2.5 text-sm w-64 focus:outline-none focus:border-indigo-500/50 transition-all font-medium text-gray-900 placeholder:text-gray-400"
               />
             </div>
             <PermissionGate permission="edit_suppliers">
@@ -70,7 +70,7 @@ const SupplierListPage: React.FC = () => {
         }
       />
 
-      <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-2xl min-h-[60vh]">
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col shadow-sm min-h-[60vh]">
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <LoadingSpinner />
@@ -78,7 +78,7 @@ const SupplierListPage: React.FC = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-white/[0.02] text-[11px] uppercase tracking-widest text-gray-500 border-b border-white/5">
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-widest text-gray-500 border-b border-gray-100">
                 <tr>
                   <th className="px-8 py-5 font-bold">Vendor Name</th>
                   <th className="px-8 py-5 font-bold">Liaison</th>
@@ -87,29 +87,29 @@ const SupplierListPage: React.FC = () => {
                   <th className="px-8 py-5 font-bold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 font-medium">
+              <tbody className="divide-y divide-gray-100 font-medium">
                 {filteredSuppliers.map((supplier, i) => (
                   <motion.tr
                     key={supplier.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.03 }}
-                    className="hover:bg-white/[0.03] transition-colors group cursor-pointer"
+                    className="hover:bg-gray-50 transition-colors group cursor-pointer"
                     onClick={() => navigate(`/suppliers/${supplier.id}/edit`)}
                   >
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-sm border border-indigo-500/20">
+                        <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm border border-indigo-100">
                           <Package className="w-5 h-5" />
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors uppercase tracking-tight">{supplier.name}</p>
-                          <p className="text-[10px] text-gray-500 font-mono italic">{supplier.brNo || 'No BR Verified'}</p>
+                          <p className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{supplier.name}</p>
+                          <p className="text-[10px] text-gray-400 font-mono italic">{supplier.brNo || 'No BR Verified'}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-8 py-5">
-                      <p className="text-sm text-gray-300 font-bold">{supplier.contactName || '---'}</p>
+                      <p className="text-sm text-gray-700 font-bold">{supplier.contactName || '---'}</p>
                     </td>
                     <td className="px-8 py-5">
                       <div className="space-y-1">
@@ -125,24 +125,24 @@ const SupplierListPage: React.FC = () => {
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-black">Active Provider</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                        <span className="text-[10px] text-gray-400 uppercase tracking-widest font-black">Active Provider</span>
                       </div>
                     </td>
                     <td className="px-8 py-5 text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-all">
                         <PermissionGate permission="edit_suppliers">
-                          <Link to={`/suppliers/${supplier.id}/edit`} className="p-2 text-gray-500 hover:text-indigo-400 transition-colors">
+                          <Link to={`/suppliers/${supplier.id}/edit`} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
                             <Edit className="w-4 h-4" />
                           </Link>
                           <button 
                             onClick={() => handleDelete(supplier.id!, supplier.name)}
-                            className="p-2 text-gray-500 hover:text-red-400 transition-colors"
+                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </PermissionGate>
-                        <ChevronRight className="w-4 h-4 text-gray-700 ml-2" />
+                        <ChevronRight className="w-4 h-4 text-gray-200 ml-2" />
                       </div>
                     </td>
                   </motion.tr>
@@ -151,7 +151,7 @@ const SupplierListPage: React.FC = () => {
             </table>
             {filteredSuppliers.length === 0 && (
               <div className="py-24 text-center">
-                <p className="text-gray-500 text-sm font-bold uppercase tracking-widest">No suppliers found in network.</p>
+                <p className="text-gray-400 text-sm font-bold uppercase tracking-widest">No suppliers found in network.</p>
               </div>
             )}
           </div>

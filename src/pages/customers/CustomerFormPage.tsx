@@ -111,31 +111,31 @@ const CustomerFormPage: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#0a0a0a] p-8 lg:p-12 rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden"
+        className="bg-white p-8 lg:p-12 rounded-[2.5rem] border border-gray-200 shadow-xl relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 p-8 opacity-5">
-           <Building2 className="w-32 h-32 text-white" />
+           <Building2 className="w-32 h-32 text-indigo-600" />
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 relative z-10">
           {/* Company Identity */}
           <section className="space-y-8">
             <div className="flex items-center gap-4">
-              <div className="h-px bg-white/10 flex-1"></div>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Corporate Identity</h3>
-              <div className="h-px bg-white/10 flex-1"></div>
+              <div className="h-px bg-gray-100 flex-1"></div>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Corporate Identity</h3>
+              <div className="h-px bg-gray-100 flex-1"></div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Registered Company Name</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Registered Company Name</label>
                 <div className="relative group">
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 w-5 h-5 transition-colors" />
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
                   <input
                     {...register('name')}
                     placeholder="e.g. Acme Logistics PLC"
                     className={cn(
-                      "w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600",
+                      "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
                       errors.name && "border-red-500/50"
                     )}
                   />
@@ -144,26 +144,26 @@ const CustomerFormPage: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Common Alias / Nickname</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Common Alias / Nickname</label>
                 <div className="relative group">
-                  <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 w-5 h-5 transition-colors" />
+                  <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
                   <input
                     {...register('nickname')}
                     placeholder="e.g. Acme"
-                    className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600"
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
                   />
                 </div>
               </div>
 
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Business Registration (BR) No.</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Business Registration (BR) No.</label>
                 <div className="relative group">
-                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 w-5 h-5 transition-colors" />
+                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
                   <input
                     {...register('brNo')}
                     placeholder="PV-123456"
                     className={cn(
-                      "w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600",
+                      "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
                       errors.brNo && "border-red-500/50"
                     )}
                   />
@@ -171,13 +171,13 @@ const CustomerFormPage: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">VAT / SVAT Identification</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">VAT / SVAT Identification</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-black">%</div>
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-black">%</div>
                   <input
                     {...register('vatNo')}
                     placeholder="Optional Identification"
-                    className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600"
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
                   />
                 </div>
               </div>
@@ -187,20 +187,20 @@ const CustomerFormPage: React.FC = () => {
           {/* Contact Details */}
           <section className="space-y-8">
             <div className="flex items-center gap-4">
-              <div className="h-px bg-white/10 flex-1"></div>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Contact Infrastructure</h3>
-              <div className="h-px bg-white/10 flex-1"></div>
+              <div className="h-px bg-gray-100 flex-1"></div>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Contact Infrastructure</h3>
+              <div className="h-px bg-gray-100 flex-1"></div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
                <div className="md:col-span-2 space-y-3">
-                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">HQ Official Address & Contact</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">HQ Official Address & Contact</label>
                 <textarea
                   {...register('officialContact')}
                   rows={2}
                   placeholder="Official Address, Phone, Email..."
                   className={cn(
-                    "w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600 resize-none",
+                    "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400 resize-none",
                     errors.officialContact && "border-red-500/50"
                   )}
                 />
@@ -208,35 +208,35 @@ const CustomerFormPage: React.FC = () => {
 
               <div className="space-y-6">
                 <div className="flex items-center gap-2 mb-2 p-1">
-                  <Briefcase className="w-4 h-4 text-emerald-400" />
-                  <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Operations Liaison</span>
+                  <Briefcase className="w-4 h-4 text-emerald-600" />
+                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Operations Liaison</span>
                 </div>
                 <input
                   {...register('opsContactName')}
                   placeholder="Officer Name"
-                  className="w-full px-4 py-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600 mb-4"
+                  className="w-full px-4 py-4 bg-emerald-50 border border-emerald-100 rounded-2xl focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400 mb-4"
                 />
                 <input
                   {...register('opsContactNumber')}
                   placeholder="Direct Extension / Mobile"
-                  className="w-full px-4 py-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600"
+                  className="w-full px-4 py-4 bg-emerald-50 border border-emerald-100 rounded-2xl focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
                 />
               </div>
 
               <div className="space-y-6">
                 <div className="flex items-center gap-2 mb-2 p-1">
-                  <Wallet className="w-4 h-4 text-amber-400" />
-                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Billing & Finance</span>
+                  <Wallet className="w-4 h-4 text-amber-600" />
+                  <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Billing & Finance</span>
                 </div>
                 <input
                   {...register('billingContactName')}
                   placeholder="Accounts Manager"
-                  className="w-full px-4 py-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl focus:ring-1 focus:ring-amber-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600 mb-4"
+                  className="w-full px-4 py-4 bg-amber-50 border border-amber-100 rounded-2xl focus:ring-1 focus:ring-amber-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400 mb-4"
                 />
                 <input
                   {...register('billingContactNumber')}
                   placeholder="Financial Direct Line"
-                  className="w-full px-4 py-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl focus:ring-1 focus:ring-amber-500/50 outline-none transition-all font-bold text-white placeholder:text-gray-600"
+                  className="w-full px-4 py-4 bg-amber-50 border border-amber-100 rounded-2xl focus:ring-1 focus:ring-amber-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
                 />
               </div>
             </div>
@@ -245,9 +245,9 @@ const CustomerFormPage: React.FC = () => {
           {/* Verification & Agreements */}
           <section className="space-y-8">
             <div className="flex items-center gap-4">
-              <div className="h-px bg-white/10 flex-1"></div>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Legal Assets</h3>
-              <div className="h-px bg-white/10 flex-1"></div>
+              <div className="h-px bg-gray-100 flex-1"></div>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Legal Assets</h3>
+              <div className="h-px bg-gray-100 flex-1"></div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -268,35 +268,35 @@ const CustomerFormPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-4">
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest px-1">Contract Activation Date</label>
+                <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">Contract Activation Date</label>
                 <div className="relative group">
-                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 w-5 h-5 transition-colors" />
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-600 w-5 h-5 transition-colors" />
                   <input
                     {...register('agreementStart')}
                     type="date"
-                    className="w-full pl-12 pr-4 py-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-white"
+                    className="w-full pl-12 pr-4 py-4 bg-indigo-50 border border-indigo-100 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900"
                   />
                 </div>
               </div>
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-rose-400 uppercase tracking-widest px-1">Contract Expiration Date</label>
+                <label className="block text-[10px] font-black text-rose-600 uppercase tracking-widest px-1">Contract Expiration Date</label>
                 <div className="relative group">
-                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-400 w-5 h-5 transition-colors" />
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-600 w-5 h-5 transition-colors" />
                   <input
                     {...register('agreementEnd')}
                     type="date"
-                    className="w-full pl-12 pr-4 py-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl focus:ring-1 focus:ring-rose-500/50 outline-none transition-all font-bold text-white"
+                    className="w-full pl-12 pr-4 py-4 bg-rose-50 border border-rose-100 rounded-2xl focus:ring-1 focus:ring-rose-500/50 outline-none transition-all font-bold text-gray-900"
                   />
                 </div>
               </div>
             </div>
           </section>
 
-          <div className="pt-10 border-t border-white/10 flex items-center justify-end">
+          <div className="pt-10 border-t border-gray-100 flex items-center justify-end">
             <button
               type="submit"
               disabled={loading}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-4 rounded-xl transition-all shadow-xl shadow-indigo-500/10 flex items-center space-x-3 disabled:bg-indigo-900 disabled:text-gray-500 group"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-4 rounded-xl transition-all shadow-xl shadow-indigo-500/10 flex items-center space-x-3 disabled:bg-indigo-200 disabled:text-gray-500 group"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
