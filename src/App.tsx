@@ -45,6 +45,9 @@ import GatePassFormPage from './pages/security/GatePassFormPage';
 import AuditLogPage from './pages/admin/AuditLogPage';
 import AdvancedFleetDashboard from './pages/fleet/AdvancedFleetDashboard';
 import FinancialDashboard from './pages/financial/FinancialDashboard';
+import CalendarPage from './pages/calendar/CalendarPage';
+import DocumentsPage from './pages/documents/DocumentsPage';
+import InventoryPage from './pages/inventory/InventoryPage';
 
 function App() {
   return (
@@ -68,13 +71,14 @@ function App() {
                 <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
                 
                 {/* Module: Procurement & Supply Chain */}
-                <Route path="/suppliers" element={<SupplierListPage />} />
-                <Route path="/suppliers/new" element={<SupplierFormPage />} />
-                <Route path="/suppliers/:id/edit" element={<SupplierFormPage />} />
-                <Route path="/purchase-orders" element={<PurchaseOrderListPage />} />
-                <Route path="/purchase-orders/new" element={<PurchaseOrderFormPage />} />
-                <Route path="/grn" element={<GRNListPage />} />
-                <Route path="/grn/new" element={<GRNFormPage />} />
+              <Route path="/suppliers" element={<SupplierListPage />} />
+              <Route path="/suppliers/new" element={<SupplierFormPage />} />
+              <Route path="/suppliers/:id/edit" element={<SupplierFormPage />} />
+              <Route path="/purchase-orders" element={<PurchaseOrderListPage />} />
+              <Route path="/purchase-orders/new" element={<PurchaseOrderFormPage />} />
+              <Route path="/grn" element={<GRNListPage />} />
+              <Route path="/grn/new" element={<GRNFormPage />} />
+              <Route path="/inventory" element={<InventoryPage />} />
                 
                 {/* Module 4: Staff */}
                 <Route path="/staff" element={<StaffListPage />} />
@@ -90,6 +94,8 @@ function App() {
               <Route path="/fleet/analytics" element={<AdvancedFleetDashboard />} />
                 
                 {/* Module: Operations Management */}
+                <Route path="/calendar" element={<CalendarPage />} />
+                <Route path="/documents" element={<DocumentsPage />} />
                 <Route path="/daily-updates" element={<DailyVehicleUpdatePage />} />
                 <Route path="/daily-updates/new" element={<DailyUpdateFormPage />} />
                 <Route path="/logs" element={<LogListPage />} />

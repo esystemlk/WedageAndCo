@@ -17,7 +17,10 @@ import {
   Wallet,
   Activity,
   Menu,
-  X
+  X,
+  Calendar as CalendarIcon,
+  Folder,
+  ShoppingCart
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -49,11 +52,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     { name: 'Staff / HR', path: '/staff', icon: UserSquare2, permission: 'view_staff' },
     
     { type: 'header', name: 'Procurement' },
+    { name: 'Inventory', path: '/inventory', icon: ShoppingCart, permission: 'view_suppliers' },
     { name: 'Suppliers', path: '/suppliers', icon: Package, permission: 'view_suppliers' },
     { name: 'Purchase Orders', path: '/purchase-orders', icon: ClipboardList, permission: 'view_logs' },
     { name: 'GRN Registry', path: '/grn', icon: Package, permission: 'view_logs' },
 
     { type: 'header', name: 'Operations' },
+    { name: 'Calendar', path: '/calendar', icon: CalendarIcon, permission: 'view_logs' },
+    { name: 'Documents', path: '/documents', icon: Folder, permission: 'view_logs' },
     { name: 'Daily Updates', path: '/daily-updates', icon: LayoutDashboard, permission: 'view_logs' },
     { name: 'Fleet', path: '/fleet', icon: Truck, permission: 'view_fleet' },
     { name: 'Log Sheets', path: '/logs', icon: ClipboardList, permission: 'view_logs' },
