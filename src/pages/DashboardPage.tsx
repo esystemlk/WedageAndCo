@@ -19,42 +19,6 @@ const DashboardPage: React.FC = () => {
   const { customers } = useCustomers();
   const { addNotification } = useNotifications();
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      addNotification({
-        type: 'success',
-        title: 'Welcome back!',
-        message: 'Your dashboard has been updated with the latest data.',
-      });
-    }, 1000);
-
-    const timer2 = setTimeout(() => {
-      addNotification({
-        type: 'info',
-        title: 'New trip logged',
-        message: 'A new delivery trip has been recorded by driver John Doe.',
-        actionUrl: '/logs',
-        actionLabel: 'View',
-      });
-    }, 3000);
-
-    const timer3 = setTimeout(() => {
-      addNotification({
-        type: 'warning',
-        title: 'Vehicle maintenance due',
-        message: 'Vehicle WL-001 is due for scheduled maintenance in 3 days.',
-        actionUrl: '/garage',
-        actionLabel: 'Schedule',
-      });
-    }, 5000);
-
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-    };
-  }, [addNotification]);
-
   const activeTrips = logs.filter(l => l.status === 'on-trip').length;
   const operationalVehicles = vehicles.filter(v => v.status === 'active').length;
   const driversCount = staff.filter(s => s.type === 'driver').length;
