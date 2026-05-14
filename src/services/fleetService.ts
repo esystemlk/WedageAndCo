@@ -5,10 +5,24 @@ import { recordChange } from './auditService';
 
 const COLLECTION = 'fleet';
 
+export interface VehicleOwnerDetails {
+  ownerName: string;
+  ownerAddress: string;
+  ownerNicBr: string;
+  ownershipType: string;
+  paymentModel: string;
+  agreementStart: string;
+  agreementEnd: string;
+  paymentRate: number;
+  bankDetails: string;
+  contractPdfUrl?: string;
+  handoverConditionReport?: string;
+}
+
 export interface Vehicle {
   id?: string;
   plateNo: string;
-  type: 'prime-mover' | 'lorry' | 'container' | 'other';
+  type: 'freezer-truck' | 'dry-truck' | 'lorry' | 'other';
   make?: string;
   model?: string;
   chassisNo?: string;
@@ -16,10 +30,23 @@ export interface Vehicle {
   fuelType: 'diesel' | 'petrol';
   status: 'active' | 'maintenance' | 'unavailable';
   ownership: 'owned' | 'rented';
+
+  // New fields
+  dateOfManufacture?: string;
+  dateOfRegistration?: string;
+  countryOfOrigin?: string;
+
+  // Vehicle images
+  vehicleImages?: string[];
+
+  // Dimensions
   length?: number;
   width?: number;
   height?: number;
   weightCapacity?: number;
+
+  // Owner details (when rented)
+  ownerDetails?: VehicleOwnerDetails;
 }
 
 export const getVehicles = async () => {

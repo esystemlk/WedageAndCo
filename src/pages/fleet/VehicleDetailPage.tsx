@@ -1,44 +1,45 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Truck, 
   Settings, 
   Fuel, 
   ShieldCheck, 
-  Edit, 
-  Trash2, 
-  ArrowLeft,
-  ChevronRight,
-  Info,
-  Calendar,
-  Activity,
+  History, 
   Wrench,
-  DollarSign,
+  ChevronRight,
+  ArrowLeft,
+  Calendar,
+  Weight,
   Maximize,
-  Weight
+  AlertTriangle,
+  Globe,
+  User,
+  MapPin,
+  CreditCard,
+  Building,
+  FileText,
+  ExternalLink,
+  Download
 } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { getVehicle, deleteVehicle, Vehicle } from '../../services/fleetService';
-import { useMaintenance } from '../../hooks/useMaintenance';
+import { getVehicle, Vehicle } from '../../services/fleetService';
+import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { cn } from '../../lib/utils';
-import { PermissionGate } from '../../components/auth/RouteGuards';
 
 const VehicleDetailPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
-  const { records: maintenance, loading: maintLoading } = useMaintenance(id);
-
-  const totalMaintCost = maintenance.reduce((sum, rec) => sum + rec.cost, 0);
 
   useEffect(() => {
     if (id) {
       const fetchVehicle = async () => {
         try {
           const data = await getVehicle(id);
-          setVehicle(data || null);
+          setVehicle(data);
         } catch (err) {
           console.error(err);
         } finally {
@@ -49,280 +50,252 @@ const VehicleDetailPage: React.FC = () => {
     }
   }, [id]);
 
-  const handleDelete = async () => {
-    if (id && vehicle && window.confirm(`Permanently decommission vehicle "${vehicle.plateNo}"?`)) {
-      try {
-        await deleteVehicle(id);
-        navigate('/fleet');
-      } catch (err) {
-        console.error(err);
-      }
-    }
+  if (loading) return <LoadingSpinner />;
+  if (!vehicle) return <div className="text-center py-20 font-black text-gray-400 uppercase tracking-widest">Asset Not Found</div>;
+
+  const statusColors = {
+    active: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    maintenance: 'bg-amber-50 text-amber-600 border-amber-100',
+    unavailable: 'bg-rose-50 text-rose-600 border-rose-100',
   };
 
-  if (loading || maintLoading) return <LoadingSpinner />;
-  if (!vehicle) return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Asset not found in current fleet registry.</h2>
-      <Link to="/fleet" className="text-indigo-600 font-bold hover:underline">Return to Fleet</Link>
-    </div>
-  );
+  const typeIcons = {
+    'freezer-truck': <Truck className="w-5 h-5" />,
+    'dry-truck': <Truck className="w-5 h-5" />,
+    'lorry': <Truck className="w-5 h-5" />,
+    'other': <Settings className="w-5 h-5" />,
+  };
 
   return (
     <div className="space-y-8 pb-20">
-      {/* Header Navigation */}
-      <div className="flex items-center justify-between px-1">
-        <button onClick={() => navigate('/fleet')} className="flex items-center space-x-2 text-gray-500 hover:text-gray-900 transition-colors group">
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-xs font-black uppercase tracking-widest">Back to Fleet</span>
-        </button>
-        
-        <div className="flex items-center space-x-4">
-          <PermissionGate permission="edit_fleet">
-            <Link 
-              to={`/fleet/${id}/edit`} 
-              className="p-3 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-gray-900 hover:border-indigo-500/50 transition-all font-bold flex items-center gap-2 shadow-sm"
-            >
-              <Edit className="w-4 h-4" />
-              <span className="text-[10px] uppercase tracking-widest hidden md:inline">Edit Specs</span>
-            </Link>
-            <button 
-              onClick={handleDelete}
-              className="p-3 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-red-600 hover:border-red-500/50 transition-all font-bold flex items-center gap-2 shadow-sm"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span className="text-[10px] uppercase tracking-widest hidden md:inline">Decommission</span>
-            </button>
-          </PermissionGate>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Main Status Display */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="lg:col-span-3 bg-white border border-gray-200 rounded-[2.5rem] p-10 relative overflow-hidden shadow-sm"
+      <div className="flex items-center gap-4">
+        <button 
+          onClick={() => navigate('/fleet')}
+          className="p-3 bg-white border border-gray-100 rounded-2xl text-gray-400 hover:text-gray-900 transition-all active:scale-95 shadow-sm"
         >
-           <div className="absolute top-0 right-0 p-12 opacity-5">
-              <Truck className="w-48 h-48 text-indigo-600" />
-           </div>
-
-           <div className="relative z-10">
-              <div className="flex items-start justify-between mb-12">
-                 <div>
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-4 inline-block border",
-                      vehicle.status === 'active' ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-amber-50 text-amber-600 border-amber-200"
-                    )}>
-                      Operational: {vehicle.status}
-                    </span>
-                    <h1 className="text-5xl font-black text-gray-900 mt-4 uppercase tracking-tighter">{vehicle.plateNo}</h1>
-                    <p className="text-sm font-bold text-gray-400 mt-2 uppercase tracking-widest">{vehicle.make} {vehicle.model} • {vehicle.type}</p>
-                 </div>
-                 <div className="text-right">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ownership Type</p>
-                    <p className="text-xl font-bold text-gray-900 uppercase">{vehicle.ownership}</p>
-                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pt-8 border-t border-gray-100">
-                 <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Fuel Core</p>
-                    <div className="flex items-center gap-2 text-gray-900">
-                       <Fuel className="w-4 h-4 text-amber-600" />
-                       <span className="font-bold uppercase">{vehicle.fuelType}</span>
-                    </div>
-                 </div>
-                 <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Efficiency Status</p>
-                    <div className="flex items-center gap-2 text-gray-900">
-                       <Activity className="w-4 h-4 text-emerald-600" />
-                       <span className="font-bold">N/A</span>
-                    </div>
-                 </div>
-                 <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Inspected</p>
-                    <div className="flex items-center gap-2 text-gray-900">
-                       <Calendar className="w-4 h-4 text-indigo-600" />
-                       <span className="font-bold">Not Tracked</span>
-                    </div>
-                 </div>
-                 <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mileage Index</p>
-                    <div className="flex items-center gap-2 text-gray-900">
-                       <Settings className="w-4 h-4 text-gray-400" />
-                       <span className="font-bold font-mono text-xs">000,000 KM</span>
-                    </div>
-                 </div>
-              </div>
-           </div>
-        </motion.div>
-
-        <div className="lg:col-span-1 space-y-6">
-           <motion.div 
-             initial={{ opacity: 0, x: 20 }}
-             animate={{ opacity: 1, x: 0 }}
-             className="bg-white border border-gray-200 rounded-3xl p-8 shadow-sm"
-           >
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6 flex items-center gap-2">
-                 <DollarSign className="w-3 h-3" />
-                 Financial Footprint
-              </h3>
-              <div className="space-y-2">
-                 <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Total Maintenance Cost</p>
-                 <p className="text-2xl font-black text-gray-900 font-mono">
-                    <span className="text-xs text-indigo-600 mr-2">LKR</span>
-                    {totalMaintCost.toLocaleString()}
-                 </p>
-              </div>
-           </motion.div>
-
-           <motion.div 
-             initial={{ opacity: 0, x: 20 }}
-             animate={{ opacity: 1, x: 0 }}
-             className="bg-white border border-gray-200 rounded-3xl p-8 shadow-sm"
-           >
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6 flex items-center gap-2">
-                 <Info className="w-3 h-3" />
-                 Structural Identity
-              </h3>
-              <div className="space-y-6">
-                 <div>
-                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Chassis Identifier</p>
-                    <p className="text-sm font-mono text-gray-900 break-all">{vehicle.chassisNo || 'Not Provided'}</p>
-                 </div>
-                 <div>
-                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Engine Blueprint</p>
-                    <p className="text-sm font-mono text-gray-900 break-all">{vehicle.engineNo || 'Not Provided'}</p>
-                 </div>
-              </div>
-           </motion.div>
-
-           <motion.div 
-             initial={{ opacity: 0, x: 20 }}
-             animate={{ opacity: 1, x: 0 }}
-             className="bg-white border border-gray-200 rounded-3xl p-8 shadow-sm"
-           >
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6 flex items-center gap-2">
-                 <Maximize className="w-3 h-3" />
-                 Logistics Dimensionality
-              </h3>
-              <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                 <div className="space-y-1">
-                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Dimensions (L×W×H)</p>
-                    <div className="flex items-baseline gap-1 text-gray-900 font-mono text-xs font-bold">
-                       <span>{vehicle.length || '-'}</span>
-                       <span className="text-[8px] text-gray-400">×</span>
-                       <span>{vehicle.width || '-'}</span>
-                       <span className="text-[8px] text-gray-400">×</span>
-                       <span>{vehicle.height || '-'}</span>
-                       <span className="text-[8px] text-indigo-600 font-black ml-1">FT</span>
-                    </div>
-                 </div>
-                 <div className="space-y-1">
-                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Max Load</p>
-                    <div className="flex items-baseline gap-1 text-gray-900 font-mono text-xs font-bold">
-                       <Weight className="w-3 h-3 text-emerald-600 mr-1" />
-                       <span>{vehicle.weightCapacity || '0.0'}</span>
-                       <span className="text-[8px] text-emerald-600 font-black ml-1">TONS</span>
-                    </div>
-                 </div>
-              </div>
-           </motion.div>
-
-           <motion.div 
-             initial={{ opacity: 0, x: 20 }}
-             animate={{ opacity: 1, x: 0 }}
-             transition={{ delay: 0.1 }}
-             className="bg-indigo-600 rounded-3xl p-8 relative overflow-hidden group cursor-pointer shadow-lg shadow-indigo-200"
-             onClick={() => navigate('/logs')}
-           >
-              <div className="absolute -bottom-4 -right-4 opacity-10 group-hover:scale-110 transition-transform">
-                 <Truck className="w-32 h-32 text-white" />
-              </div>
-              <p className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.2em] mb-4">Real-time Deployment</p>
-              <h3 className="text-xl font-bold text-white mb-6">Current Location & Assignment</h3>
-              <div className="flex items-center justify-between text-indigo-100 text-sm font-bold">
-                 <span>View Log Sheets</span>
-                 <ChevronRight className="w-4 h-4" />
-              </div>
-           </motion.div>
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <PageHeader 
+          title={vehicle.plateNo} 
+          subtitle={`${vehicle.make || ''} ${vehicle.model || ''}`}
+        />
+        <div className="ml-auto">
+          <span className={cn(
+            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border",
+            statusColors[vehicle.status as keyof typeof statusColors]
+          )}>
+            {vehicle.status}
+          </span>
         </div>
       </div>
 
-      {/* Maintenance History Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white border border-gray-200 rounded-[2.5rem] overflow-hidden shadow-sm"
-      >
-        <div className="p-8 border-b border-gray-100 flex items-center justify-between">
-           <div>
-              <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Maintenance History</h3>
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Lifecycle Mechanical Logs</p>
-           </div>
-           <Link 
-             to="/garage/new" 
-             className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-full transition-all shadow-sm"
-           >
-             Log New Intervention
-           </Link>
+      {/* Hero Section with Images */}
+      {vehicle.vehicleImages && vehicle.vehicleImages.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {vehicle.vehicleImages.map((img, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.1 }}
+              className="aspect-video rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-xl"
+            >
+              <img src={img} alt="Vehicle" className="w-full h-full object-cover" />
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-gray-50 h-48 rounded-[2.5rem] border border-dashed border-gray-200 flex items-center justify-center text-gray-300">
+           <Truck className="w-16 h-16 opacity-20" />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Technical Specification Dossier */}
+        <div className="lg:col-span-2 space-y-8">
+           <section className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-5">
+                 <Settings className="w-32 h-32 text-indigo-600" />
+              </div>
+
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-[0.2em] mb-8 flex items-center gap-3">
+                 <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
+                 Technical Specifications
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                 <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-gray-50 rounded-xl">
+                          <Settings className="w-5 h-5 text-gray-400" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Asset Category</p>
+                          <p className="text-sm font-bold text-gray-900 uppercase">{vehicle.type.replace('-', ' ')}</p>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-gray-50 rounded-xl">
+                          <Fuel className="w-5 h-5 text-amber-600" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Fuel Infrastructure</p>
+                          <p className="text-sm font-bold text-gray-900 uppercase">{vehicle.fuelType}</p>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-gray-50 rounded-xl">
+                          <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Chassis Number</p>
+                          <p className="text-sm font-bold text-gray-900 font-mono">{vehicle.chassisNo || 'NOT RECORDED'}</p>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-gray-50 rounded-xl">
+                          <Calendar className="w-5 h-5 text-emerald-600" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Manuf. / Reg. Date</p>
+                          <p className="text-sm font-bold text-gray-900">
+                            {vehicle.dateOfManufacture || '---'} / {vehicle.dateOfRegistration || '---'}
+                          </p>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-gray-50 rounded-xl">
+                          <Globe className="w-5 h-5 text-indigo-600" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Country of Origin</p>
+                          <p className="text-sm font-bold text-gray-900">{vehicle.countryOfOrigin || 'NOT RECORDED'}</p>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-gray-50 rounded-xl">
+                          <Truck className="w-5 h-5 text-gray-400" />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Engine Serial</p>
+                          <p className="text-sm font-bold text-gray-900 font-mono">{vehicle.engineNo || 'NOT RECORDED'}</p>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+           </section>
+
+           <section className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl">
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-[0.2em] mb-8">Capacity & Dimensions</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                 <div className="p-6 bg-gray-50 rounded-3xl text-center">
+                    <Maximize className="w-5 h-5 text-indigo-600 mx-auto mb-2" />
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Length</p>
+                    <p className="text-xl font-black text-gray-900">{vehicle.length || 0} <span className="text-[10px] text-gray-400">FT</span></p>
+                 </div>
+                 <div className="p-6 bg-gray-50 rounded-3xl text-center">
+                    <Maximize className="w-5 h-5 text-indigo-600 mx-auto mb-2 rotate-90" />
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Width</p>
+                    <p className="text-xl font-black text-gray-900">{vehicle.width || 0} <span className="text-[10px] text-gray-400">FT</span></p>
+                 </div>
+                 <div className="p-6 bg-gray-50 rounded-3xl text-center">
+                    <Maximize className="w-5 h-5 text-indigo-600 mx-auto mb-2" />
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Height</p>
+                    <p className="text-xl font-black text-gray-900">{vehicle.height || 0} <span className="text-[10px] text-gray-400">FT</span></p>
+                 </div>
+                 <div className="p-6 bg-indigo-600 rounded-3xl text-center text-white shadow-lg shadow-indigo-100">
+                    <Weight className="w-5 h-5 text-indigo-200 mx-auto mb-2" />
+                    <p className="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Capacity</p>
+                    <p className="text-xl font-black">{vehicle.weightCapacity || 0} <span className="text-[10px] text-indigo-200">TONS</span></p>
+                 </div>
+              </div>
+           </section>
         </div>
 
-        <div className="overflow-x-auto">
-           <table className="w-full text-left">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-widest text-gray-500 border-b border-gray-100">
-                 <tr>
-                    <th className="px-8 py-5 font-bold">Service Sequence</th>
-                    <th className="px-8 py-5 font-bold">Intervention Narration</th>
-                    <th className="px-8 py-5 font-bold text-right">Fiscal Impact</th>
-                    <th className="px-8 py-5 font-bold text-right">Actions</th>
-                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 font-medium">
-                 {maintenance.map((record, i) => (
-                    <tr 
-                      key={record.id} 
-                      className="hover:bg-gray-50 transition-colors group cursor-pointer"
-                      onClick={() => navigate(`/garage/${record.id}`)}
-                    >
-                       <td className="px-8 py-5">
-                          <div className="flex items-center gap-4">
-                             <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-sm border border-amber-100 shadow-sm">
-                                <Wrench className="w-5 h-5" />
-                             </div>
-                             <div>
-                                <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">
-                                   {new Date(record.date).toLocaleDateString()}
-                                </p>
-                                <p className="text-[10px] text-gray-400 font-mono italic">Ref: {record.id?.slice(-6).toUpperCase()}</p>
-                             </div>
+        {/* Ownership & Compliance Sidecard */}
+        <div className="space-y-8">
+           <section className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden relative">
+              <div className={cn(
+                "absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[9px] font-black uppercase tracking-[0.2em]",
+                vehicle.ownership === 'owned' ? "bg-emerald-600 text-white" : "bg-amber-500 text-white"
+              )}>
+                 {vehicle.ownership} asset
+              </div>
+
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-6">Ownership Records</h3>
+              
+              {vehicle.ownership === 'owned' ? (
+                 <div className="space-y-4">
+                    <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">
+                       <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                       <p className="text-xs font-bold text-emerald-700">Internal Asset - Fully Managed</p>
+                    </div>
+                 </div>
+              ) : (
+                 <div className="space-y-6">
+                    <div className="space-y-4">
+                       <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Contract Owner</p>
+                          <p className="text-sm font-bold text-gray-900">{vehicle.ownerDetails?.ownerName || 'Unknown'}</p>
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NIC / BR</p>
+                          <p className="text-sm font-bold text-gray-900">{vehicle.ownerDetails?.ownerNicBr || '---'}</p>
+                       </div>
+                       <div className="pt-4 border-t border-gray-50">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Legal Documents</p>
+                          <div className="grid grid-cols-1 gap-2">
+                             {vehicle.ownerDetails?.contractPdfUrl && (
+                                <a href={vehicle.ownerDetails.contractPdfUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-gray-50 hover:bg-indigo-50 rounded-xl transition-all group">
+                                   <div className="flex items-center gap-2">
+                                      <FileText className="w-4 h-4 text-indigo-600" />
+                                      <span className="text-[10px] font-black uppercase text-gray-600 group-hover:text-indigo-600">Lease Agreement</span>
+                                   </div>
+                                   <Download className="w-3 h-3 text-gray-300 group-hover:text-indigo-400" />
+                                </a>
+                             )}
+                             {vehicle.ownerDetails?.handoverConditionReport && (
+                                <a href={vehicle.ownerDetails.handoverConditionReport} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-gray-50 hover:bg-emerald-50 rounded-xl transition-all group">
+                                   <div className="flex items-center gap-2">
+                                      <FileText className="w-4 h-4 text-emerald-600" />
+                                      <span className="text-[10px] font-black uppercase text-gray-600 group-hover:text-emerald-600">Handover Report</span>
+                                   </div>
+                                   <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-emerald-400" />
+                                </a>
+                             )}
                           </div>
-                       </td>
-                       <td className="px-8 py-5">
-                          <p className="text-sm text-gray-600 font-medium truncate max-w-[300px]">{record.description}</p>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase truncate max-w-[200px]">{record.partsReplaced || 'General Service'}</p>
-                       </td>
-                       <td className="px-8 py-5 text-right font-mono text-sm font-black text-amber-600">
-                          {record.cost.toLocaleString()}
-                       </td>
-                       <td className="px-8 py-5 text-right">
-                          <ChevronRight className="w-4 h-4 text-gray-300 ml-auto" />
-                       </td>
-                    </tr>
-                 ))}
-                 {maintenance.length === 0 && (
-                   <tr>
-                     <td colSpan={4} className="py-20 text-center text-gray-400 text-xs font-black uppercase tracking-widest">
-                        No mechanical interventions recorded for this asset.
-                     </td>
-                   </tr>
-                 )}
-              </tbody>
-           </table>
+                       </div>
+                    </div>
+                 </div>
+              )}
+           </section>
+
+           {vehicle.ownership === 'rented' && vehicle.ownerDetails && (
+             <section className="bg-emerald-50 p-8 rounded-[2.5rem] border border-emerald-100 shadow-xl">
+               <h3 className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-4">Financial Protocol</h3>
+               <div className="space-y-4">
+                 <div>
+                    <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest">Payment Model</p>
+                    <p className="text-sm font-bold text-gray-900">{vehicle.ownerDetails.paymentModel}</p>
+                 </div>
+                 <div>
+                    <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest">Rate (LKR)</p>
+                    <p className="text-xl font-black text-emerald-700">{vehicle.ownerDetails.paymentRate.toLocaleString()}</p>
+                 </div>
+                 <div className="pt-4 border-t border-emerald-100">
+                    <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest mb-1">Agreement Cycle</p>
+                    <p className="text-xs font-bold text-gray-600">
+                       {vehicle.ownerDetails.agreementStart} TO {vehicle.ownerDetails.agreementEnd}
+                    </p>
+                 </div>
+               </div>
+             </section>
+           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

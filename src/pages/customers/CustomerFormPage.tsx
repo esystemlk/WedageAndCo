@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { 
@@ -10,7 +10,10 @@ import {
   Save, 
   Globe,
   Briefcase,
-  Wallet
+  Wallet,
+  Plus,
+  Trash2,
+  CheckCircle2
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -27,10 +30,25 @@ const customerSchema = z.object({
   brImage: z.string().optional(),
   officialContact: z.string().min(5, 'Official contact info is required'),
   vatNo: z.string().optional(),
+  customerType: z.enum(['permanent', 'temporary']),
+  paysVat: z.boolean(),
   opsContactName: z.string().optional(),
   opsContactNumber: z.string().optional(),
+  additionalOpsContacts: z.array(z.object({
+    name: z.string(),
+    phone: z.string()
+  })).optional(),
   billingContactName: z.string().optional(),
   billingContactNumber: z.string().optional(),
+  additionalBillingContacts: z.array(z.object({
+    name: z.string(),
+    phone: z.string()
+  })).optional(),
+  additionalContacts: z.array(z.object({
+    name: z.string(),
+    phone: z.string(),
+    role: z.string().optional()
+  })).optional(),
   agreementUrl: z.string().optional(),
   agreementStart: z.string().min(1, 'Agreement start date is required'),
   agreementEnd: z.string().min(1, 'Agreement end date is required')
@@ -44,19 +62,30 @@ const CustomerFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<CustomerFormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
       name: '',
       brNo: '',
       officialContact: '',
       agreementStart: new Date().toISOString().split('T')[0],
-      agreementEnd: ''
+      agreementEnd: '',
+      customerType: 'permanent',
+      paysVat: true,
+      additionalOpsContacts: [],
+      additionalBillingContacts: [],
+      additionalContacts: []
     }
   });
 
+  const { fields: opsFields, append: appendOps, remove: removeOps } = useFieldArray({ control, name: 'additionalOpsContacts' });
+  const { fields: billFields, append: appendBill, remove: removeBill } = useFieldArray({ control, name: 'additionalBillingContacts' });
+  const { fields: extraFields, append: appendExtra, remove: removeExtra } = useFieldArray({ control, name: 'additionalContacts' });
+
   const brImage = watch('brImage');
   const agreementUrl = watch('agreementUrl');
+  const customerType = watch('customerType');
+  const paysVat = watch('paysVat');
 
   useEffect(() => {
     if (id) {
@@ -155,6 +184,42 @@ const CustomerFormPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Customer Type Toggle */}
+              <div className="space-y-3">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Customer Classification</label>
+                <div className="flex gap-2">
+                   {['permanent', 'temporary'].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setValue('customerType', type as any)}
+                        className={cn(
+                          "flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                          customerType === type ? "bg-indigo-600 border-indigo-500 text-white shadow-lg" : "bg-gray-50 border-gray-200 text-gray-400"
+                        )}
+                      >
+                        {type}
+                      </button>
+                   ))}
+                </div>
+              </div>
+
+              {/* VAT Toggle */}
+              <div className="space-y-3">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Tax Liability (VAT)</label>
+                <button
+                  type="button"
+                  onClick={() => setValue('paysVat', !paysVat)}
+                  className={cn(
+                    "w-full flex items-center justify-between p-4 rounded-2xl border transition-all",
+                    paysVat ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-gray-50 border-gray-200 text-gray-400"
+                  )}
+                >
+                  <span className="text-[10px] font-black uppercase tracking-widest">{paysVat ? 'VAT REGISTERED' : 'NON-VAT ENTITY'}</span>
+                  {paysVat ? <CheckCircle2 className="w-5 h-5" /> : <div className="w-5 h-5 rounded-full border-2 border-gray-200" />}
+                </button>
+              </div>
+
               <div className="space-y-3">
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Business Registration (BR) No.</label>
                 <div className="relative group">
@@ -207,37 +272,88 @@ const CustomerFormPage: React.FC = () => {
               </div>
 
               <div className="space-y-6">
-                <div className="flex items-center gap-2 mb-2 p-1">
-                  <Briefcase className="w-4 h-4 text-emerald-600" />
-                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Operations Liaison</span>
+                <div className="flex items-center justify-between mb-2 p-1">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-emerald-600" />
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Operations Liaison</span>
+                  </div>
+                  <button type="button" onClick={() => appendOps({ name: '', phone: '' })} className="p-1 hover:bg-emerald-100 rounded-full text-emerald-600 transition-colors">
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
                 <input
                   {...register('opsContactName')}
-                  placeholder="Officer Name"
-                  className="w-full px-4 py-4 bg-emerald-50 border border-emerald-100 rounded-2xl focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400 mb-4"
+                  placeholder="Primary Officer Name"
+                  className="w-full px-4 py-4 bg-emerald-50 border border-emerald-100 rounded-2xl outline-none font-bold text-gray-900 placeholder:text-gray-400 mb-4"
                 />
                 <input
                   {...register('opsContactNumber')}
                   placeholder="Direct Extension / Mobile"
-                  className="w-full px-4 py-4 bg-emerald-50 border border-emerald-100 rounded-2xl focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+                  className="w-full px-4 py-4 bg-emerald-50 border border-emerald-100 rounded-2xl outline-none font-bold text-gray-900 placeholder:text-gray-400"
                 />
+                {opsFields.map((field, index) => (
+                  <div key={field.id} className="space-y-4 p-4 bg-white border border-emerald-100 rounded-2xl relative group">
+                    <button type="button" onClick={() => removeOps(index)} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                    <input {...register(`additionalOpsContacts.${index}.name`)} placeholder="Additional Name" className="w-full px-3 py-2 bg-emerald-50 rounded-xl outline-none text-xs font-bold" />
+                    <input {...register(`additionalOpsContacts.${index}.phone`)} placeholder="Additional Phone" className="w-full px-3 py-2 bg-emerald-50 rounded-xl outline-none text-xs font-bold" />
+                  </div>
+                ))}
               </div>
 
               <div className="space-y-6">
-                <div className="flex items-center gap-2 mb-2 p-1">
-                  <Wallet className="w-4 h-4 text-amber-600" />
-                  <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Billing & Finance</span>
+                <div className="flex items-center justify-between mb-2 p-1">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-amber-600" />
+                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Billing & Finance</span>
+                  </div>
+                  <button type="button" onClick={() => appendBill({ name: '', phone: '' })} className="p-1 hover:bg-amber-100 rounded-full text-amber-600 transition-colors">
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
                 <input
                   {...register('billingContactName')}
-                  placeholder="Accounts Manager"
-                  className="w-full px-4 py-4 bg-amber-50 border border-amber-100 rounded-2xl focus:ring-1 focus:ring-amber-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400 mb-4"
+                  placeholder="Primary Accounts Manager"
+                  className="w-full px-4 py-4 bg-amber-50 border border-amber-100 rounded-2xl outline-none font-bold text-gray-900 placeholder:text-gray-400 mb-4"
                 />
                 <input
                   {...register('billingContactNumber')}
                   placeholder="Financial Direct Line"
-                  className="w-full px-4 py-4 bg-amber-50 border border-amber-100 rounded-2xl focus:ring-1 focus:ring-amber-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+                  className="w-full px-4 py-4 bg-amber-50 border border-amber-100 rounded-2xl outline-none font-bold text-gray-900 placeholder:text-gray-400"
                 />
+                {billFields.map((field, index) => (
+                  <div key={field.id} className="space-y-4 p-4 bg-white border border-amber-100 rounded-2xl relative group">
+                    <button type="button" onClick={() => removeBill(index)} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                    <input {...register(`additionalBillingContacts.${index}.name`)} placeholder="Additional Name" className="w-full px-3 py-2 bg-amber-50 rounded-xl outline-none text-xs font-bold" />
+                    <input {...register(`additionalBillingContacts.${index}.phone`)} placeholder="Additional Phone" className="w-full px-3 py-2 bg-amber-50 rounded-xl outline-none text-xs font-bold" />
+                  </div>
+                ))}
+              </div>
+
+              <div className="md:col-span-2 space-y-6 pt-6 border-t border-gray-50">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Other Generic Contacts</p>
+                  <button type="button" onClick={() => appendExtra({ name: '', phone: '', role: '' })} className="flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[9px] font-black uppercase hover:bg-indigo-100 transition-colors">
+                    <Plus className="w-3 h-3" /> Add Contact
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {extraFields.map((field, index) => (
+                    <div key={field.id} className="p-6 bg-gray-50 rounded-3xl border border-gray-100 relative group">
+                      <button type="button" onClick={() => removeExtra(index)} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                      <div className="space-y-4">
+                        <input {...register(`additionalContacts.${index}.name`)} placeholder="Name" className="w-full px-4 py-3 bg-white rounded-xl outline-none text-xs font-bold border border-gray-200" />
+                        <input {...register(`additionalContacts.${index}.phone`)} placeholder="Phone" className="w-full px-4 py-3 bg-white rounded-xl outline-none text-xs font-bold border border-gray-200" />
+                        <input {...register(`additionalContacts.${index}.role`)} placeholder="Role (e.g. CEO)" className="w-full px-4 py-3 bg-white rounded-xl outline-none text-xs font-bold border border-gray-200" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </section>

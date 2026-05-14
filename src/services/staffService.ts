@@ -8,8 +8,10 @@ const COLLECTION = 'staff';
 export interface StaffMember {
   id?: string;
   fullName: string;
-  category: 'Driver' | 'Helper' | 'Cleaner' | 'Office Staff' | 'Garage' | 'Security' | 'Management';
+  nickname?: string;
+  category: 'Driver' | 'Helper' | 'Cleaner' | 'Office Staff' | 'Garage';
   phone: string;
+  additionalPhones?: string[];
   email?: string;
   nicNumber: string;
   licenseNo?: string;
@@ -18,6 +20,21 @@ export interface StaffMember {
   basicSalary?: number;
   bankAccountNo?: string;
   joinDate?: string;
+
+  // New fields
+  bloodType?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  emergencyContactRelation?: string;
+
+  // Document uploads
+  profilePicture?: string;
+  policeReportUrl?: string;
+  gramaNiladariUrl?: string;
+  birthCertificateUrl?: string;
+  idCopyUrl?: string;
+  certificatesUrls?: string[];
+
   createdAt?: any;
   updatedAt?: any;
 }

@@ -5,6 +5,13 @@ import { recordChange } from './auditService';
 
 const COLLECTION = 'suppliers';
 
+export interface AdditionalContact {
+  name: string;
+  phone: string;
+  email?: string;
+  role?: string;
+}
+
 export interface Supplier {
   id?: string;
   name: string;
@@ -13,6 +20,8 @@ export interface Supplier {
   phone: string;
   brNo?: string;
   vatNo?: string;
+  // Additional contacts with + button
+  additionalContacts?: AdditionalContact[];
 }
 
 export const getSuppliers = async () => {

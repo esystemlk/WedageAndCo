@@ -14,10 +14,7 @@ export enum UserRole {
 
 export enum UserDepartment {
   OPERATIONS = 'Operations',
-  ACCOUNTS = 'Accounts',
-  HR = 'HR',
-  GARAGE = 'Garage',
-  SECURITY = 'Security',
+  ACCOUNTS_HR_IT = 'Accounts/HR/IT',
   NONE = 'None'
 }
 

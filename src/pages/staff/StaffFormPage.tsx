@@ -6,19 +6,31 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { createStaffMember, updateStaffMember, getStaffMember, StaffMember } from '../../services/staffService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import FileUpload from '../../components/shared/FileUpload';
 import { Save, User, Phone, Mail, FileCheck, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 
 const staffSchema = z.object({
   fullName: z.string().min(2, 'Full Name is required'),
-  category: z.enum(['Driver', 'Helper', 'Cleaner', 'Office Staff', 'Garage', 'Security', 'Management']),
+  nickname: z.string().optional(),
+  category: z.enum(['Driver', 'Helper', 'Cleaner', 'Office Staff', 'Garage']),
   phone: z.string().min(10, 'Valid phone number is required'),
   email: z.string().email().optional().or(z.literal('')),
   nicNumber: z.string().min(10, 'NIC Number is required'),
   licenseNo: z.string().optional(),
-  department: z.string().min(1, 'Department is required'),
-  active: z.boolean()
+  department: z.enum(['Operations', 'Accounts/HR/IT']),
+  active: z.boolean(),
+  bloodType: z.string().optional(),
+  emergencyContactName: z.string().optional(),
+  emergencyContactPhone: z.string().optional(),
+  emergencyContactRelation: z.string().optional(),
+  profilePicture: z.string().optional(),
+  policeReportUrl: z.string().optional(),
+  gramaNiladariUrl: z.string().optional(),
+  birthCertificateUrl: z.string().optional(),
+  idCopyUrl: z.string().optional(),
+  certificatesUrls: z.array(z.string()).optional(),
 });
 
 type StaffFormData = z.infer<typeof staffSchema>;
@@ -35,16 +47,24 @@ const StaffFormPage: React.FC = () => {
       active: true,
       category: 'Driver',
       fullName: '',
+      nickname: '',
       phone: '',
       email: '',
       nicNumber: '',
       licenseNo: '',
-      department: 'Operations'
+      department: 'Operations',
+      certificatesUrls: []
     }
   });
 
   const selectedCategory = watch('category');
   const isActive = watch('active');
+  const profilePicture = watch('profilePicture');
+  const policeReportUrl = watch('policeReportUrl');
+  const gramaNiladariUrl = watch('gramaNiladariUrl');
+  const birthCertificateUrl = watch('birthCertificateUrl');
+  const idCopyUrl = watch('idCopyUrl');
+  const certificatesUrls = watch('certificatesUrls') || [];
 
   useEffect(() => {
     if (id) {
@@ -53,13 +73,24 @@ const StaffFormPage: React.FC = () => {
           const data = await getStaffMember(id);
           if (data) {
             setValue('fullName', data.fullName);
-            setValue('category', data.category);
+            setValue('nickname', data.nickname || '');
+            setValue('category', data.category as any);
             setValue('phone', data.phone);
             setValue('email', data.email || '');
             setValue('nicNumber', data.nicNumber);
             setValue('licenseNo', data.licenseNo || '');
             setValue('active', data.active ?? true);
-            setValue('department', data.department || 'Operations');
+            setValue('department', (data.department as any) || 'Operations');
+            setValue('bloodType', data.bloodType || '');
+            setValue('emergencyContactName', data.emergencyContactName || '');
+            setValue('emergencyContactPhone', data.emergencyContactPhone || '');
+            setValue('emergencyContactRelation', data.emergencyContactRelation || '');
+            setValue('profilePicture', data.profilePicture || '');
+            setValue('policeReportUrl', data.policeReportUrl || '');
+            setValue('gramaNiladariUrl', data.gramaNiladariUrl || '');
+            setValue('birthCertificateUrl', data.birthCertificateUrl || '');
+            setValue('idCopyUrl', data.idCopyUrl || '');
+            setValue('certificatesUrls', data.certificatesUrls || []);
           }
         } catch (err) {
           console.error(err);
@@ -109,7 +140,30 @@ const StaffFormPage: React.FC = () => {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-            <div className="md:col-span-2 space-y-3">
+            {/* Profile Picture Upload */}
+            <div className="md:col-span-2 flex justify-center">
+              <div className="space-y-4 text-center">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Profile Picture</label>
+                <div className="relative inline-block">
+                  {profilePicture ? (
+                    <img src={profilePicture} alt="Profile" className="w-32 h-32 rounded-3xl object-cover border-4 border-indigo-50 shadow-lg" />
+                  ) : (
+                    <div className="w-32 h-32 rounded-3xl bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300">
+                      <User className="w-12 h-12" />
+                    </div>
+                  )}
+                  <div className="absolute -bottom-2 -right-2">
+                    <FileUpload 
+                      path="staff/profiles"
+                      onUploadComplete={(url) => setValue('profilePicture', url)}
+                      showPreview={false}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Legal Full Name</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors">
@@ -127,10 +181,19 @@ const StaffFormPage: React.FC = () => {
               {errors.fullName && <p className="mt-1 text-[10px] font-bold text-red-500 px-1 uppercase tracking-tighter">{errors.fullName.message}</p>}
             </div>
 
+            <div className="space-y-3">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Nickname</label>
+              <input
+                {...register('nickname')}
+                placeholder="e.g. Johnny"
+                className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+              />
+            </div>
+
             <div className="space-y-4">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Operational Role</label>
               <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-48 scrollbar-hide pr-2">
-                {(['Driver', 'Helper', 'Cleaner', 'Office Staff', 'Garage', 'Security', 'Management'] as const).map((cat) => (
+                {(['Driver', 'Helper', 'Cleaner', 'Office Staff', 'Garage'] as const).map((cat) => (
                   <button
                     key={cat}
                     type="button"
@@ -168,10 +231,7 @@ const StaffFormPage: React.FC = () => {
                   className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 appearance-none cursor-pointer"
                 >
                   <option value="Operations" className="bg-white">Operations</option>
-                  <option value="Accounts" className="bg-white">Accounts</option>
-                  <option value="HR" className="bg-white">HR</option>
-                  <option value="Garage" className="bg-white">Garage</option>
-                  <option value="Security" className="bg-white">Security</option>
+                  <option value="Accounts/HR/IT" className="bg-white">Accounts/HR/IT</option>
                 </select>
               </div>
 
@@ -194,6 +254,19 @@ const StaffFormPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="space-y-3">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Blood Type</label>
+              <select
+                {...register('bloodType')}
+                className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 appearance-none cursor-pointer"
+              >
+                <option value="">Select Blood Type</option>
+                {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="md:col-span-2 space-y-3">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Enterprise Email (Optional)</label>
               <div className="relative group">
@@ -213,6 +286,25 @@ const StaffFormPage: React.FC = () => {
               {errors.email && <p className="mt-1 text-[10px] font-bold text-red-500 px-1 uppercase tracking-tighter">{errors.email.message}</p>}
             </div>
 
+            {/* Emergency Contact */}
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-rose-50 rounded-3xl border border-rose-100">
+              <div className="md:col-span-3">
+                 <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-2">Emergency Contact Information</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-bold text-rose-400 uppercase tracking-tighter">Contact Name</label>
+                <input {...register('emergencyContactName')} className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl outline-none focus:ring-1 focus:ring-rose-500 text-xs font-bold" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-bold text-rose-400 uppercase tracking-tighter">Phone Number</label>
+                <input {...register('emergencyContactPhone')} className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl outline-none focus:ring-1 focus:ring-rose-500 text-xs font-bold" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-bold text-rose-400 uppercase tracking-tighter">Relation</label>
+                <input {...register('emergencyContactRelation')} className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl outline-none focus:ring-1 focus:ring-rose-500 text-xs font-bold" />
+              </div>
+            </div>
+
             {selectedCategory === 'Driver' && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -230,6 +322,44 @@ const StaffFormPage: React.FC = () => {
                 </div>
               </motion.div>
             )}
+
+            {/* Document Uploads */}
+            <div className="md:col-span-2 space-y-8 pt-6">
+              <div className="flex items-center gap-4">
+                <div className="h-px bg-gray-100 flex-1"></div>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Document Dossier</h3>
+                <div className="h-px bg-gray-100 flex-1"></div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <FileUpload label="Police Report" path="staff/docs" onUploadComplete={(url) => setValue('policeReportUrl', url)} currentUrl={policeReportUrl} />
+                <FileUpload label="Grama Niladari Certificate" path="staff/docs" onUploadComplete={(url) => setValue('gramaNiladariUrl', url)} currentUrl={gramaNiladariUrl} />
+                <FileUpload label="Birth Certificate Copy" path="staff/docs" onUploadComplete={(url) => setValue('birthCertificateUrl', url)} currentUrl={birthCertificateUrl} />
+                <FileUpload label="NIC/ID Copy" path="staff/docs" onUploadComplete={(url) => setValue('idCopyUrl', url)} currentUrl={idCopyUrl} />
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 px-1">Additional Certificates</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {certificatesUrls.map((url, i) => (
+                      <div key={i} className="relative group">
+                        <img src={url} alt="Cert" className="w-full h-32 rounded-2xl object-cover border border-gray-200" />
+                        <button 
+                          type="button"
+                          onClick={() => setValue('certificatesUrls', certificatesUrls.filter((_, idx) => idx !== i))}
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <FileUpload 
+                      path="staff/certificates" 
+                      onUploadComplete={(url) => setValue('certificatesUrls', [...certificatesUrls, url])} 
+                      showPreview={false}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="pt-10 border-t border-gray-100 flex items-center justify-between">

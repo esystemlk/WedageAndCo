@@ -10,13 +10,14 @@ import {
   User,
   X,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Flag
 } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 
-type EventType = 'trip' | 'maintenance' | 'meeting' | 'other';
+type EventType = 'trip' | 'maintenance' | 'meeting' | 'holiday' | 'other';
 
 interface CalendarEvent {
   id: string;
@@ -35,7 +36,32 @@ const eventTypes: { type: EventType; label: string; color: string; icon: React.R
   { type: 'trip', label: 'Trip', color: 'bg-indigo-100 text-indigo-600 border-indigo-200', icon: <Truck className="w-4 h-4" /> },
   { type: 'maintenance', label: 'Maintenance', color: 'bg-amber-100 text-amber-600 border-amber-200', icon: <Wrench className="w-4 h-4" /> },
   { type: 'meeting', label: 'Meeting', color: 'bg-emerald-100 text-emerald-600 border-emerald-200', icon: <User className="w-4 h-4" /> },
+  { type: 'holiday', label: 'SL Holiday', color: 'bg-rose-100 text-rose-600 border-rose-200', icon: <Flag className="w-4 h-4" /> },
   { type: 'other', label: 'Other', color: 'bg-purple-100 text-purple-600 border-purple-200', icon: <Clock className="w-4 h-4" /> },
+];
+
+// Sri Lankan Public Holidays (Sample for 2026)
+const slHolidays: { date: string, title: string }[] = [
+  { date: '2026-01-01', title: 'Duruthu Full Moon Poya Day' },
+  { date: '2026-01-14', title: 'Tamil Thai Pongal Day' },
+  { date: '2026-02-04', title: 'Independence Day' },
+  { date: '2026-02-15', title: 'Navam Full Moon Poya Day' },
+  { date: '2026-02-17', title: 'Mahasivaratri Day' },
+  { date: '2026-03-31', title: 'Bak Full Moon Poya Day' },
+  { date: '2026-04-13', title: 'Sinhala & Tamil New Year Eve' },
+  { date: '2026-04-14', title: 'Sinhala & Tamil New Year Day' },
+  { date: '2026-05-01', title: 'May Day' },
+  { date: '2026-05-15', title: 'Vesak Full Moon Poya Day' },
+  { date: '2026-05-16', title: 'Day following Vesak Poya' },
+  { date: '2026-06-14', title: 'Poson Full Moon Poya Day' },
+  { date: '2026-07-13', title: 'Esala Full Moon Poya Day' },
+  { date: '2026-08-12', title: 'Nikini Full Moon Poya Day' },
+  { date: '2026-09-10', title: 'Binara Full Moon Poya Day' },
+  { date: '2026-10-09', title: 'Vap Full Moon Poya Day' },
+  { date: '2026-11-08', title: 'Deepavali' },
+  { date: '2026-11-07', title: 'Il Full Moon Poya Day' },
+  { date: '2026-12-07', title: 'Unduvap Full Moon Poya Day' },
+  { date: '2026-12-25', title: 'Christmas Day' }
 ];
 
 const sampleEvents: CalendarEvent[] = [
@@ -43,7 +69,6 @@ const sampleEvents: CalendarEvent[] = [
   { id: '2', title: 'Oil Change - WL-001', type: 'maintenance', date: new Date(2026, 4, 11), startTime: '14:00', endTime: '16:00', vehicleId: 'WL-001' },
   { id: '3', title: 'Kandy Transport', type: 'trip', date: new Date(2026, 4, 12), startTime: '06:00', endTime: '18:00', vehicleId: 'V002', driverId: 'D002' },
   { id: '4', title: 'Staff Meeting', type: 'meeting', date: new Date(2026, 4, 13), startTime: '09:00', endTime: '10:00' },
-  { id: '5', title: 'Galle Delivery', type: 'trip', date: new Date(2026, 4, 15), startTime: '07:00', endTime: '15:00', vehicleId: 'V003', driverId: 'D003' },
 ];
 
 const CalendarPage: React.FC = () => {
@@ -83,10 +108,24 @@ const CalendarPage: React.FC = () => {
   }, [currentDate]);
 
   const getEventsForDate = (date: Date) => {
-    return events.filter(event => {
+    const holiday = slHolidays.find(h => h.date === date.toISOString().split('T')[0]);
+    const dayEvents = events.filter(event => {
       const eventDate = new Date(event.date);
       return eventDate.toDateString() === date.toDateString();
     });
+
+    if (holiday) {
+      return [{
+        id: `holiday-${holiday.date}`,
+        title: holiday.title,
+        type: 'holiday',
+        date: date,
+        startTime: '00:00',
+        endTime: '23:59'
+      } as CalendarEvent, ...dayEvents];
+    }
+
+    return dayEvents;
   };
 
   const nextMonth = () => {
@@ -98,18 +137,14 @@ const CalendarPage: React.FC = () => {
   };
 
   const getEventTypeConfig = (type: EventType) => {
-    return eventTypes.find(et => et.type === type) || eventTypes[3];
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    return eventTypes.find(et => et.type === type) || eventTypes[4];
   };
 
   return (
     <div className="space-y-6 pb-20">
       <PageHeader 
         title="Calendar & Scheduling" 
-        subtitle="Manage trips, maintenance, and appointments"
+        subtitle="Manage trips, maintenance, and appointments (Sri Lankan Sync)"
         actions={
           <button 
             onClick={() => {
@@ -166,6 +201,7 @@ const CalendarPage: React.FC = () => {
                 const dayEvents = getEventsForDate(date);
                 const isToday = date.toDateString() === new Date().toDateString();
                 const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+                const isPoya = dayEvents.some(e => e.type === 'holiday' && e.title.includes('Poya'));
 
                 return (
                   <div
@@ -178,13 +214,15 @@ const CalendarPage: React.FC = () => {
                       !isCurrentMonth && "bg-gray-50 border-transparent opacity-40",
                       isCurrentMonth && "bg-white border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/30",
                       isToday && "bg-indigo-50 border-indigo-200",
-                      isSelected && "ring-2 ring-indigo-500 ring-offset-2"
+                      isSelected && "ring-2 ring-indigo-500 ring-offset-2",
+                      isPoya && "bg-rose-50/30"
                     )}
                   >
                     <div className="flex justify-between items-start mb-1">
                       <span className={cn(
                         "text-sm font-black w-7 h-7 flex items-center justify-center rounded-full",
-                        isToday ? "bg-indigo-600 text-white" : "text-gray-700"
+                        isToday ? "bg-indigo-600 text-white" : "text-gray-700",
+                        isPoya && !isToday && "text-rose-600"
                       )}>
                         {date.getDate()}
                       </span>
@@ -196,24 +234,21 @@ const CalendarPage: React.FC = () => {
                           <div
                             key={event.id}
                             onClick={(e) => {
+                              if (event.type === 'holiday') return;
                               e.stopPropagation();
                               setSelectedEvent(event);
                               setIsModalOpen(true);
                             }}
                             className={cn(
                               "text-[10px] px-1.5 py-0.5 rounded truncate font-bold border",
-                              config.color
+                              config.color,
+                              event.type === 'holiday' && "animate-pulse"
                             )}
                           >
                             {event.title}
                           </div>
                         );
                       })}
-                      {dayEvents.length > 3 && (
-                        <div className="text-[10px] text-gray-400 font-bold">
-                          +{dayEvents.length - 3} more
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
@@ -224,7 +259,7 @@ const CalendarPage: React.FC = () => {
 
         <div className="space-y-6">
           <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 shadow-sm">
-            <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-tight">Event Types</h3>
+            <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-tight">Event Context</h3>
             <div className="space-y-3">
               {eventTypes.map(type => (
                 <div key={type.type} className="flex items-center gap-3">
@@ -238,37 +273,22 @@ const CalendarPage: React.FC = () => {
           </div>
 
           <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 shadow-sm">
-            <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-tight">Upcoming</h3>
+            <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-tight">Upcoming SL Holidays</h3>
             <div className="space-y-3">
-              {events
-                .filter(e => new Date(e.date) >= new Date())
-                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+               {slHolidays
+                .filter(h => new Date(h.date) >= new Date())
                 .slice(0, 5)
-                .map(event => {
-                  const config = getEventTypeConfig(event.type);
-                  return (
-                    <div 
-                      key={event.id}
-                      onClick={() => {
-                        setSelectedEvent(event);
-                        setIsModalOpen(true);
-                      }}
-                      className="p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={cn("p-2 rounded-lg flex-shrink-0", config.color)}>
-                          {config.icon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-black text-gray-900 truncate">{event.title}</p>
-                          <p className="text-[10px] text-gray-500 font-bold">
-                            {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {event.startTime}
-                          </p>
-                        </div>
-                      </div>
+                .map((holiday, i) => (
+                  <div key={i} className="p-3 bg-rose-50 rounded-xl border border-rose-100">
+                    <div className="flex items-center gap-3">
+                       <Flag className="w-4 h-4 text-rose-500" />
+                       <div>
+                         <p className="text-xs font-black text-rose-700">{holiday.title}</p>
+                         <p className="text-[10px] font-bold text-rose-400">{new Date(holiday.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
             </div>
           </div>
         </div>
@@ -365,7 +385,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, selectedDate, onClose, o
           <div>
             <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Event Type</label>
             <div className="grid grid-cols-4 gap-2">
-              {eventTypes.map(type => (
+              {eventTypes.filter(t => t.type !== 'holiday').map(type => (
                 <button
                   key={type.type}
                   type="button"
@@ -384,7 +404,7 @@ const EventModal: React.FC<EventModalProps> = ({ event, selectedDate, onClose, o
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Date</label>
               <input

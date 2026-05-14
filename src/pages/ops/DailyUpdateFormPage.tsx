@@ -9,7 +9,8 @@ import {
   AlertTriangle,
   FileText,
   Info,
-  LayoutDashboard
+  LayoutDashboard,
+  Building2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -19,6 +20,7 @@ import { z } from 'zod';
 import { createDailyUpdate } from '../../services/dailyUpdateService';
 import { useFleet } from '../../hooks/useFleet';
 import { useStaff } from '../../hooks/useStaff';
+import { useCustomers } from '../../hooks/useCustomers';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -29,6 +31,7 @@ const dailyUpdateSchema = z.object({
   vehicleId: z.string().min(1, 'Vehicle is required'),
   actualDriverId: z.string().min(1, 'Driver is required'),
   actualHelperId: z.string().optional().or(z.literal('')),
+  customerId: z.string().optional().or(z.literal('')),
   status: z.enum(['On Trip', 'Breakdown', 'Yard Parking', 'Under Repair', 'Personal Use', 'Other']),
   customerRoute: z.string().optional().or(z.literal('')),
   meterReading: z.number().optional(),
@@ -44,13 +47,15 @@ const DailyUpdateFormPage: React.FC = () => {
   const { user } = useAuth();
   const { vehicles } = useFleet();
   const { staff } = useStaff();
+  const { customers } = useCustomers();
   const [loading, setLoading] = useState(false);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<DailyUpdateFormData>({
     resolver: zodResolver(dailyUpdateSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
-      status: 'Yard Parking'
+      status: 'Yard Parking',
+      customerId: ''
     }
   });
 
@@ -62,6 +67,7 @@ const DailyUpdateFormPage: React.FC = () => {
       const vehicle = vehicles.find(v => v.id === data.vehicleId);
       const driver = staff.find(s => s.id === data.actualDriverId);
       const helper = staff.find(s => s.id === data.actualHelperId);
+      const customer = customers.find(c => c.id === data.customerId);
 
       const dayOfWeek = new Date(data.date).toLocaleDateString('en-US', { weekday: 'long' });
 
@@ -71,6 +77,7 @@ const DailyUpdateFormPage: React.FC = () => {
         vehicleNo: vehicle?.plateNo || '',
         actualDriverName: driver?.fullName || '',
         actualHelperName: helper?.fullName || '',
+        customerName: customer?.name || '',
         enteredBy: user?.email || 'Unknown',
         helperId: data.actualHelperId || undefined,
       } as any);
@@ -84,7 +91,7 @@ const DailyUpdateFormPage: React.FC = () => {
     }
   };
 
-  const activeVehicles = vehicles.filter(v => v.status === 'Active');
+  const activeVehicles = vehicles.filter(v => v.status === 'active');
   const activeDrivers = staff.filter(s => s.category === 'Driver');
   const activeHelpers = staff.filter(s => s.category === 'Helper');
 
@@ -182,6 +189,17 @@ const DailyUpdateFormPage: React.FC = () => {
            {/* Contextual Fields */}
            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
               <div className="space-y-3">
+                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Assign to Customer</label>
+                 <div className="relative">
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <select {...register('customerId')} className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none appearance-none cursor-pointer shadow-sm">
+                       <option value="" className="bg-white">Select Customer (Optional)</option>
+                       {customers.map(c => <option key={c.id} value={c.id} className="bg-white">{c.name}</option>)}
+                    </select>
+                 </div>
+              </div>
+
+              <div className="space-y-3">
                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Active Route / Target</label>
                  <div className="relative">
                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -194,14 +212,6 @@ const DailyUpdateFormPage: React.FC = () => {
                  <div className="relative">
                     <LayoutDashboard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-600" />
                     <input type="number" {...register('meterReading', { valueAsNumber: true })} placeholder="Current Odometer" className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none shadow-sm" />
-                 </div>
-              </div>
-
-              <div className="space-y-3">
-                 <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest px-1">Fuel Pumped (Ltr)</label>
-                 <div className="relative">
-                    <Info className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
-                    <input type="number" {...register('fuelPumped', { valueAsNumber: true })} placeholder="Litres Refueled" className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none shadow-sm" />
                  </div>
               </div>
            </div>

@@ -11,7 +11,16 @@ import {
   AlertCircle,
   Tag,
   Maximize,
-  Weight
+  Weight,
+  Plus,
+  Trash2,
+  Calendar,
+  Globe,
+  FileText,
+  User,
+  MapPin,
+  CreditCard,
+  Building
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -19,10 +28,11 @@ import { cn } from '../../lib/utils';
 import { getVehicle, createVehicle, updateVehicle } from '../../services/fleetService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import FileUpload from '../../components/shared/FileUpload';
 
 const vehicleSchema = z.object({
   plateNo: z.string().min(1, 'Plate number is required'),
-  type: z.enum(['prime-mover', 'lorry', 'container', 'other']),
+  type: z.enum(['freezer-truck', 'dry-truck', 'lorry', 'other']),
   make: z.string().optional(),
   model: z.string().optional(),
   chassisNo: z.string().optional(),
@@ -34,6 +44,27 @@ const vehicleSchema = z.object({
   width: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v),
   height: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v),
   weightCapacity: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v),
+  
+  // New fields
+  dateOfManufacture: z.string().optional(),
+  dateOfRegistration: z.string().optional(),
+  countryOfOrigin: z.string().optional(),
+  vehicleImages: z.array(z.string()).optional(),
+
+  // Owner details (rented only)
+  ownerDetails: z.object({
+    ownerName: z.string(),
+    ownerAddress: z.string(),
+    ownerNicBr: z.string(),
+    ownershipType: z.string(),
+    paymentModel: z.string(),
+    agreementStart: z.string(),
+    agreementEnd: z.string(),
+    paymentRate: z.number(),
+    bankDetails: z.string(),
+    contractPdfUrl: z.string().optional(),
+    handoverConditionReport: z.string().optional(),
+  }).optional()
 });
 
 type VehicleFormData = z.infer<typeof vehicleSchema>;
@@ -47,10 +78,11 @@ const VehicleFormPage: React.FC = () => {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<VehicleFormData>({
     resolver: zodResolver(vehicleSchema),
     defaultValues: {
-      type: 'prime-mover',
+      type: 'dry-truck',
       fuelType: 'diesel',
       status: 'active',
-      ownership: 'owned'
+      ownership: 'owned',
+      vehicleImages: []
     }
   });
 
@@ -58,6 +90,7 @@ const VehicleFormPage: React.FC = () => {
   const selectedFuel = watch('fuelType');
   const selectedStatus = watch('status');
   const selectedOwnership = watch('ownership');
+  const vehicleImages = watch('vehicleImages') || [];
 
   useEffect(() => {
     if (id) {
@@ -139,7 +172,7 @@ const VehicleFormPage: React.FC = () => {
             <div className="lg:col-span-2 space-y-3">
                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Asset Classification</label>
                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {(['prime-mover', 'lorry', 'container', 'other'] as const).map((type) => (
+                  {(['freezer-truck', 'dry-truck', 'lorry', 'other'] as const).map((type) => (
                     <button
                       key={type}
                       type="button"
@@ -153,6 +186,30 @@ const VehicleFormPage: React.FC = () => {
                     </button>
                   ))}
                </div>
+            </div>
+          </div>
+
+          {/* Vehicle Images */}
+          <div className="space-y-4">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Vehicle Pictures</label>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {vehicleImages.map((url, i) => (
+                <div key={i} className="relative group aspect-square">
+                  <img src={url} alt={`Vehicle ${i}`} className="w-full h-full object-cover rounded-2xl border border-gray-200" />
+                  <button 
+                    type="button"
+                    onClick={() => setValue('vehicleImages', vehicleImages.filter((_, idx) => idx !== i))}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <FileUpload 
+                path="fleet/images"
+                onUploadComplete={(url) => setValue('vehicleImages', [...vehicleImages, url])}
+                showPreview={false}
+              />
             </div>
           </div>
 
@@ -180,6 +237,21 @@ const VehicleFormPage: React.FC = () => {
                 <div className="space-y-2">
                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Engine Code</label>
                    <input {...register('engineNo')} placeholder="E-987654321" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Date of Manufacture</label>
+                   <input {...register('dateOfManufacture')} type="date" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Date of Registration</label>
+                   <input {...register('dateOfRegistration')} type="date" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Country of Origin</label>
+                   <div className="relative group">
+                     <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-4 h-4" />
+                     <input {...register('countryOfOrigin')} placeholder="e.g. India" className="w-full pl-10 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" />
+                   </div>
                 </div>
              </div>
           </div>
@@ -316,6 +388,96 @@ const VehicleFormPage: React.FC = () => {
                 </div>
              </div>
           </div>
+
+          {/* Owner Details Section (Conditional) */}
+          {selectedOwnership === 'rented' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="space-y-10 p-10 bg-emerald-50 rounded-[2.5rem] border border-emerald-100"
+            >
+              <div className="flex items-center gap-4">
+                 <div className="h-px bg-emerald-200 flex-1"></div>
+                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-600">External Ownership Dossier</h3>
+                 <div className="h-px bg-emerald-200 flex-1"></div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner Name</label>
+                    <div className="relative">
+                       <User className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 w-4 h-4" />
+                       <input {...register('ownerDetails.ownerName')} placeholder="Full Name / Company" className="w-full pl-10 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                    </div>
+                 </div>
+                 <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner Address</label>
+                    <div className="relative">
+                       <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 w-4 h-4" />
+                       <input {...register('ownerDetails.ownerAddress')} placeholder="Registered Address" className="w-full pl-10 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                    </div>
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner NIC / BR No</label>
+                    <div className="relative">
+                       <Building className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 w-4 h-4" />
+                       <input {...register('ownerDetails.ownerNicBr')} placeholder="ID or BR Number" className="w-full pl-10 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                    </div>
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Ownership Type</label>
+                    <input {...register('ownerDetails.ownershipType')} placeholder="Individual / Private Ltd" className="w-full px-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Payment Model</label>
+                    <select {...register('ownerDetails.paymentModel')} className="w-full px-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900 appearance-none">
+                       <option value="Fixed Monthly">Fixed Monthly</option>
+                       <option value="Per KM">Per KM</option>
+                       <option value="Per Trip">Per Trip</option>
+                       <option value="Percentage">Percentage</option>
+                    </select>
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Agreement Start</label>
+                    <input {...register('ownerDetails.agreementStart')} type="date" className="w-full px-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Agreement End</label>
+                    <input {...register('ownerDetails.agreementEnd')} type="date" className="w-full px-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner Payment Rate</label>
+                    <div className="relative">
+                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-black text-[10px]">LKR</div>
+                       <input {...register('ownerDetails.paymentRate', { valueAsNumber: true })} type="number" placeholder="0.00" className="w-full pl-12 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                    </div>
+                 </div>
+                 <div className="md:col-span-3 space-y-2">
+                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Bank Details</label>
+                    <div className="relative">
+                       <CreditCard className="absolute left-4 top-4 text-emerald-400 w-4 h-4" />
+                       <textarea {...register('ownerDetails.bankDetails')} rows={3} placeholder="Bank, Branch, Account No, Name..." className="w-full pl-10 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900 resize-none" />
+                    </div>
+                 </div>
+
+                 <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <FileUpload 
+                      label="Lease/Agreement Contract (PDF)" 
+                      path="fleet/contracts" 
+                      accept="application/pdf"
+                      onUploadComplete={(url) => setValue('ownerDetails.contractPdfUrl', url)} 
+                      currentUrl={watch('ownerDetails.contractPdfUrl')}
+                    />
+                    <FileUpload 
+                      label="Handover Condition Report" 
+                      path="fleet/reports" 
+                      onUploadComplete={(url) => setValue('ownerDetails.handoverConditionReport', url)} 
+                      currentUrl={watch('ownerDetails.handoverConditionReport')}
+                    />
+                 </div>
+              </div>
+            </motion.div>
+          )}
 
           <div className="pt-10 border-t border-gray-100 flex items-center justify-end">
             <button

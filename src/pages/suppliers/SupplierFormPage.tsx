@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { 
@@ -8,8 +8,10 @@ import {
   Mail, 
   Phone, 
   Save, 
-  ShieldCheck,
-  Tag
+  ShieldCheck, 
+  Tag,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -24,7 +26,13 @@ const supplierSchema = z.object({
   email: z.string().email('Valid email is required'),
   phone: z.string().min(10, 'Valid phone number is required'),
   brNo: z.string().optional(),
-  vatNo: z.string().optional()
+  vatNo: z.string().optional(),
+  additionalContacts: z.array(z.object({
+    name: z.string(),
+    phone: z.string(),
+    email: z.string().optional(),
+    role: z.string().optional()
+  })).optional()
 });
 
 type SupplierFormData = z.infer<typeof supplierSchema>;
@@ -35,14 +43,17 @@ const SupplierFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<SupplierFormData>({
+  const { register, handleSubmit, setValue, control, formState: { errors } } = useForm<SupplierFormData>({
     resolver: zodResolver(supplierSchema),
     defaultValues: {
       name: '',
       email: '',
-      phone: ''
+      phone: '',
+      additionalContacts: []
     }
   });
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'additionalContacts' });
 
   useEffect(() => {
     if (id) {
@@ -56,6 +67,7 @@ const SupplierFormPage: React.FC = () => {
             setValue('phone', data.phone);
             setValue('brNo', data.brNo || '');
             setValue('vatNo', data.vatNo || '');
+            setValue('additionalContacts', data.additionalContacts || []);
           }
         } catch (err) {
           console.error(err);
@@ -185,6 +197,45 @@ const SupplierFormPage: React.FC = () => {
                   placeholder="Optional"
                   className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
                 />
+              </div>
+            </div>
+
+            {/* Additional Contacts */}
+            <div className="md:col-span-2 space-y-6 pt-6 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Additional Contact Personnel</label>
+                <button 
+                  type="button" 
+                  onClick={() => append({ name: '', phone: '', email: '', role: '' })}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px] font-black uppercase hover:bg-indigo-100 transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> Add Personnel
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {fields.map((field, index) => (
+                  <div key={field.id} className="p-6 bg-gray-50 rounded-3xl border border-gray-100 relative group shadow-sm">
+                    <button 
+                      type="button" 
+                      onClick={() => remove(index)}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                    <div className="space-y-4">
+                      <input {...register(`additionalContacts.${index}.name`)} placeholder="Name" className="w-full px-4 py-3 bg-white rounded-xl outline-none text-xs font-bold border border-gray-100 shadow-sm" />
+                      <input {...register(`additionalContacts.${index}.phone`)} placeholder="Phone" className="w-full px-4 py-3 bg-white rounded-xl outline-none text-xs font-bold border border-gray-100 shadow-sm" />
+                      <input {...register(`additionalContacts.${index}.email`)} placeholder="Email (Optional)" className="w-full px-4 py-3 bg-white rounded-xl outline-none text-xs font-bold border border-gray-100 shadow-sm" />
+                      <input {...register(`additionalContacts.${index}.role`)} placeholder="Role (e.g. Sales)" className="w-full px-4 py-3 bg-white rounded-xl outline-none text-xs font-bold border border-gray-100 shadow-sm" />
+                    </div>
+                  </div>
+                ))}
+                {fields.length === 0 && (
+                  <div className="md:col-span-2 py-8 text-center border-2 border-dashed border-gray-100 rounded-3xl">
+                    <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No additional contacts defined</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

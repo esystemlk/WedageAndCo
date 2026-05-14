@@ -28,6 +28,8 @@ export interface DailyVehicleUpdate {
   actualDriverName: string;
   actualHelperId?: string;
   actualHelperName?: string;
+  customerId?: string;
+  customerName?: string;
   status: 'On Trip' | 'Breakdown' | 'Yard Parking' | 'Under Repair' | 'Personal Use' | 'Other';
   customerRoute?: string;
   meterReading?: number;

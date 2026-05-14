@@ -5,6 +5,13 @@ import { recordChange } from './auditService';
 
 const COLLECTION = 'customers';
 
+export interface AdditionalContact {
+  name: string;
+  phone: string;
+  email?: string;
+  role?: string;
+}
+
 export interface Customer {
   id?: string;
   name: string;
@@ -13,10 +20,26 @@ export interface Customer {
   brImage?: string;
   officialContact: string;
   vatNo?: string;
+
+  // Customer Type
+  customerType: 'permanent' | 'temporary';
+
+  // VAT Toggle
+  paysVat: boolean;
+
+  // Operations Contacts (primary + additional)
   opsContactName?: string;
   opsContactNumber?: string;
+  additionalOpsContacts?: AdditionalContact[];
+
+  // Billing Contacts (primary + additional)
   billingContactName?: string;
   billingContactNumber?: string;
+  additionalBillingContacts?: AdditionalContact[];
+
+  // Additional Contact Details (generic with + button)
+  additionalContacts?: AdditionalContact[];
+
   agreementUrl?: string;
   agreementStart: string;
   agreementEnd: string;

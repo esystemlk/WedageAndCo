@@ -18,7 +18,7 @@ import { deleteStaffMember } from '../../services/staffService';
 const StaffListPage: React.FC = () => {
   const { staff, loading, refresh } = useStaff();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'All' | 'Driver' | 'Helper' | 'Cleaner' | 'Office Staff' | 'Garage' | 'Security' | 'Management'>('All');
+  const [activeFilter, setActiveFilter] = useState<'All' | 'Driver' | 'Helper' | 'Cleaner' | 'Office Staff' | 'Garage'>('All');
   const navigate = useNavigate();
 
   const filteredStaff = staff.filter(member => {
@@ -40,8 +40,9 @@ const StaffListPage: React.FC = () => {
       case 'Driver': return 'bg-blue-50 text-blue-600 border-blue-100';
       case 'Helper': return 'bg-indigo-50 text-indigo-600 border-indigo-100';
       case 'Cleaner': return 'bg-amber-50 text-amber-600 border-amber-100';
-      case 'Management': return 'bg-rose-50 text-rose-600 border-rose-100';
-      default: return 'bg-purple-50 text-purple-600 border-purple-100';
+      case 'Office Staff': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+      case 'Garage': return 'bg-purple-50 text-purple-600 border-purple-100';
+      default: return 'bg-gray-50 text-gray-600 border-gray-100';
     }
   };
 
@@ -77,7 +78,7 @@ const StaffListPage: React.FC = () => {
 
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col shadow-sm min-h-[60vh]">
         <div className="bg-gray-50 px-8 pt-4 pb-0 border-b border-gray-100 flex items-center gap-8 overflow-x-auto scrollbar-hide">
-          {(['All', 'Driver', 'Helper', 'Cleaner', 'Office Staff', 'Garage', 'Security', 'Management'] as const).map((filter) => (
+          {(['All', 'Driver', 'Helper', 'Cleaner', 'Office Staff', 'Garage'] as const).map((filter) => (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
