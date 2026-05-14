@@ -78,8 +78,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const sidebarContent = (
     <div className="flex flex-col w-64 bg-[var(--bg-nav)] border-r border-[var(--border-main)] h-screen sticky top-0 overflow-hidden shadow-sm transition-colors duration-300">
       <div className="p-6 flex items-center space-x-3">
-        <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
-          <Truck className="text-white w-6 h-6" />
+        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm overflow-hidden border border-gray-100">
+          <img src="/logo.png.JPEG" alt="Wedage Logo" className="w-full h-full object-contain" />
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-black tracking-tight text-[var(--text-main)] leading-tight uppercase italic truncate">Wedage & Co.</h1>

@@ -57,8 +57,8 @@ const LoginPage: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             className="flex items-center gap-4 mb-12"
           >
-            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Truck className="text-white w-7 h-7" />
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm overflow-hidden border border-gray-100 p-1">
+              <img src="/logo.png.JPEG" alt="Wedage Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase italic leading-none">Wedage & Co.</h1>
