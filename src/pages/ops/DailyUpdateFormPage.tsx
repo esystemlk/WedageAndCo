@@ -79,7 +79,7 @@ const DailyUpdateFormPage: React.FC = () => {
         actualHelperName: helper?.fullName || '',
         customerName: customer?.name || '',
         enteredBy: user?.email || 'Unknown',
-        helperId: data.actualHelperId || undefined,
+        actualHelperId: data.actualHelperId || undefined,
       } as any);
 
       navigate('/daily-updates');

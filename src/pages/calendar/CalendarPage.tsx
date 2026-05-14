@@ -16,21 +16,14 @@ import {
 import PageHeader from '../../components/shared/PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
-
-type EventType = 'trip' | 'maintenance' | 'meeting' | 'holiday' | 'other';
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  description?: string;
-  type: EventType;
-  date: Date;
-  startTime: string;
-  endTime: string;
-  vehicleId?: string;
-  driverId?: string;
-  completed?: boolean;
-}
+import { 
+  getCalendarEvents, 
+  createCalendarEvent, 
+  updateCalendarEvent, 
+  deleteCalendarEvent,
+  CalendarEvent,
+  EventType
+} from '../../services/calendarService';
 
 const eventTypes: { type: EventType; label: string; color: string; icon: React.ReactNode }[] = [
   { type: 'trip', label: 'Trip', color: 'bg-indigo-100 text-indigo-600 border-indigo-200', icon: <Truck className="w-4 h-4" /> },
@@ -64,19 +57,55 @@ const slHolidays: { date: string, title: string }[] = [
   { date: '2026-12-25', title: 'Christmas Day' }
 ];
 
-const sampleEvents: CalendarEvent[] = [
-  { id: '1', title: 'Colombo Delivery', type: 'trip', date: new Date(2026, 4, 10), startTime: '08:00', endTime: '12:00', vehicleId: 'V001', driverId: 'D001' },
-  { id: '2', title: 'Oil Change - WL-001', type: 'maintenance', date: new Date(2026, 4, 11), startTime: '14:00', endTime: '16:00', vehicleId: 'WL-001' },
-  { id: '3', title: 'Kandy Transport', type: 'trip', date: new Date(2026, 4, 12), startTime: '06:00', endTime: '18:00', vehicleId: 'V002', driverId: 'D002' },
-  { id: '4', title: 'Staff Meeting', type: 'meeting', date: new Date(2026, 4, 13), startTime: '09:00', endTime: '10:00' },
-];
-
 const CalendarPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [events, setEvents] = useState<CalendarEvent[]>(sampleEvents);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const data = await getCalendarEvents();
+      setEvents(data);
+    } catch (err) {
+      console.error('Failed to fetch events:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const handleSaveEvent = async (eventData: any) => {
+    try {
+      if (selectedEvent?.id) {
+        await updateCalendarEvent(selectedEvent.id, eventData);
+      } else {
+        await createCalendarEvent(eventData);
+      }
+      fetchEvents();
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error('Failed to save event:', err);
+    }
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    if (window.confirm('Delete this event?')) {
+      try {
+        await deleteCalendarEvent(id);
+        fetchEvents();
+        setIsModalOpen(false);
+      } catch (err) {
+        console.error('Failed to delete event:', err);
+      }
+    }
+  };
 
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -300,14 +329,8 @@ const CalendarPage: React.FC = () => {
             event={selectedEvent}
             selectedDate={selectedDate}
             onClose={() => setIsModalOpen(false)}
-            onSave={(event) => {
-              if (selectedEvent) {
-                setEvents(events.map(e => e.id === event.id ? event : e));
-              } else {
-                setEvents([...events, event]);
-              }
-              setIsModalOpen(false);
-            }}
+            onSave={handleSaveEvent}
+            onDelete={handleDeleteEvent}
           />
         )}
       </AnimatePresence>
@@ -319,10 +342,11 @@ interface EventModalProps {
   event: CalendarEvent | null;
   selectedDate: Date | null;
   onClose: () => void;
-  onSave: (event: CalendarEvent) => void;
+  onSave: (event: any) => void;
+  onDelete?: (id: string) => void;
 }
 
-const EventModal: React.FC<EventModalProps> = ({ event, selectedDate, onClose, onSave }) => {
+const EventModal: React.FC<EventModalProps> = ({ event, selectedDate, onClose, onSave, onDelete }) => {
   const [formData, setFormData] = useState<Partial<CalendarEvent>>({
     title: '',
     type: 'trip',
@@ -459,6 +483,15 @@ const EventModal: React.FC<EventModalProps> = ({ event, selectedDate, onClose, o
             >
               Cancel
             </button>
+            {event && onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(event.id)}
+                className="px-6 py-3 bg-rose-50 text-rose-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100"
+              >
+                Delete
+              </button>
+            )}
             <button
               type="submit"
               className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all"

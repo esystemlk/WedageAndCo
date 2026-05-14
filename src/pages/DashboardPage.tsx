@@ -19,14 +19,14 @@ const DashboardPage: React.FC = () => {
   const { customers } = useCustomers();
   const { addNotification } = useNotifications();
 
-  const activeTrips = logs.filter(l => l.status === 'on-trip').length;
+  const activeTrips = logs.filter(l => l.status === 'On Trip').length;
   const operationalVehicles = vehicles.filter(v => v.status === 'active').length;
-  const driversCount = staff.filter(s => s.type === 'driver').length;
+  const driversCount = staff.filter(s => s.category === 'Driver').length;
   const customersCount = customers.length;
 
   const stats = [
     { label: 'Active Drivers', value: driversCount.toString(), icon: UserSquare2, color: 'text-indigo-600', progress: 100, progressColor: 'bg-indigo-600', trackColor: 'bg-indigo-50' },
-    { label: 'Fleet Assets', value: operationalVehicles.toString(), icon: Truck, color: 'text-emerald-600', progress: (operationalVehicles / (vehicles.length || 1) * 100), progressColor: 'bg-emerald-600', trackColor: 'bg-emerald-50' },
+    { label: 'Fleet Assets', value: operationalVehicles.toString(), icon: Truck, color: 'text-emerald-600', progress: (vehicles.length > 0 ? (operationalVehicles / vehicles.length * 100) : 0), progressColor: 'bg-emerald-600', trackColor: 'bg-emerald-50' },
     { label: 'Live Engagement', value: activeTrips.toString(), icon: ClipboardList, color: 'text-amber-600', progress: activeTrips > 0 ? 100 : 0, progressColor: 'bg-amber-600', trackColor: 'bg-amber-50' },
     { label: 'Client Base', value: customersCount.toString(), icon: Users, color: 'text-purple-600', progress: 100, progressColor: 'bg-purple-600', trackColor: 'bg-purple-50' },
   ];

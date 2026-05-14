@@ -105,7 +105,7 @@ const DailyVehicleUpdatePage: React.FC = () => {
                        </div>
                        <div>
                           <h4 className="text-sm font-black text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{update.vehicleNo}</h4>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{update.status}</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{update.customerName || 'No Client Assigned'}</p>
                        </div>
                     </div>
                     <span className={cn(
