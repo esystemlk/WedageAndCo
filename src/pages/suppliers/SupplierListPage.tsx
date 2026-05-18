@@ -112,14 +112,24 @@ const SupplierListPage: React.FC = () => {
                       <p className="text-sm text-gray-700 font-bold">{supplier.contactName || '---'}</p>
                     </td>
                     <td className="px-8 py-5">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <Phone className="w-3 h-3" />
-                          <span>{supplier.phone}</span>
+                      <div className="space-y-1.5">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2 text-xs font-bold text-gray-750">
+                            <Phone className="w-3 h-3 text-indigo-500" />
+                            <span>{supplier.phone}</span>
+                          </div>
+                          {supplier.additionalPhones && supplier.additionalPhones.map((ph, idx) => ph && (
+                            <p key={idx} className="text-[10px] text-gray-400 pl-5 font-mono font-medium">{ph}</p>
+                          ))}
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <Mail className="w-3 h-3" />
-                          <span className="truncate max-w-[150px]">{supplier.email}</span>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2 text-xs font-bold text-gray-750">
+                            <Mail className="w-3 h-3 text-indigo-500" />
+                            <span className="truncate max-w-[180px]">{supplier.email}</span>
+                          </div>
+                          {supplier.businessEmails && supplier.businessEmails.map((em, idx) => em && (
+                            <p key={idx} className="text-[10px] text-gray-400 pl-5 font-mono font-medium truncate max-w-[180px]">{em}</p>
+                          ))}
                         </div>
                       </div>
                     </td>

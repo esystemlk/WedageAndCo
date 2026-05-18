@@ -19,6 +19,8 @@ export interface Supplier {
   contactName?: string;
   email: string;
   phone: string;
+  additionalPhones?: string[];
+  businessEmails?: string[];
   brNo?: string;
   vatNo?: string;
   supplyCategories?: string[]; // e.g., mechanical, electrical, etc.

@@ -207,7 +207,7 @@ const StaffDetailPage: React.FC = () => {
                        </div>
                     </div>
 
-                    {member.category === 'Driver' && (
+                    {member.licenseNo && (
                        <div>
                           <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.3em] mb-6 border-b border-indigo-50 pb-2">Heavy Machinery Ops</h4>
                           <div className="flex items-center gap-4">
@@ -216,7 +216,7 @@ const StaffDetailPage: React.FC = () => {
                              </div>
                              <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Driving License No.</p>
-                                <p className="text-sm font-bold text-indigo-600 font-mono">{member.licenseNo || 'NOT RECORDED'}</p>
+                                <p className="text-sm font-bold text-indigo-600 font-mono">{member.licenseNo}</p>
                              </div>
                           </div>
                        </div>
@@ -251,7 +251,7 @@ const StaffDetailPage: React.FC = () => {
 
            <section className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl">
               <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-8">Operational Metrics</h4>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                  <div className="space-y-2">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Commencement Date</p>
                     <p className="text-sm font-bold text-gray-900">{member.joinDate || 'NOT RECORDED'}</p>

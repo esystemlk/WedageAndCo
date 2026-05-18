@@ -26,6 +26,8 @@ const supplierSchema = z.object({
   contactName: z.string().optional(),
   email: z.string().email('Valid email is required'),
   phone: z.string().min(10, 'Valid phone number is required'),
+  additionalPhones: z.array(z.string()).optional(),
+  businessEmails: z.array(z.string()).optional(),
   brNo: z.string().optional(),
   vatNo: z.string().optional(),
   supplyCategories: z.array(z.string()).optional(),
@@ -45,19 +47,34 @@ const SupplierFormPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
+  
+  const [availableCategories, setAvailableCategories] = useState<string[]>([
+    'Mechanical',
+    'Electrical',
+    'Office Items',
+    'Reconditioned Parts',
+    'Alternator Repair Shop',
+    'Battery Repair Shop',
+    'Tyre Shop'
+  ]);
+  const [newCategoryText, setNewCategoryText] = useState('');
 
-  const { register, handleSubmit, setValue, control, formState: { errors } } = useForm<SupplierFormData>({
+  const { register, handleSubmit, setValue, getValues, control, formState: { errors } } = useForm<SupplierFormData>({
     resolver: zodResolver(supplierSchema),
     defaultValues: {
       name: '',
       email: '',
       phone: '',
+      additionalPhones: [],
+      businessEmails: [],
       supplyCategories: [],
       additionalContacts: []
     }
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'additionalContacts' });
+  const { fields: phoneFields, append: appendPhone, remove: removePhone } = useFieldArray({ control, name: 'additionalPhones' as any });
+  const { fields: emailFields, append: appendEmail, remove: removeEmail } = useFieldArray({ control, name: 'businessEmails' as any });
 
   useEffect(() => {
     if (id) {
@@ -73,8 +90,17 @@ const SupplierFormPage: React.FC = () => {
             setValue('vatNo', data.vatNo || '');
             setValue('nickname', data.nickname || '');
             setValue('supplyCategories', data.supplyCategories || []);
+            setValue('additionalPhones', data.additionalPhones || []);
+            setValue('businessEmails', data.businessEmails || []);
             setValue('description', data.description || '');
             setValue('additionalContacts', data.additionalContacts || []);
+
+            if (data.supplyCategories && data.supplyCategories.length > 0) {
+              setAvailableCategories(prev => {
+                const unique = new Set([...prev, ...(data.supplyCategories || [])]);
+                return Array.from(unique);
+              });
+            }
           }
         } catch (err) {
           console.error(err);
@@ -163,34 +189,107 @@ const SupplierFormPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-3">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Primary Phone</label>
-              <div className="relative group">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
-                <input
-                  {...register('phone')}
-                  placeholder="+94 11 XXXXXXX"
-                  className={cn(
-                    "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
-                    errors.phone && "border-red-500/50"
-                  )}
-                />
+            {/* Primary & Additional Phones */}
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Primary Phone</label>
+                <div className="relative group">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
+                  <input
+                    {...register('phone')}
+                    placeholder="+94 11 XXXXXXX"
+                    className={cn(
+                      "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
+                      errors.phone && "border-red-500/50"
+                    )}
+                  />
+                </div>
+                {errors.phone && <p className="mt-1 text-[10px] font-bold text-red-500 px-1">{errors.phone.message}</p>}
+              </div>
+
+              {/* Additional Phones */}
+              <div className="space-y-3 pl-4 border-l-2 border-indigo-50">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-wider">Additional Contact Numbers</label>
+                  <button
+                    type="button"
+                    onClick={() => appendPhone('')}
+                    className="text-[9px] font-black uppercase text-indigo-650 hover:text-indigo-850 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add Number
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {phoneFields.map((field, idx) => (
+                    <div key={field.id} className="flex items-center gap-2">
+                      <input
+                        {...register(`additionalPhones.${idx}` as any)}
+                        placeholder="Additional Phone Number"
+                        className="flex-1 px-4 py-2 bg-gray-50/50 border border-gray-200 rounded-xl outline-none text-xs font-bold text-gray-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhone(idx)}
+                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="md:col-span-2 space-y-3">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Business Email</label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
-                <input
-                  {...register('email')}
-                  type="email"
-                  placeholder="sales@vendor.com"
-                  className={cn(
-                    "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
-                    errors.email && "border-red-500/50"
-                  )}
-                />
+            {/* Primary & Additional Business Emails */}
+            <div className="space-y-4 md:col-span-2">
+              <div className="space-y-3">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Primary Business Email</label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
+                  <input
+                    {...register('email')}
+                    type="email"
+                    placeholder="sales@vendor.com"
+                    className={cn(
+                      "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
+                      errors.email && "border-red-500/50"
+                    )}
+                  />
+                </div>
+                {errors.email && <p className="mt-1 text-[10px] font-bold text-red-500 px-1">{errors.email.message}</p>}
+              </div>
+
+              {/* Additional Emails */}
+              <div className="space-y-3 pl-4 border-l-2 border-indigo-50">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-wider">Additional Business Emails</label>
+                  <button
+                    type="button"
+                    onClick={() => appendEmail('')}
+                    className="text-[9px] font-black uppercase text-indigo-650 hover:text-indigo-850 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add Email
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {emailFields.map((field, idx) => (
+                    <div key={field.id} className="flex items-center gap-2">
+                      <input
+                        {...register(`businessEmails.${idx}` as any)}
+                        type="email"
+                        placeholder="additional@vendor.com"
+                        className="flex-1 px-4 py-2 bg-gray-50/50 border border-gray-200 rounded-xl outline-none text-xs font-bold text-gray-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeEmail(idx)}
+                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -220,26 +319,47 @@ const SupplierFormPage: React.FC = () => {
 
             <div className="md:col-span-2 space-y-3">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Supply Categories</label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-6 bg-gray-50 rounded-3xl border border-gray-200">
-                {[
-                  'Mechanical',
-                  'Electrical',
-                  'Office Items',
-                  'Reconditioned Parts',
-                  'Alternator Repair Shop',
-                  'Battery Repair Shop',
-                  'Tyre Shop'
-                ].map(category => (
-                  <label key={category} className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      value={category}
-                      {...register('supplyCategories')}
-                      className="w-5 h-5 rounded-lg border-gray-300 text-indigo-600 focus:ring-indigo-500/50 transition-all"
-                    />
-                    <span className="text-xs font-bold text-gray-600 group-hover:text-indigo-600 transition-colors">{category}</span>
-                  </label>
-                ))}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-6 bg-gray-50 rounded-3xl border border-gray-200">
+                  {availableCategories.map(category => (
+                    <label key={category} className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        value={category}
+                        {...register('supplyCategories')}
+                        className="w-5 h-5 rounded-lg border-gray-300 text-indigo-600 focus:ring-indigo-500/50 transition-all"
+                      />
+                      <span className="text-xs font-bold text-gray-600 group-hover:text-indigo-600 transition-colors">{category}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* Dynamic Category Builder */}
+                <div className="flex items-center gap-3 p-4 bg-indigo-50/50 border border-indigo-100/50 rounded-2xl max-w-md">
+                  <input
+                    type="text"
+                    value={newCategoryText}
+                    onChange={(e) => setNewCategoryText(e.target.value)}
+                    placeholder="Enter custom category..."
+                    className="flex-1 px-4 py-2 text-xs font-bold bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const trimmed = newCategoryText.trim();
+                      if (trimmed && !availableCategories.includes(trimmed)) {
+                        setAvailableCategories(prev => [...prev, trimmed]);
+                        // Automatically check it
+                        const currentVal = getValues('supplyCategories') || [];
+                        setValue('supplyCategories', [...currentVal, trimmed]);
+                        setNewCategoryText('');
+                      }
+                    }}
+                    className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-indigo-700 transition-colors"
+                  >
+                    + Add Category
+                  </button>
+                </div>
               </div>
             </div>
 

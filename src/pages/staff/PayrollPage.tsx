@@ -144,8 +144,6 @@ const PayrollPage: React.FC = () => {
                     <th className="px-8 py-5 font-bold">Personnel & ID</th>
                     <th className="px-8 py-5 font-bold">Position</th>
                     <th className="px-8 py-5 font-bold">EPF / ETF No.</th>
-                    <th className="px-8 py-5 font-bold">Basic Salary (LKR)</th>
-                    <th className="px-8 py-5 font-bold">EPF Contribution</th>
                     <th className="px-8 py-5 font-bold">CV Reference</th>
                     <th className="px-8 py-5 font-bold text-right">Status</th>
                   </tr>
@@ -180,18 +178,6 @@ const PayrollPage: React.FC = () => {
                               <p>ETF: {member.etfNo || 'N/A'}</p>
                             </div>
                           ) : 'Not Calibrated'}
-                        </td>
-                        <td className="px-8 py-5 font-bold text-gray-900">
-                          {basic > 0 ? `LKR ${basic.toLocaleString()}` : 'N/A'}
-                        </td>
-                        <td className="px-8 py-5">
-                          {basic > 0 ? (
-                            <div className="space-y-0.5 text-[10px]">
-                              <p className="text-gray-600"><span className="font-bold">Staff (8%):</span> LKR {empEpf.toLocaleString()}</p>
-                              <p className="text-indigo-600"><span className="font-bold">Company (12%):</span> LKR {emplyrEpf.toLocaleString()}</p>
-                              <p className="text-emerald-600"><span className="font-bold">ETF (3%):</span> LKR {emplyrEtf.toLocaleString()}</p>
-                            </div>
-                          ) : 'N/A'}
                         </td>
                         <td className="px-8 py-5">
                           {member.cvUrl ? (
