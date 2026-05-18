@@ -16,6 +16,9 @@ const staffSchema = z.object({
   nickname: z.string().optional(),
   category: z.enum(['Driver', 'Helper', 'Cleaner', 'Office Staff', 'Garage']),
   phone: z.string().min(10, 'Valid phone number is required'),
+  additionalPhones: z.string().optional(),
+  landline: z.string().optional(),
+  address: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   nicNumber: z.string().min(10, 'NIC Number is required'),
   licenseNo: z.string().optional(),
@@ -72,6 +75,9 @@ const StaffFormPage: React.FC = () => {
       fullName: '',
       nickname: '',
       phone: '',
+      additionalPhones: '',
+      landline: '',
+      address: '',
       email: '',
       nicNumber: '',
       licenseNo: '',
@@ -128,6 +134,9 @@ const StaffFormPage: React.FC = () => {
             setValue('nickname', data.nickname || '');
             setValue('category', data.category as any);
             setValue('phone', data.phone);
+            setValue('additionalPhones', data.additionalPhones?.join(', ') || '');
+            setValue('landline', data.landline || '');
+            setValue('address', data.address || '');
             setValue('email', data.email || '');
             setValue('nicNumber', data.nicNumber);
             setValue('licenseNo', data.licenseNo || '');
@@ -181,7 +190,10 @@ const StaffFormPage: React.FC = () => {
     try {
       const processedData = {
         ...data,
-        basicSalary: data.basicSalary ? Number(data.basicSalary) : undefined
+        basicSalary: data.basicSalary ? Number(data.basicSalary) : undefined,
+        additionalPhones: data.additionalPhones ? data.additionalPhones.split(',').map(s => s.trim()).filter(Boolean) : [],
+        landline: data.landline || '',
+        address: data.address || ''
       };
       if (id) {
         await updateStaffMember(id, processedData as any);
@@ -361,6 +373,43 @@ const StaffFormPage: React.FC = () => {
                 />
               </div>
               {errors.email && <p className="mt-1 text-[10px] font-bold text-red-500 px-1 uppercase tracking-tighter">{errors.email.message}</p>}
+            </div>
+
+            {/* Contact Details Extensions */}
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10 border-t border-gray-100 pt-8 mt-4">
+              <div className="space-y-3">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Landline Number (Optional)</label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors">
+                    <Phone className="w-5 h-5" />
+                  </div>
+                  <input
+                    {...register('landline')}
+                    placeholder="e.g. +94 11 2345678"
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Additional Contact Numbers (Optional)</label>
+                <input
+                  {...register('additionalPhones')}
+                  placeholder="e.g. +94 71 2345678, +94 72 3456789"
+                  className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+                />
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider px-1">Separate multiple numbers with commas.</p>
+              </div>
+
+              <div className="md:col-span-2 space-y-3">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Residential Address (Optional)</label>
+                <textarea
+                  {...register('address')}
+                  placeholder="e.g. 123 Temple Road, Colombo 03, Sri Lanka"
+                  rows={3}
+                  className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400 resize-none"
+                />
+              </div>
             </div>
 
             {/* Emergency Contacts */}

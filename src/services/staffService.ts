@@ -12,6 +12,8 @@ export interface StaffMember {
   category: 'Driver' | 'Helper' | 'Cleaner' | 'Office Staff' | 'Garage';
   phone: string;
   additionalPhones?: string[];
+  landline?: string;
+  address?: string;
   email?: string;
   nicNumber: string;
   licenseNo?: string;
