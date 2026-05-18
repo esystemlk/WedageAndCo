@@ -5,12 +5,15 @@ import {
   ShieldCheck, 
   UserSquare2, 
   ChevronRight,
+  ChevronDown,
   Shield,
   Key,
   CheckCircle2,
   AlertCircle,
   FileText,
-  Clock
+  Clock,
+  Check,
+  X
 } from 'lucide-react';
 import { useUsers } from '../../hooks/useUsers';
 import { useAuth } from '../../contexts/AuthContext';
@@ -71,6 +74,33 @@ const UserListPage: React.FC = () => {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'users' | 'roles'>('users');
+  const [expandedUserIds, setExpandedUserIds] = useState<Record<string, boolean>>({});
+  
+  const toggleExpand = (userId: string) => {
+    setExpandedUserIds(prev => ({
+      ...prev,
+      [userId]: !prev[userId]
+    }));
+  };
+
+  const PERMISSION_GROUPS = [
+    {
+      name: 'Security & Access Control',
+      perms: ['view_users', 'manage_users', 'view_audit_logs'] as Permission[]
+    },
+    {
+      name: 'Business Directories',
+      perms: ['view_customers', 'edit_customers', 'view_suppliers', 'edit_suppliers', 'view_staff', 'edit_staff'] as Permission[]
+    },
+    {
+      name: 'Logistics & Infrastructure',
+      perms: ['view_fleet', 'edit_fleet', 'view_logs', 'edit_logs', 'view_garage', 'edit_garage'] as Permission[]
+    },
+    {
+      name: 'Financial Control',
+      perms: ['view_reports', 'view_billing'] as Permission[]
+    }
+  ];
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     if (userId === currentUser?.uid && newRole !== UserRole.DEVELOPER && newRole !== UserRole.SUPER_ADMIN) {
@@ -163,100 +193,190 @@ const UserListPage: React.FC = () => {
                         const details = ROLE_DETAILS[u.role] || ROLE_DETAILS[UserRole.DRIVER];
                         const Icon = details.icon;
                         const isSelf = u.id === currentUser?.uid;
+                        const isExpanded = !!expandedUserIds[u.id];
 
                         return (
-                          <motion.tr 
-                            key={u.id}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: i * 0.05 }}
-                            className={cn(
-                              "group transition-all",
-                              isSelf ? "bg-indigo-50" : "hover:bg-gray-50/50",
-                              u.role === UserRole.PENDING && "bg-amber-50/30"
-                            )}
-                          >
-                            <td className="px-10 py-6">
-                              <div className="flex items-center gap-5">
-                                <div className={cn(
-                                  "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl group-hover:scale-105 transition-transform shadow-sm",
-                                  u.role === UserRole.PENDING ? "bg-amber-50 text-amber-600 border border-amber-100" : "bg-gray-50 border border-gray-100 text-indigo-600"
-                                )}>
-                                  {u.role === UserRole.PENDING ? <Clock className="w-6 h-6" /> : (u.displayName?.charAt(0) || u.email?.charAt(0).toUpperCase())}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-3">
-                                    <p className="text-sm font-black text-[var(--text-main)] uppercase tracking-tight">
-                                      {u.displayName || 'User'}
-                                    </p>
-                                    {isSelf && <span className="text-[8px] bg-indigo-600 text-white px-2 py-0.5 rounded-full tracking-widest">YOU</span>}
-                                    {u.role === UserRole.PENDING && (
-                                      <span className="text-[8px] bg-amber-500 text-black px-2 py-0.5 rounded-full font-black tracking-widest animate-pulse">NEW REQUEST</span>
-                                    )}
-                                  </div>
-                                  <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5 tracking-wider">{u.email}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-10 py-6">
-                               <div className={cn(
-                                 "inline-flex items-center gap-2 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest bg-opacity-10 whitespace-nowrap",
-                                 details.color
-                               )}>
-                                 <Icon className="w-3 h-3" />
-                                 {details.label}
-                               </div>
-                            </td>
-                            <td className="px-10 py-6">
-                              <div className="flex flex-wrap gap-1.5 max-w-[280px]">
-                                {ROLE_PERMISSIONS[u.role]?.map(p => (
-                                  <span 
-                                    key={p} 
-                                    className="text-[7px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-md bg-[var(--bg-main)] border border-[var(--border-main)] text-[var(--text-muted)] hover:text-indigo-500 hover:border-indigo-500/30 transition-colors cursor-default"
-                                    title={p.split('_').join(' ').toUpperCase()}
+                          <React.Fragment key={u.id}>
+                            <motion.tr 
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: i * 0.05 }}
+                              className={cn(
+                                "group transition-all border-b border-[var(--border-main)]",
+                                isSelf ? "bg-indigo-50/70" : "hover:bg-gray-50/50",
+                                u.role === UserRole.PENDING && "bg-amber-50/30",
+                                isExpanded && "bg-indigo-50/20"
+                              )}
+                            >
+                              <td className="px-10 py-6">
+                                <div className="flex items-center gap-5">
+                                  {/* Clickable chevron + avatar combo */}
+                                  <button 
+                                    onClick={() => toggleExpand(u.id)}
+                                    type="button"
+                                    className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-indigo-600 transition-colors"
+                                    title="Toggle Permissions Details"
                                   >
-                                    {p.split('_').join(' ')}
-                                  </span>
-                                ))}
-                                {(!ROLE_PERMISSIONS[u.role] || ROLE_PERMISSIONS[u.role].length === 0) && (
-                                  <span className="text-[7px] font-black uppercase tracking-widest text-[var(--text-muted)] opacity-50 italic">
-                                    No permissions assigned
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-10 py-6 text-right">
-                               {can('manage_users') ? (
-                                 <div className="flex items-center justify-end gap-3">
-                                    {u.role === UserRole.PENDING && (
-                                      <button
-                                        onClick={() => handleRoleChange(u.id, UserRole.DRIVER)}
-                                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-emerald-500/20 whitespace-nowrap"
-                                      >
-                                        Approve Access
-                                      </button>
+                                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", isExpanded && "rotate-180")} />
+                                  </button>
+                                  
+                                  <div 
+                                    onClick={() => toggleExpand(u.id)}
+                                    className={cn(
+                                      "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl group-hover:scale-105 transition-transform shadow-sm cursor-pointer select-none",
+                                      u.role === UserRole.PENDING ? "bg-amber-50 text-amber-600 border border-amber-100" : "bg-gray-50 border border-gray-100 text-indigo-600"
                                     )}
-                                    <select
-                                      disabled={updatingId === u.id || (u.role === UserRole.DEVELOPER && currentRole !== UserRole.DEVELOPER)}
-                                      value={u.role}
-                                      onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
-                                      className="bg-[var(--input-bg)] border border-[var(--border-main)] rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] focus:border-indigo-500/50 outline-none transition-all disabled:opacity-30 cursor-pointer"
-                                    >
-                                      {Object.entries(UserRole).map(([key, value]) => (
-                                        <option key={value} value={value} className="bg-[var(--bg-main)] text-[var(--text-main)]" disabled={value === UserRole.DEVELOPER && currentRole !== UserRole.DEVELOPER}>
-                                          {value === UserRole.PENDING ? 'Access Request' : `Assign ${key}`}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    {updatingId === u.id && (
-                                      <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                                    )}
+                                  >
+                                    {u.role === UserRole.PENDING ? <Clock className="w-6 h-6" /> : (u.displayName?.charAt(0) || u.email?.charAt(0).toUpperCase())}
+                                  </div>
+                                  
+                                  <div onClick={() => toggleExpand(u.id)} className="cursor-pointer">
+                                    <div className="flex items-center gap-3">
+                                      <p className="text-sm font-black text-[var(--text-main)] uppercase tracking-tight hover:text-indigo-600 transition-colors">
+                                        {u.displayName || 'User'}
+                                      </p>
+                                      {isSelf && <span className="text-[8px] bg-indigo-600 text-white px-2 py-0.5 rounded-full tracking-widest">YOU</span>}
+                                      {u.role === UserRole.PENDING && (
+                                        <span className="text-[8px] bg-amber-500 text-black px-2 py-0.5 rounded-full font-black tracking-widest animate-pulse">NEW REQUEST</span>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5 tracking-wider">{u.email}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              
+                              <td className="px-10 py-6">
+                                 <div className={cn(
+                                   "inline-flex items-center gap-2 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest bg-opacity-10 whitespace-nowrap",
+                                   details.color
+                                 )}>
+                                   <Icon className="w-3 h-3" />
+                                   {details.label}
                                  </div>
-                               ) : (
-                                 <Shield className="w-4 h-4 text-[var(--border-main)] opacity-50 ml-auto" />
-                               )}
-                            </td>
-                          </motion.tr>
+                              </td>
+                              
+                              <td className="px-10 py-6">
+                                <button 
+                                  onClick={() => toggleExpand(u.id)}
+                                  type="button"
+                                  className={cn(
+                                    "flex items-center gap-2 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.1em] border transition-all",
+                                    isExpanded 
+                                      ? "bg-indigo-600 text-white border-transparent shadow-md shadow-indigo-100" 
+                                      : "bg-white border-gray-150 text-gray-500 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50/30"
+                                  )}
+                                >
+                                  <span>{ROLE_PERMISSIONS[u.role]?.length || 0} Permissions</span>
+                                  <ChevronDown className={cn("w-3 h-3 transition-transform duration-200", isExpanded && "rotate-180")} />
+                                </button>
+                              </td>
+                              
+                              <td className="px-10 py-6 text-right">
+                                 {can('manage_users') ? (
+                                   <div className="flex items-center justify-end gap-3">
+                                      {u.role === UserRole.PENDING && (
+                                        <button
+                                          onClick={() => handleRoleChange(u.id, UserRole.DRIVER)}
+                                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-emerald-500/20 whitespace-nowrap"
+                                        >
+                                          Approve Access
+                                        </button>
+                                      )}
+                                      <select
+                                        disabled={updatingId === u.id || (u.role === UserRole.DEVELOPER && currentRole !== UserRole.DEVELOPER)}
+                                        value={u.role}
+                                        onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
+                                        className="bg-[var(--input-bg)] border border-[var(--border-main)] rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] focus:border-indigo-500/50 outline-none transition-all disabled:opacity-30 cursor-pointer"
+                                      >
+                                        {Object.entries(UserRole).map(([key, value]) => (
+                                          <option key={value} value={value} className="bg-[var(--bg-main)] text-[var(--text-main)]" disabled={value === UserRole.DEVELOPER && currentRole !== UserRole.DEVELOPER}>
+                                            {value === UserRole.PENDING ? 'Access Request' : `Assign ${key}`}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      {updatingId === u.id && (
+                                        <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                      )}
+                                   </div>
+                                 ) : (
+                                   <Shield className="w-4 h-4 text-[var(--border-main)] opacity-50 ml-auto" />
+                                 )}
+                              </td>
+                            </motion.tr>
+                            
+                            {/* Expanded Sub-Row displaying permissions details cleanly */}
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={4} className="px-10 py-0 border-b border-[var(--border-main)] bg-gray-50/40">
+                                  <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.25 }}
+                                    className="py-8 px-6 space-y-6 overflow-hidden"
+                                  >
+                                    <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                                      <div>
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">
+                                          System Authorization Matrix
+                                        </h4>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                                          Role Permissions Map for "{details.label}"
+                                        </p>
+                                      </div>
+                                      <span className="text-[9px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg border border-indigo-100">
+                                        {ROLE_PERMISSIONS[u.role]?.length || 0} / {allPermissions.length} Active Handles
+                                      </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+                                      {PERMISSION_GROUPS.map((group) => {
+                                        return (
+                                          <div key={group.name} className="bg-white border border-gray-100 p-5 rounded-2xl space-y-4 shadow-sm">
+                                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-50 pb-2">
+                                              {group.name}
+                                            </p>
+                                            
+                                            <div className="space-y-2">
+                                              {group.perms.map((p) => {
+                                                const hasAccess = ROLE_PERMISSIONS[u.role]?.includes(p);
+                                                return (
+                                                  <div 
+                                                    key={p} 
+                                                    className="flex items-center justify-between gap-3 text-[10px] font-bold tracking-tight py-0.5"
+                                                  >
+                                                    <span className={cn(
+                                                      "uppercase",
+                                                      hasAccess ? "text-gray-800" : "text-gray-300 line-through decoration-gray-200"
+                                                    )}>
+                                                      {p.replace(/_/g, ' ')}
+                                                    </span>
+                                                    
+                                                    <div className={cn(
+                                                      "w-4 h-4 rounded-full flex items-center justify-center border",
+                                                      hasAccess 
+                                                        ? "bg-emerald-500 border-transparent text-white" 
+                                                        : "bg-gray-50 border-gray-100 text-gray-300"
+                                                    )}>
+                                                      {hasAccess ? (
+                                                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                                      ) : (
+                                                        <X className="w-2 h-2" />
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
