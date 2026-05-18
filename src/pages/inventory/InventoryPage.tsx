@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Package, 
-  Plus, 
-  Search, 
-  Filter, 
-  AlertTriangle, 
+import {
+  Package,
+  Plus,
+  Search,
+  Filter,
+  AlertTriangle,
   CheckCircle2,
   Edit2,
   Trash2,
@@ -134,8 +134,8 @@ const InventoryPage: React.FC = () => {
   const filteredInventory = useMemo(() => {
     return inventory.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()));
+        item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
@@ -162,11 +162,11 @@ const InventoryPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20">
-      <PageHeader 
-        title="Inventory Management" 
+      <PageHeader
+        title="Inventory Management"
         subtitle="Track and manage your stock and supplies"
         actions={
-          <button 
+          <button
             onClick={() => {
               setSelectedItem(null);
               setIsAddModalOpen(true);
@@ -194,13 +194,13 @@ const InventoryPage: React.FC = () => {
             className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm"
           >
             <div className="flex justify-between items-start">
-               <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                  <h4 className="text-2xl font-black text-gray-900">{stat.value}</h4>
-               </div>
-               <div className={`p-3 rounded-2xl border shadow-sm ${stat.bg} border-gray-100 ${stat.color}`}>
-                  <stat.icon className="w-5 h-5" />
-               </div>
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                <h4 className="text-2xl font-black text-gray-900">{stat.value}</h4>
+              </div>
+              <div className={`p-3 rounded-2xl border shadow-sm ${stat.bg} border-gray-100 ${stat.color}`}>
+                <stat.icon className="w-5 h-5" />
+              </div>
             </div>
           </motion.div>
         ))}
@@ -249,7 +249,7 @@ const InventoryPage: React.FC = () => {
               {filteredInventory.map((item) => {
                 const statusConfig = getStatusConfig(item.status);
                 const StatusIcon = statusConfig.icon;
-                
+
                 return (
                   <motion.tr
                     key={item.id}
@@ -303,14 +303,14 @@ const InventoryPage: React.FC = () => {
                     </td>
                     <td className="py-4 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
+                        <button
                           onClick={() => setSelectedItem(item)}
                           className="p-2 hover:bg-gray-100 rounded-lg"
                           title="Edit"
                         >
                           <Edit2 className="w-4 h-4 text-gray-600" />
                         </button>
-                        <button 
+                        <button
                           className="p-2 hover:bg-red-50 rounded-lg"
                           title="Delete"
                         >

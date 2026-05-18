@@ -40,7 +40,9 @@ export interface GRN {
   warehouseLocation?: string;
   deliveryAddress?: string;
   items: GRNItem[];
-  conditionOfGoods: 'Good' | 'Damaged' | 'Partial' | 'Rejected';
+  conditionOfGoods?: 'Good' | 'Damaged' | 'Partial' | 'Rejected';
+  voucherNo?: string;
+  invoiceNo?: string;
   remarks?: string;
   createdAt?: any;
   updatedAt?: any;

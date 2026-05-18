@@ -17,7 +17,7 @@ export interface LogSheet {
   temporaryDriverName?: string;
   temporaryHelperName?: string;
   additionalHelpers?: string;
-  
+
   // Meter Reading
   meterStatus: 'Working' | 'Not Working';
   startMileage?: number; // Odometer reading at departure (km)

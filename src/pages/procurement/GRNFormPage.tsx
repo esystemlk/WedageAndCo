@@ -33,7 +33,8 @@ const grnSchema = z.object({
   supplierId: z.string().min(1, 'Supplier is required'),
   purchaseOrderRef: z.string().optional(),
   supplierInvoiceNo: z.string().optional(),
-  conditionOfGoods: z.enum(['Good', 'Damaged', 'Partial', 'Rejected']),
+  voucherNo: z.string().optional(),
+  warehouseLocation: z.string().optional(),
   items: z.array(z.object({
     description: z.string().min(1, 'Required'),
     orderedQuantity: z.number().min(0, 'Min 0'),
@@ -57,7 +58,6 @@ const GRNFormPage: React.FC = () => {
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
       items: [{ description: '', orderedQuantity: 0, receivedQuantity: 0, unit: 'pcs' }],
-      conditionOfGoods: 'Good'
     }
   });
 
@@ -161,6 +161,14 @@ const GRNFormPage: React.FC = () => {
                       )}
                     />
                  </div>
+                 
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Receiving Location / Warehouse</label>
+                    <div className="relative shadow-sm">
+                       <Truck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                       <input type="text" {...register('warehouseLocation')} className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none" placeholder="e.g. Main Yard / Warehouse A" />
+                    </div>
+                 </div>
               </div>
 
               {/* ... next bit ... */}
@@ -185,10 +193,18 @@ const GRNFormPage: React.FC = () => {
                  </div>
 
                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Carrier Invoice Ref</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Carrier Invoice / Delivery Note Ref</label>
                     <div className="relative shadow-sm">
                        <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                        <input type="text" {...register('supplierInvoiceNo')} className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none" placeholder="Invoice / Delivery Note #" />
+                    </div>
+                 </div>
+                 
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Voucher Number</label>
+                    <div className="relative shadow-sm">
+                       <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
+                       <input type="text" {...register('voucherNo')} className="w-full bg-indigo-50/30 border border-indigo-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none" placeholder="Internal Voucher #" />
                     </div>
                  </div>
               </div>
@@ -269,34 +285,10 @@ const GRNFormPage: React.FC = () => {
               </div>
            </div>
 
-           {/* Quality & Remarks */}
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-              <div className="md:col-span-1 space-y-3">
-                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Material Integrity Status</label>
-                 <div className="flex flex-col gap-2">
-                    {['Good', 'Damaged', 'Partial', 'Rejected'].map(c => (
-                       <button
-                          key={c}
-                          type="button"
-                          onClick={() => setValue('conditionOfGoods', c as any)}
-                          className={cn(
-                             "px-5 py-3 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border flex items-center justify-between shadow-sm",
-                             watch('conditionOfGoods') === c 
-                                ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-100" 
-                                : "bg-gray-50 border-gray-100 text-gray-400"
-                          )}
-                       >
-                          {c}
-                          {watch('conditionOfGoods') === c && (c === 'Good' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />)}
-                       </button>
-                    ))}
-                 </div>
-              </div>
-
-              <div className="md:col-span-2 space-y-3">
-                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Observational Notes</label>
-                 <textarea {...register('remarks')} rows={6} className="w-full bg-gray-50 border border-gray-100 p-8 rounded-[2.5rem] text-gray-900 font-bold outline-none resize-none text-xs shadow-sm shadow-inner placeholder:text-gray-400" placeholder="Note down shortages, breakage reasons, or logistics deviations..." />
-              </div>
+           {/* Remarks */}
+           <div className="space-y-3">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Observational Notes</label>
+              <textarea {...register('remarks')} rows={4} className="w-full bg-gray-50 border border-gray-100 p-8 rounded-[2.5rem] text-gray-900 font-bold outline-none resize-none text-xs shadow-sm shadow-inner placeholder:text-gray-400" placeholder="Note down shortages, breakage reasons, or logistics deviations..." />
            </div>
 
            <div className="pt-8 border-t border-gray-100 flex items-center justify-between">

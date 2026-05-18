@@ -1,15 +1,15 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
   doc,
-  getDoc, 
-  getDocs, 
-  query, 
-  orderBy, 
-  Timestamp, 
-  where 
+  getDoc,
+  getDocs,
+  query,
+  orderBy,
+  Timestamp,
+  where
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';

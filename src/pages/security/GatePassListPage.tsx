@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ShieldCheck, 
-  Plus, 
-  Search, 
-  Filter, 
-  Clock, 
-  Truck, 
-  FileText, 
+import {
+  ShieldCheck,
+  Plus,
+  Search,
+  Filter,
+  Clock,
+  Truck,
+  FileText,
   ChevronRight,
   Calendar,
   DollarSign,
@@ -25,18 +25,18 @@ import { motion, AnimatePresence } from 'motion/react';
 import { getGatePasses, GatePass } from '../../services/gatePassService';
 import { getVehicles } from '../../services/fleetService';
 import { getSuppliers } from '../../services/supplierService';
-import { 
-  getSecurityBillChecks, 
-  createSecurityBillCheck, 
-  deleteSecurityBillCheck, 
-  SecurityBillCheck 
+import {
+  getSecurityBillChecks,
+  createSecurityBillCheck,
+  deleteSecurityBillCheck,
+  SecurityBillCheck
 } from '../../services/securityBillService';
-import { 
-  getVisitorLogs, 
-  createVisitorLog, 
-  updateVisitorLog, 
-  deleteVisitorLog, 
-  VisitorLog 
+import {
+  getVisitorLogs,
+  createVisitorLog,
+  updateVisitorLog,
+  deleteVisitorLog,
+  VisitorLog
 } from '../../services/visitorLogService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -93,12 +93,12 @@ const GatePassListPage: React.FC = () => {
   const [visitorLogs, setVisitorLogs] = useState<VisitorLog[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'All' | 'Open' | 'Returned' | 'Cancelled'>('All');
   const [visitorFilter, setVisitorFilter] = useState<'All' | 'On-site' | 'Checked Out'>('All');
-  
+
   // Drawer states
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [visitorDrawerOpen, setVisitorDrawerOpen] = useState(false);
@@ -108,13 +108,13 @@ const GatePassListPage: React.FC = () => {
   const { user } = useAuth();
 
   // Hook-form for Bills verification
-  const { 
-    register: registerBill, 
-    handleSubmit: handleSubmitBill, 
-    setValue: setBillValue, 
-    watch: watchBill, 
-    reset: resetBill, 
-    formState: { errors: billErrors } 
+  const {
+    register: registerBill,
+    handleSubmit: handleSubmitBill,
+    setValue: setBillValue,
+    watch: watchBill,
+    reset: resetBill,
+    formState: { errors: billErrors }
   } = useForm<BillCheckFormData>({
     resolver: zodResolver(billCheckSchema),
     defaultValues: {
@@ -126,13 +126,13 @@ const GatePassListPage: React.FC = () => {
   });
 
   // Hook-form for Visitors
-  const { 
-    register: registerVisitor, 
-    handleSubmit: handleSubmitVisitor, 
-    setValue: setVisitorValue, 
-    watch: watchVisitor, 
-    reset: resetVisitor, 
-    formState: { errors: visitorErrors } 
+  const {
+    register: registerVisitor,
+    handleSubmit: handleSubmitVisitor,
+    setValue: setVisitorValue,
+    watch: watchVisitor,
+    reset: resetVisitor,
+    formState: { errors: visitorErrors }
   } = useForm<VisitorFormData>({
     resolver: zodResolver(visitorSchema),
     defaultValues: {
@@ -273,27 +273,27 @@ const GatePassListPage: React.FC = () => {
   };
 
   const filteredPasses = gatePasses.filter(gp => {
-    const matchesSearch = gp.gatePassNo.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         gp.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         gp.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (gp.customerName && gp.customerName.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = gp.gatePassNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      gp.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      gp.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (gp.customerName && gp.customerName.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesFilter = filter === 'All' || gp.status === filter;
     return matchesSearch && matchesFilter;
   });
 
   const filteredBills = billChecks.filter(b => {
     return b.supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           b.invoiceNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (b.vehicleNo && b.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase())) ||
-           b.description.toLowerCase().includes(searchQuery.toLowerCase());
+      b.invoiceNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (b.vehicleNo && b.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      b.description.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const filteredVisitors = visitorLogs.filter(v => {
     const matchesSearch = v.visitorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          v.phone.includes(searchQuery) ||
-                          (v.organization && v.organization.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          (v.vehicleNo && v.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          v.purpose.toLowerCase().includes(searchQuery.toLowerCase());
+      v.phone.includes(searchQuery) ||
+      (v.organization && v.organization.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (v.vehicleNo && v.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      v.purpose.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = visitorFilter === 'All' || v.status === visitorFilter;
     return matchesSearch && matchesFilter;
   });
@@ -302,14 +302,14 @@ const GatePassListPage: React.FC = () => {
 
   return (
     <div className="space-y-10 group/page pb-20 relative">
-      <PageHeader 
-        title="Security Command Book" 
+      <PageHeader
+        title="Security Command Book"
         subtitle="Gate Exit Passes, External Visitors, and Yard store verification registry"
       />
 
       {/* Modern Premium Tabs */}
       <div className="flex border-b border-gray-100 overflow-x-auto gap-4 scrollbar-none">
-        <button 
+        <button
           onClick={() => { setActiveTab('passes'); setSearchQuery(''); }}
           className={cn(
             "pb-4 px-6 text-xs font-black uppercase tracking-[0.25em] transition-all relative shrink-0",
@@ -323,8 +323,8 @@ const GatePassListPage: React.FC = () => {
             </span>
           )}
         </button>
-        
-        <button 
+
+        <button
           onClick={() => { setActiveTab('visitors'); setSearchQuery(''); }}
           className={cn(
             "pb-4 px-6 text-xs font-black uppercase tracking-[0.25em] transition-all relative shrink-0",
@@ -339,7 +339,7 @@ const GatePassListPage: React.FC = () => {
           )}
         </button>
 
-        <button 
+        <button
           onClick={() => { setActiveTab('bills'); setSearchQuery(''); }}
           className={cn(
             "pb-4 px-6 text-xs font-black uppercase tracking-[0.25em] transition-all relative shrink-0",
@@ -357,19 +357,19 @@ const GatePassListPage: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="relative group/search">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/search:text-indigo-600 w-4 h-4 transition-colors" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder={
-                activeTab === 'passes' ? "Search Pass, Vehicle, Driver..." : 
-                activeTab === 'visitors' ? "Search Visitor, Org, External Vehicle..." :
-                "Search Invoice, Supplier, Vehicle..."
+                activeTab === 'passes' ? "Search Pass, Vehicle, Driver..." :
+                  activeTab === 'visitors' ? "Search Visitor, Org, External Vehicle..." :
+                    "Search Invoice, Supplier, Vehicle..."
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-gray-50 border border-gray-100 rounded-full pl-11 pr-5 py-3 text-xs w-72 focus:outline-none focus:border-indigo-500/30 focus:bg-white transition-all font-medium text-gray-900 placeholder:text-gray-400 shadow-sm"
             />
           </div>
-          
+
           {activeTab === 'passes' && (
             <div className="flex items-center gap-1 p-1 bg-gray-50 border border-gray-100 rounded-full">
               {['All', 'Open', 'Returned'].map((s) => (
@@ -406,7 +406,7 @@ const GatePassListPage: React.FC = () => {
         </div>
 
         {activeTab === 'passes' ? (
-          <button 
+          <button
             onClick={() => navigate('/security/new')}
             className="group/btn bg-indigo-600 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-500 transition-all shadow-2xl shadow-indigo-500/20 flex items-center gap-3 active:scale-95"
           >
@@ -414,7 +414,7 @@ const GatePassListPage: React.FC = () => {
             Issue Gate Pass
           </button>
         ) : activeTab === 'visitors' ? (
-          <button 
+          <button
             onClick={() => {
               resetVisitor({
                 date: new Date().toISOString().split('T')[0],
@@ -438,7 +438,7 @@ const GatePassListPage: React.FC = () => {
             Log Visitor / External
           </button>
         ) : (
-          <button 
+          <button
             onClick={() => setDrawerOpen(true)}
             className="group/btn bg-emerald-600 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 transition-all shadow-2xl shadow-emerald-500/20 flex items-center gap-3 active:scale-95"
           >
@@ -464,7 +464,7 @@ const GatePassListPage: React.FC = () => {
               <tbody className="divide-y divide-gray-50">
                 <AnimatePresence mode='popLayout'>
                   {filteredPasses.map((gp, i) => (
-                     <motion.tr 
+                    <motion.tr
                       key={gp.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -518,34 +518,34 @@ const GatePassListPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-10 py-6">
-                         <div className="flex flex-col items-center gap-2">
-                            <span className={cn(
-                              "px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-[0.2em] shadow-sm",
-                              gp.status === 'Open' ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                        <div className="flex flex-col items-center gap-2">
+                          <span className={cn(
+                            "px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-[0.2em] shadow-sm",
+                            gp.status === 'Open' ? "bg-amber-50 text-amber-600 border border-amber-100" :
                               gp.status === 'Returned' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
-                              "bg-rose-50 text-rose-600 border border-rose-100"
-                            )}>
-                              {gp.status}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              <span className={cn("w-2 h-2 rounded-full", gp.managerApproved ? "bg-emerald-500" : "bg-gray-200")} title={gp.managerApproved ? "Manager Approved" : "Manager Pending"}></span>
-                              <span className={cn("w-2 h-2 rounded-full", gp.securityApproved ? "bg-indigo-500" : "bg-gray-200")} title={gp.securityApproved ? "Security Approved" : "Security Pending"}></span>
-                            </div>
-                         </div>
+                                "bg-rose-50 text-rose-600 border border-rose-100"
+                          )}>
+                            {gp.status}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn("w-2 h-2 rounded-full", gp.managerApproved ? "bg-emerald-500" : "bg-gray-200")} title={gp.managerApproved ? "Manager Approved" : "Manager Pending"}></span>
+                            <span className={cn("w-2 h-2 rounded-full", gp.securityApproved ? "bg-indigo-500" : "bg-gray-200")} title={gp.securityApproved ? "Security Approved" : "Security Pending"}></span>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-10 py-6 text-right">
-                         <div className="flex items-center justify-end gap-2">
-                            <button 
-                              className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50 transition-all shadow-sm"
-                              onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/security/${gp.id}/edit`);
-                              }}
-                            >
-                              <FileText className="w-4 h-4" />
-                            </button>
-                            <ChevronRight className="w-4 h-4 text-gray-200 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
-                         </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50 transition-all shadow-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/security/${gp.id}/edit`);
+                            }}
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                          <ChevronRight className="w-4 h-4 text-gray-200 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+                        </div>
                       </td>
                     </motion.tr>
                   ))}
@@ -553,7 +553,7 @@ const GatePassListPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-          
+
           {filteredPasses.length === 0 && (
             <div className="p-20 text-center space-y-4">
               <div className="w-16 h-16 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto border border-gray-100">
@@ -586,7 +586,7 @@ const GatePassListPage: React.FC = () => {
               <tbody className="divide-y divide-gray-50">
                 <AnimatePresence mode='popLayout'>
                   {filteredVisitors.map((v, i) => (
-                    <motion.tr 
+                    <motion.tr
                       key={v.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -656,7 +656,7 @@ const GatePassListPage: React.FC = () => {
                               Checkout
                             </button>
                           )}
-                          <button 
+                          <button
                             onClick={(e) => handleDeleteVisitor(v.id!, e)}
                             className="p-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-rose-600 hover:border-rose-100 hover:bg-rose-50 transition-all shadow-sm active:scale-95"
                             title="Delete Visitor Log"
@@ -702,7 +702,7 @@ const GatePassListPage: React.FC = () => {
               <tbody className="divide-y divide-gray-50">
                 <AnimatePresence mode='popLayout'>
                   {filteredBills.map((b, i) => (
-                    <motion.tr 
+                    <motion.tr
                       key={b.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -737,7 +737,7 @@ const GatePassListPage: React.FC = () => {
                         <p className="text-sm font-black text-emerald-600 font-mono">LKR {(b.totalAmount || (b.units * b.price)).toLocaleString()}</p>
                       </td>
                       <td className="px-10 py-6 text-right">
-                        <button 
+                        <button
                           onClick={(e) => handleDeleteBillCheck(b.id, e)}
                           className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-rose-600 hover:border-rose-100 hover:bg-rose-50 transition-all shadow-sm active:scale-95"
                           title="Delete Record"
@@ -770,14 +770,14 @@ const GatePassListPage: React.FC = () => {
       <AnimatePresence>
         {drawerOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setDrawerOpen(false)}
               className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
@@ -794,7 +794,7 @@ const GatePassListPage: React.FC = () => {
                     <p className="text-[9px] text-gray-400 font-black uppercase mt-0.5 tracking-wider">Gate Inward Security Verification</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setDrawerOpen(false)}
                   className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-gray-900 transition-all active:scale-95 shadow-sm"
                 >
@@ -805,8 +805,8 @@ const GatePassListPage: React.FC = () => {
               <form onSubmit={handleSubmitBill(handleCreateBillCheck)} className="flex-1 overflow-y-auto py-8 space-y-8 custom-scrollbar">
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Verification Date</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     {...registerBill('date')}
                     className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-bold text-gray-900 text-sm shadow-sm"
                   />
@@ -820,11 +820,11 @@ const GatePassListPage: React.FC = () => {
                       "flex items-center justify-center gap-3 p-4 rounded-2xl border text-xs font-black uppercase tracking-wider cursor-pointer transition-all",
                       watchTargetType === 'Vehicle' ? "bg-amber-50 border-amber-200 text-amber-700 shadow-sm" : "bg-gray-50/50 border-gray-100 text-gray-400 hover:bg-gray-50"
                     )}>
-                      <input 
-                        type="radio" 
-                        value="Vehicle" 
-                        {...registerBill('targetType')} 
-                        className="hidden" 
+                      <input
+                        type="radio"
+                        value="Vehicle"
+                        {...registerBill('targetType')}
+                        className="hidden"
                       />
                       <Truck className="w-4 h-4" />
                       Vehicle No
@@ -833,11 +833,11 @@ const GatePassListPage: React.FC = () => {
                       "flex items-center justify-center gap-3 p-4 rounded-2xl border text-xs font-black uppercase tracking-wider cursor-pointer transition-all",
                       watchTargetType === 'Stores' ? "bg-purple-50 border-purple-200 text-purple-700 shadow-sm" : "bg-gray-50/50 border-gray-100 text-gray-400 hover:bg-gray-50"
                     )}>
-                      <input 
-                        type="radio" 
-                        value="Stores" 
-                        {...registerBill('targetType')} 
-                        className="hidden" 
+                      <input
+                        type="radio"
+                        value="Stores"
+                        {...registerBill('targetType')}
+                        className="hidden"
                       />
                       <Package className="w-4 h-4" />
                       Yard / Stores
@@ -848,7 +848,7 @@ const GatePassListPage: React.FC = () => {
                 {watchTargetType === 'Vehicle' && (
                   <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Select Fleet Vehicle</label>
-                    <select 
+                    <select
                       {...registerBill('vehicleNo')}
                       className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-bold text-gray-900 text-sm appearance-none cursor-pointer shadow-sm"
                     >
@@ -863,7 +863,7 @@ const GatePassListPage: React.FC = () => {
 
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Supplier name</label>
-                  <select 
+                  <select
                     {...registerBill('supplierName')}
                     className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-bold text-gray-900 text-sm appearance-none cursor-pointer shadow-sm"
                   >
@@ -878,8 +878,8 @@ const GatePassListPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Invoice Number</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       {...registerBill('invoiceNo')}
                       placeholder="e.g. INV-9024"
                       className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-bold text-gray-900 text-sm shadow-sm"
@@ -888,8 +888,8 @@ const GatePassListPage: React.FC = () => {
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Units / Qty</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       {...registerBill('units', { valueAsNumber: true })}
                       placeholder="1"
                       className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-mono font-black text-gray-900 text-sm shadow-sm"
@@ -901,8 +901,8 @@ const GatePassListPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Price (Rate per Unit)</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       {...registerBill('price', { valueAsNumber: true })}
                       placeholder="0"
                       className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-mono font-black text-gray-900 text-sm shadow-sm"
@@ -919,7 +919,7 @@ const GatePassListPage: React.FC = () => {
 
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Goods Description / Remarks</label>
-                  <textarea 
+                  <textarea
                     {...registerBill('description')}
                     rows={3}
                     placeholder="e.g. 5 boxes of spare oil filters for yard"
@@ -928,7 +928,7 @@ const GatePassListPage: React.FC = () => {
                   {billErrors.description && <p className="text-[10px] font-bold text-rose-600 px-1">{billErrors.description.message}</p>}
                 </div>
 
-                <button 
+                <button
                   type="submit"
                   disabled={drawerLoading}
                   className="w-full flex items-center justify-center gap-3 py-5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] transition-all shadow-xl shadow-emerald-100 active:scale-95"
@@ -950,14 +950,14 @@ const GatePassListPage: React.FC = () => {
       <AnimatePresence>
         {visitorDrawerOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setVisitorDrawerOpen(false)}
               className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
@@ -974,7 +974,7 @@ const GatePassListPage: React.FC = () => {
                     <p className="text-[9px] text-gray-400 font-black uppercase mt-0.5 tracking-wider">Yard Visitor & External Vehicle Entry</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setVisitorDrawerOpen(false)}
                   className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-gray-900 transition-all active:scale-95 shadow-sm"
                 >
@@ -986,8 +986,8 @@ const GatePassListPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Entry Date</label>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       {...registerVisitor('date')}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-gray-900 shadow-sm"
                     />
@@ -995,8 +995,8 @@ const GatePassListPage: React.FC = () => {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Arrival Time</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       {...registerVisitor('timeIn')}
                       placeholder="e.g. 10:30 AM"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-gray-900 shadow-sm"
@@ -1013,11 +1013,11 @@ const GatePassListPage: React.FC = () => {
                         "flex items-center justify-center p-3 rounded-xl border text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all",
                         watchVisitorType === type ? "bg-amber-50 border-amber-200 text-amber-700 shadow-sm" : "bg-gray-50/50 border-gray-100 text-gray-450 hover:bg-gray-50"
                       )}>
-                        <input 
-                          type="radio" 
-                          value={type} 
-                          {...registerVisitor('visitorType')} 
-                          className="hidden" 
+                        <input
+                          type="radio"
+                          value={type}
+                          {...registerVisitor('visitorType')}
+                          className="hidden"
                         />
                         {type}
                       </label>
@@ -1027,8 +1027,8 @@ const GatePassListPage: React.FC = () => {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Visitor / Driver Full Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     {...registerVisitor('visitorName')}
                     placeholder="Enter full name..."
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-gray-900 shadow-sm"
@@ -1039,8 +1039,8 @@ const GatePassListPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Phone Number</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       {...registerVisitor('phone')}
                       placeholder="e.g. 0771234567"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-mono font-bold text-gray-900 shadow-sm"
@@ -1049,8 +1049,8 @@ const GatePassListPage: React.FC = () => {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">NIC Number</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       {...registerVisitor('nicNumber')}
                       placeholder="e.g. 19950821033"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-mono font-bold text-gray-900 shadow-sm"
@@ -1060,8 +1060,8 @@ const GatePassListPage: React.FC = () => {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Represented Organization / Business</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     {...registerVisitor('organization')}
                     placeholder="e.g. Keells Super / Individual if none"
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-gray-900 shadow-sm"
@@ -1074,8 +1074,8 @@ const GatePassListPage: React.FC = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Vehicle Plate No</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         {...registerVisitor('vehicleNo')}
                         placeholder="e.g. WP CAA-9031"
                         className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg outline-none font-mono font-bold text-gray-900"
@@ -1083,8 +1083,8 @@ const GatePassListPage: React.FC = () => {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Vehicle Type / Brand</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         {...registerVisitor('vehicleType')}
                         placeholder="e.g. Toyota KDH / Lorry"
                         className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg outline-none font-bold text-gray-900"
@@ -1096,8 +1096,8 @@ const GatePassListPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Host / Person to meet</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       {...registerVisitor('hostName')}
                       placeholder="e.g. MD / Operations Lead"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-gray-900 shadow-sm"
@@ -1118,7 +1118,7 @@ const GatePassListPage: React.FC = () => {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Purpose of Visit / Talk</label>
-                  <textarea 
+                  <textarea
                     {...registerVisitor('purpose')}
                     rows={3}
                     placeholder="e.g. Business discussion / purchase meeting / vehicle sales talk..."
@@ -1127,7 +1127,7 @@ const GatePassListPage: React.FC = () => {
                   {visitorErrors.purpose && <p className="text-[9px] font-bold text-rose-600">{visitorErrors.purpose.message}</p>}
                 </div>
 
-                <button 
+                <button
                   type="submit"
                   disabled={drawerLoading}
                   className="w-full flex items-center justify-center gap-3 py-5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.3em] transition-all shadow-xl shadow-amber-100 active:scale-95"

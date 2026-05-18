@@ -1,13 +1,13 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  orderBy, 
-  Timestamp, 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDoc,
+  getDocs,
+  query,
+  orderBy,
+  Timestamp,
   where,
   doc
 } from 'firebase/firestore';

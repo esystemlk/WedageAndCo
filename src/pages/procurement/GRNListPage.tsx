@@ -47,16 +47,6 @@ const GRNListPage: React.FC = () => {
     g.purchaseOrderRef?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getConditionStyles = (condition: string) => {
-    switch (condition) {
-      case 'Good': return 'text-emerald-600 bg-emerald-50 border-emerald-100';
-      case 'Damaged': return 'text-rose-600 bg-rose-50 border-rose-100';
-      case 'Partial': return 'text-amber-600 bg-amber-50 border-amber-100';
-      case 'Rejected': return 'text-red-700 bg-red-50 border-red-100';
-      default: return 'text-gray-500 bg-gray-50 border-gray-100';
-    }
-  };
-
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -98,7 +88,7 @@ const GRNListPage: React.FC = () => {
                      <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">Registry Reference</th>
                      <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">Logistics Source</th>
                      <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">Acquisition Intel</th>
-                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">Cargo Integrity</th>
+                     <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">Location & Voucher</th>
                      <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 text-right">Actions</th>
                   </tr>
                </thead>
@@ -136,12 +126,10 @@ const GRNListPage: React.FC = () => {
                            </div>
                         </td>
                         <td className="px-8 py-6">
-                           <span className={cn(
-                              "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-[0.2em] border shadow-sm",
-                              getConditionStyles(grn.conditionOfGoods)
-                           )}>
-                              {grn.conditionOfGoods}
-                           </span>
+                           <div>
+                              <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{grn.warehouseLocation || 'Main Yard'}</p>
+                              {grn.voucherNo && <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-widest mt-0.5">VOUCHER: {grn.voucherNo}</p>}
+                           </div>
                         </td>
                         <td className="px-8 py-6 text-right">
                            <button className="p-3 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 group-hover:text-white group-hover:bg-emerald-600 transition-all shadow-sm">
