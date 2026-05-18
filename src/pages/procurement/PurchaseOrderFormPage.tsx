@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createPurchaseOrder, POItem } from '../../services/poService';
@@ -22,6 +22,7 @@ import { useSuppliers } from '../../hooks/useSuppliers';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import SearchableSelect from '../../components/shared/SearchableSelect';
 import { cn } from '../../lib/utils';
 
 const poSchema = z.object({
@@ -137,13 +138,19 @@ const PurchaseOrderFormPage: React.FC = () => {
 
                  <div className="space-y-3">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Target Vendor</label>
-                    <div className="relative shadow-sm">
-                       <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
-                       <select {...register('supplierId')} className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none appearance-none cursor-pointer">
-                          <option value="" className="bg-white">Select Supplier</option>
-                          {suppliers.map(s => <option key={s.id} value={s.id} className="bg-white">{s.name}</option>)}
-                       </select>
-                    </div>
+                    <Controller
+                      control={control}
+                      name="supplierId"
+                      render={({ field }) => (
+                        <SearchableSelect
+                          options={suppliers.map(s => ({ value: s.id!, label: s.name, subLabel: s.category || undefined }))}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select Supplier"
+                          icon={<User className="w-4 h-4 text-emerald-600" />}
+                        />
+                      )}
+                    />
                     {errors.supplierId && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.supplierId.message}</p>}
                  </div>
               </div>

@@ -22,6 +22,8 @@ export interface GatePass {
   date: string;
   vehicleNo: string;
   driverName: string;
+  helperName?: string;
+  customerName?: string;
   passengers?: string;
   timeOut: string;
   timeIn?: string;
@@ -32,6 +34,14 @@ export interface GatePass {
   securityOfficer: string;
   remarks?: string;
   status: 'Open' | 'Returned' | 'Cancelled';
+  invoiceNotAvailable?: boolean;
+  invoiceNo?: string;
+  invoiceReason?: string;
+  partyType?: 'Supplier' | 'Other';
+  managerApproved?: boolean;
+  securityApproved?: boolean;
+  managerApprovedBy?: string;
+  securityApprovedBy?: string;
   createdAt: Timestamp;
 }
 

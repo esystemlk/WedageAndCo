@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { 
@@ -25,6 +25,7 @@ import { createInvoice, updateInvoice, getInvoice, InvoiceItem } from '../../ser
 import { useCustomers } from '../../hooks/useCustomers';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import SearchableSelect from '../../components/shared/SearchableSelect';
 import { generateInvoicePDF } from '../../lib/pdfUtils';
 
 const invoiceItemSchema = z.object({
@@ -158,18 +159,20 @@ const InvoiceFormPage: React.FC = () => {
             <div className="space-y-8">
                 <div className="space-y-3">
                   <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">Customer Selection</label>
-                  <div className="relative group">
-                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 w-5 h-5" />
-                    <select
-                      {...register('customerId')}
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-black text-gray-900 uppercase appearance-none"
-                    >
-                      <option value="" className="bg-white">-- Entity Selection --</option>
-                      {customers.map(c => (
-                        <option key={c.id} value={c.id} className="bg-white text-gray-900">{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <Controller
+                    control={control}
+                    name="customerId"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        options={customers.map(c => ({ value: c.id!, label: c.name, subLabel: c.nickname || undefined }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select Customer"
+                        icon={<Building2 className="w-5 h-5 text-indigo-400" />}
+                      />
+                    )}
+                  />
+                  {errors.customerId && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.customerId.message}</p>}
                </div>
 
                <div className="space-y-3">

@@ -9,19 +9,28 @@ export interface VehicleOwnerDetails {
   ownerName: string;
   ownerAddress: string;
   ownerNicBr: string;
-  ownershipType: string;
-  paymentModel: string;
+  brNumber?: string; // Separate BR number
+  ownershipType: 'sole-proprietor' | 'single-owner' | 'private-limited';
+  paymentModel: 'monthly' | 'per-km' | 'other';
+  monthlyConfig?: {
+    fixedAmount: number;
+    kmLimit: number;
+    extraKmRate: number;
+  };
   agreementStart: string;
   agreementEnd: string;
   paymentRate: number;
   bankDetails: string;
   contractPdfUrl?: string;
+  brDocumentUrl?: string;
+  idCopyUrl?: string;
   handoverConditionReport?: string;
 }
 
 export interface Vehicle {
   id?: string;
   plateNo: string;
+  nickname?: string;
   type: 'freezer-truck' | 'dry-truck' | 'lorry' | 'other';
   make?: string;
   model?: string;
@@ -29,6 +38,8 @@ export interface Vehicle {
   engineNo?: string;
   fuelType: 'diesel' | 'petrol';
   status: 'active' | 'maintenance' | 'unavailable';
+  statusChangeReason?: string;
+  statusConfirmedBy?: string; // Operations Manager
   ownership: 'owned' | 'rented';
 
   // New fields
@@ -40,9 +51,41 @@ export interface Vehicle {
   vehicleImages?: string[];
 
   // Dimensions
-  length?: number;
-  width?: number;
-  height?: number;
+  dimensions?: {
+    internal?: {
+      length?: number;
+      width?: number;
+      height?: number;
+      cbm?: number;
+    };
+    external?: {
+      length?: number;
+      width?: number;
+      height?: number;
+    };
+  };
+
+  // Freezer specific
+  freezerConfig?: {
+    minTemp?: number;
+    maxTemp?: number;
+  };
+
+  // Vehicle Options
+  options?: {
+    sideDoor?: boolean;
+    doubleCompartment?: boolean;
+    powerGate?: boolean;
+    pluginOption?: boolean;
+  };
+
+  // Tyre Section
+  tyres?: {
+    rimSize?: string;
+    tyreSize?: string;
+    numberOfStuds?: number;
+  };
+
   weightCapacity?: number;
 
   // Owner details (when rented)

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { 
@@ -20,6 +20,7 @@ import { useSuppliers } from '../../hooks/useSuppliers';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import FileUpload from '../../components/shared/FileUpload';
+import SearchableSelect from '../../components/shared/SearchableSelect';
 
 const maintenanceSchema = z.object({
   vehicleId: z.string().min(1, 'Vehicle is required'),
@@ -41,7 +42,7 @@ const MaintenanceFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<MaintenanceFormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<MaintenanceFormData>({
     resolver: zodResolver(maintenanceSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
@@ -114,37 +115,37 @@ const MaintenanceFormPage: React.FC = () => {
             {/* Primary Context */}
             <div className="space-y-3">
               <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">Target Asset</label>
-              <div className="relative group">
-                <Truck className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 w-5 h-5 transition-colors" />
-                <select
-                  {...register('vehicleId')}
-                  className={cn(
-                    "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-black text-gray-900 uppercase appearance-none",
-                    errors.vehicleId && "border-red-500/50"
-                  )}
-                >
-                  <option value="" className="bg-white text-gray-400 italic">-- Select Vehicle --</option>
-                  {vehicles.map(v => (
-                    <option key={v.id} value={v.id} className="bg-white text-gray-900 font-bold">{v.plateNo} ({v.type})</option>
-                  ))}
-                </select>
-              </div>
+              <Controller
+                control={control}
+                name="vehicleId"
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={vehicles.map(v => ({ value: v.id!, label: `${v.plateNo}`, subLabel: `${v.type}` }))}
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Select Vehicle"
+                    icon={<Truck className="w-4 h-4 text-indigo-600" />}
+                  />
+                )}
+              />
+              {errors.vehicleId && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.vehicleId.message}</p>}
             </div>
 
             <div className="space-y-3">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Service Provider / Garage</label>
-              <div className="relative group">
-                <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 transition-colors" />
-                <select
-                  {...register('supplierId')}
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 appearance-none"
-                >
-                  <option value="" className="bg-white text-gray-400 italic">-- Internal / Third Party --</option>
-                  {suppliers.map(s => (
-                    <option key={s.id} value={s.id} className="bg-white text-gray-900 uppercase tracking-tighter">{s.name}</option>
-                  ))}
-                </select>
-              </div>
+              <Controller
+                control={control}
+                name="supplierId"
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={suppliers.map(s => ({ value: s.id!, label: s.name, subLabel: s.category || undefined }))}
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    placeholder="Internal / Third Party"
+                    icon={<Package className="w-4 h-4 text-gray-400" />}
+                  />
+                )}
+              />
             </div>
 
             <div className="space-y-3">

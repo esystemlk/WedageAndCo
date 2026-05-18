@@ -22,11 +22,14 @@ import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
 const supplierSchema = z.object({
   name: z.string().min(2, 'Supplier name is required'),
+  nickname: z.string().optional(),
   contactName: z.string().optional(),
   email: z.string().email('Valid email is required'),
   phone: z.string().min(10, 'Valid phone number is required'),
   brNo: z.string().optional(),
   vatNo: z.string().optional(),
+  supplyCategories: z.array(z.string()).optional(),
+  description: z.string().optional(),
   additionalContacts: z.array(z.object({
     name: z.string(),
     phone: z.string(),
@@ -49,6 +52,7 @@ const SupplierFormPage: React.FC = () => {
       name: '',
       email: '',
       phone: '',
+      supplyCategories: [],
       additionalContacts: []
     }
   });
@@ -67,6 +71,9 @@ const SupplierFormPage: React.FC = () => {
             setValue('phone', data.phone);
             setValue('brNo', data.brNo || '');
             setValue('vatNo', data.vatNo || '');
+            setValue('nickname', data.nickname || '');
+            setValue('supplyCategories', data.supplyCategories || []);
+            setValue('description', data.description || '');
             setValue('additionalContacts', data.additionalContacts || []);
           }
         } catch (err) {
@@ -116,8 +123,7 @@ const SupplierFormPage: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-            <div className="md:col-span-2 space-y-3">
+            <div className="space-y-3">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Supplier Entity Name</label>
               <div className="relative group">
                 <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
@@ -131,6 +137,18 @@ const SupplierFormPage: React.FC = () => {
                 />
               </div>
               {errors.name && <p className="mt-1 text-[10px] font-bold text-red-500 px-1">{errors.name.message}</p>}
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Nickname / Short Name</label>
+              <div className="relative group">
+                <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
+                <input
+                  {...register('nickname')}
+                  placeholder="e.g. Total"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+                />
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -200,6 +218,40 @@ const SupplierFormPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="md:col-span-2 space-y-3">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Supply Categories</label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-6 bg-gray-50 rounded-3xl border border-gray-200">
+                {[
+                  'Mechanical',
+                  'Electrical',
+                  'Office Items',
+                  'Reconditioned Parts',
+                  'Alternator Repair Shop',
+                  'Battery Repair Shop',
+                  'Tyre Shop'
+                ].map(category => (
+                  <label key={category} className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      value={category}
+                      {...register('supplyCategories')}
+                      className="w-5 h-5 rounded-lg border-gray-300 text-indigo-600 focus:ring-indigo-500/50 transition-all"
+                    />
+                    <span className="text-xs font-bold text-gray-600 group-hover:text-indigo-600 transition-colors">{category}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="md:col-span-2 space-y-3">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Description of Items Supplied</label>
+              <textarea
+                {...register('description')}
+                placeholder="Briefly describe the items or services provided by this supplier..."
+                className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-3xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400 min-h-[120px]"
+              />
+            </div>
+
             {/* Additional Contacts */}
             <div className="md:col-span-2 space-y-6 pt-6 border-t border-gray-100">
               <div className="flex items-center justify-between">
@@ -238,7 +290,6 @@ const SupplierFormPage: React.FC = () => {
                 )}
               </div>
             </div>
-          </div>
 
           <div className="pt-10 border-t border-gray-100 flex items-center justify-end">
             <button

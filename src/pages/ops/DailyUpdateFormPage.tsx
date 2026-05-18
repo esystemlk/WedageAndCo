@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createDailyUpdate } from '../../services/dailyUpdateService';
@@ -24,6 +24,7 @@ import { useCustomers } from '../../hooks/useCustomers';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import SearchableSelect from '../../components/shared/SearchableSelect';
 import { cn } from '../../lib/utils';
 
 const dailyUpdateSchema = z.object({
@@ -33,11 +34,36 @@ const dailyUpdateSchema = z.object({
   actualHelperId: z.string().optional().or(z.literal('')),
   customerId: z.string().optional().or(z.literal('')),
   status: z.enum(['On Trip', 'Breakdown', 'Yard Parking', 'Under Repair', 'Personal Use', 'Other']),
-  customerRoute: z.string().optional().or(z.literal('')),
-  meterReading: z.number().optional(),
-  fuelPumped: z.number().optional(),
+  fuelPumped: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
   breakdownReason: z.string().optional().or(z.literal('')),
   remarks: z.string().optional().or(z.literal('')),
+  temporaryDriverName: z.string().optional(),
+  temporaryHelperName: z.string().optional(),
+  additionalHelpers: z.string().optional(),
+}).refine(data => {
+  if (data.status === 'Breakdown' && !data.breakdownReason?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Critical Failure Reason is required",
+  path: ["breakdownReason"]
+}).refine(data => {
+  if (data.actualDriverId === 'temp' && !data.temporaryDriverName?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Temporary Driver Name is required",
+  path: ["temporaryDriverName"]
+}).refine(data => {
+  if (data.actualHelperId === 'temp' && !data.temporaryHelperName?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Temporary Helper Name is required",
+  path: ["temporaryHelperName"]
 });
 
 type DailyUpdateFormData = z.infer<typeof dailyUpdateSchema>;
@@ -50,23 +76,31 @@ const DailyUpdateFormPage: React.FC = () => {
   const { customers } = useCustomers();
   const [loading, setLoading] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<DailyUpdateFormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<DailyUpdateFormData>({
     resolver: zodResolver(dailyUpdateSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
       status: 'Yard Parking',
-      customerId: ''
+      customerId: '',
+      actualDriverId: '',
+      actualHelperId: '',
+      temporaryDriverName: '',
+      temporaryHelperName: '',
+      additionalHelpers: '',
+      breakdownReason: ''
     }
   });
 
   const selectedStatus = watch('status');
+  const actualDriverId = watch('actualDriverId');
+  const actualHelperId = watch('actualHelperId');
 
   const onSubmit = async (data: DailyUpdateFormData) => {
     try {
       setLoading(true);
       const vehicle = vehicles.find(v => v.id === data.vehicleId);
-      const driver = staff.find(s => s.id === data.actualDriverId);
-      const helper = staff.find(s => s.id === data.actualHelperId);
+      const driver = data.actualDriverId === 'temp' ? null : staff.find(s => s.id === data.actualDriverId);
+      const helper = data.actualHelperId === 'temp' ? null : staff.find(s => s.id === data.actualHelperId);
       const customer = customers.find(c => c.id === data.customerId);
 
       const dayOfWeek = new Date(data.date).toLocaleDateString('en-US', { weekday: 'long' });
@@ -75,11 +109,11 @@ const DailyUpdateFormPage: React.FC = () => {
         ...data,
         dayOfWeek,
         vehicleNo: vehicle?.plateNo || '',
-        actualDriverName: driver?.fullName || '',
-        actualHelperName: helper?.fullName || '',
+        actualDriverName: data.actualDriverId === 'temp' ? (data.temporaryDriverName || 'Temporary Driver') : (driver?.fullName || ''),
+        actualHelperName: data.actualHelperId === 'temp' ? (data.temporaryHelperName || 'Temporary Helper') : (helper?.fullName || ''),
         customerName: customer?.name || '',
         enteredBy: user?.email || 'Unknown',
-        actualHelperId: data.actualHelperId || undefined,
+        actualHelperId: data.actualHelperId === 'temp' ? undefined : (data.actualHelperId || undefined),
       } as any);
 
       navigate('/daily-updates');
@@ -128,13 +162,19 @@ const DailyUpdateFormPage: React.FC = () => {
 
               <div className="space-y-3">
                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Operational Asset</label>
-                 <div className="relative">
-                    <Truck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
-                    <select {...register('vehicleId')} className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none appearance-none cursor-pointer shadow-sm">
-                       <option value="" className="bg-white">Select Vehicle</option>
-                       {activeVehicles.map(v => <option key={v.id} value={v.id} className="bg-white tracking-tight">{v.plateNo} ({v.type})</option>)}
-                    </select>
-                 </div>
+                 <Controller
+                   control={control}
+                   name="vehicleId"
+                   render={({ field }) => (
+                     <SearchableSelect
+                       options={activeVehicles.map(v => ({ value: v.id!, label: `${v.plateNo}`, subLabel: `${v.type}` }))}
+                       value={field.value}
+                       onChange={field.onChange}
+                       placeholder="Select Vehicle"
+                       icon={<Truck className="w-4 h-4 text-emerald-600" />}
+                     />
+                   )}
+                 />
                  {errors.vehicleId && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.vehicleId.message}</p>}
               </div>
            </div>
@@ -143,28 +183,70 @@ const DailyUpdateFormPage: React.FC = () => {
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Active Driver</label>
-                 <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-600" />
-                    <select {...register('actualDriverId')} className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none appearance-none cursor-pointer shadow-sm">
-                       <option value="" className="bg-white">Assigned Duty Driver</option>
-                       {activeDrivers.map(d => <option key={d.id} value={d.id} className="bg-white">{d.fullName}</option>)}
-                    </select>
-                 </div>
+                 <Controller
+                   control={control}
+                   name="actualDriverId"
+                   render={({ field }) => (
+                     <SearchableSelect
+                       options={[
+                         { value: 'temp', label: 'Temporary Driver (Manual Entry)' },
+                         ...activeDrivers.map(d => ({ value: d.id!, label: d.fullName, subLabel: d.phone }))
+                       ]}
+                       value={field.value}
+                       onChange={field.onChange}
+                       placeholder="Assigned Duty Driver"
+                       icon={<User className="w-4 h-4 text-indigo-600" />}
+                     />
+                   )}
+                 />
+                 {errors.actualDriverId && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.actualDriverId.message}</p>}
+
+                 {actualDriverId === 'temp' && (
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2 pt-2">
+                       <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">Temporary Driver Name</label>
+                       <input type="text" {...register('temporaryDriverName')} placeholder="Enter full name of driver" className="w-full bg-gray-50 border border-gray-100 p-4 rounded-2xl text-gray-900 font-bold outline-none shadow-sm" />
+                       {errors.temporaryDriverName && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.temporaryDriverName.message}</p>}
+                    </motion.div>
+                 )}
               </div>
 
               <div className="space-y-3">
                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Engagement Helper (Optional)</label>
-                 <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <select {...register('actualHelperId')} className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none appearance-none cursor-pointer shadow-sm">
-                       <option value="" className="bg-white">No Helper Assigned</option>
-                       {activeHelpers.map(h => <option key={h.id} value={h.id} className="bg-white">{h.fullName}</option>)}
-                    </select>
-                 </div>
+                 <Controller
+                   control={control}
+                   name="actualHelperId"
+                   render={({ field }) => (
+                     <SearchableSelect
+                       options={[
+                         { value: 'temp', label: 'Temporary Helper (Manual Entry)' },
+                         ...activeHelpers.map(h => ({ value: h.id!, label: h.fullName, subLabel: h.phone }))
+                       ]}
+                       value={field.value || ''}
+                       onChange={field.onChange}
+                       placeholder="No Helper Assigned"
+                       icon={<User className="w-4 h-4 text-gray-400" />}
+                     />
+                   )}
+                 />
+                 {errors.actualHelperId && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.actualHelperId.message}</p>}
+
+                  {actualHelperId === 'temp' && (
+                     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2 pt-2">
+                        <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">Temporary Helper Name</label>
+                        <input type="text" {...register('temporaryHelperName')} placeholder="Enter full name of helper" className="w-full bg-gray-50 border border-gray-100 p-4 rounded-2xl text-gray-900 font-bold outline-none shadow-sm" />
+                        {errors.temporaryHelperName && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.temporaryHelperName.message}</p>}
+                     </motion.div>
+                  )}
               </div>
            </div>
 
-           {/* Deployment Status */}
+           {/* Additional Crew / Helpers */}
+            <div className="space-y-3">
+               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Additional Helpers / Crew</label>
+               <input type="text" {...register('additionalHelpers')} placeholder="e.g. Nimal, Sunil (comma separated)" className="w-full bg-gray-50 border border-gray-100 p-4 rounded-2xl text-gray-900 font-bold outline-none shadow-sm" />
+            </div>
+
+            {/* Deployment Status */}
            <div className="space-y-3">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Current Tactical Status</label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -187,33 +269,25 @@ const DailyUpdateFormPage: React.FC = () => {
            </div>
 
            {/* Contextual Fields */}
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
+           <div className="grid grid-cols-1 gap-8">
               <div className="space-y-3">
                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Assign to Customer</label>
-                 <div className="relative">
-                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <select {...register('customerId')} className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none appearance-none cursor-pointer shadow-sm">
-                       <option value="" className="bg-white">Select Customer (Optional)</option>
-                       {customers.map(c => <option key={c.id} value={c.id} className="bg-white">{c.name}</option>)}
-                    </select>
-                 </div>
+                 <Controller
+                   control={control}
+                   name="customerId"
+                   render={({ field }) => (
+                     <SearchableSelect
+                       options={customers.map(c => ({ value: c.id!, label: c.name, subLabel: c.nickname || undefined }))}
+                       value={field.value || ''}
+                       onChange={field.onChange}
+                       placeholder="Select Customer (Optional)"
+                       icon={<Building2 className="w-4 h-4 text-gray-400" />}
+                     />
+                   )}
+                 />
               </div>
 
-              <div className="space-y-3">
-                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Active Route / Target</label>
-                 <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="text" {...register('customerRoute')} placeholder="e.g. SPAR / Kothmale" className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none shadow-sm" />
-                 </div>
-              </div>
 
-              <div className="space-y-3">
-                 <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">Meter Reading (KM)</label>
-                 <div className="relative">
-                    <LayoutDashboard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-600" />
-                    <input type="number" {...register('meterReading', { valueAsNumber: true })} placeholder="Current Odometer" className="w-full bg-gray-50 border border-gray-100 pl-12 pr-4 py-4 rounded-2xl text-gray-900 font-bold outline-none shadow-sm" />
-                 </div>
-              </div>
            </div>
 
            <div className="grid grid-cols-1">
@@ -236,7 +310,7 @@ const DailyUpdateFormPage: React.FC = () => {
               </div>
            </div>
 
-           <div className="pt-8 border-t border-gray-100 flex items-center justify-between">
+           <div className="pt-8 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-6">
               <div className="flex items-center gap-3">
                  <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-100">
                     <Info className="w-5 h-5 text-indigo-600" />
@@ -250,7 +324,7 @@ const DailyUpdateFormPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-indigo-600 text-white px-12 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center gap-3 disabled:opacity-50 active:scale-95"
+                className="w-full sm:w-auto bg-indigo-600 text-white px-12 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
               >
                 {loading ? <LoadingSpinner /> : (
                   <>

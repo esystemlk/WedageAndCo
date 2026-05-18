@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { 
@@ -29,9 +29,11 @@ import { getVehicle, createVehicle, updateVehicle } from '../../services/fleetSe
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import FileUpload from '../../components/shared/FileUpload';
+import SearchableSelect from '../../components/shared/SearchableSelect';
 
 const vehicleSchema = z.object({
   plateNo: z.string().min(1, 'Plate number is required'),
+  nickname: z.string().optional(),
   type: z.enum(['freezer-truck', 'dry-truck', 'lorry', 'other']),
   make: z.string().optional(),
   model: z.string().optional(),
@@ -39,11 +41,42 @@ const vehicleSchema = z.object({
   engineNo: z.string().optional(),
   fuelType: z.enum(['diesel', 'petrol']),
   status: z.enum(['active', 'maintenance', 'unavailable']),
+  statusChangeReason: z.string().optional(),
+  statusConfirmedBy: z.string().optional(),
   ownership: z.enum(['owned', 'rented']),
-  length: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v),
-  width: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v),
-  height: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v),
-  weightCapacity: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v),
+  weightCapacity: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+  
+  dimensions: z.object({
+    internal: z.object({
+      length: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+      width: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+      height: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+      cbm: z.number().optional()
+    }).optional(),
+    external: z.object({
+      length: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+      width: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+      height: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+    }).optional()
+  }).optional(),
+
+  freezerConfig: z.object({
+    minTemp: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+    maxTemp: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined))
+  }).optional(),
+  
+  options: z.object({
+    sideDoor: z.boolean().default(false),
+    doubleCompartment: z.boolean().default(false),
+    powerGate: z.boolean().default(false),
+    pluginOption: z.boolean().default(false),
+  }).optional(),
+
+  tyres: z.object({
+    rimSize: z.string().optional(),
+    tyreSize: z.string().optional(),
+    numberOfStuds: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+  }).optional(),
   
   // New fields
   dateOfManufacture: z.string().optional(),
@@ -56,16 +89,52 @@ const vehicleSchema = z.object({
     ownerName: z.string(),
     ownerAddress: z.string(),
     ownerNicBr: z.string(),
+    brNumber: z.string().optional(),
     ownershipType: z.string(),
     paymentModel: z.string(),
+    monthlyConfig: z.object({
+      fixedAmount: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+      kmLimit: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+      extraKmRate: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined))
+    }).optional(),
     agreementStart: z.string(),
     agreementEnd: z.string(),
     paymentRate: z.number(),
     bankDetails: z.string(),
     contractPdfUrl: z.string().optional(),
+    brDocumentUrl: z.string().optional(),
+    idCopyUrl: z.string().optional(),
     handoverConditionReport: z.string().optional(),
   }).optional()
 });
+
+const countriesList = [
+  "Sri Lanka", "Japan", "India", "Germany", "United Kingdom", "United States", "China", "South Korea",
+  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan",
+  "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi",
+  "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "Colombia", "Comoros", "Congo", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic (Czechia)",
+  "Denmark", "Djibouti", "Dominica", "Dominican Republic",
+  "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia",
+  "Fiji", "Finland", "France",
+  "Gabon", "Gambia", "Georgia", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana",
+  "Haiti", "Honduras", "Hungary",
+  "Iceland", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Ivory Coast",
+  "Jamaica", "Jordan",
+  "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan",
+  "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg",
+  "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar",
+  "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway",
+  "Oman",
+  "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal",
+  "Qatar",
+  "Romania", "Russia", "Rwanda",
+  "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Sudan", "Spain", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria",
+  "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu",
+  "Uganda", "Ukraine", "United Arab Emirates", "Uruguay", "Uzbekistan",
+  "Vanuatu", "Vatican City", "Venezuela", "Vietnam",
+  "Yemen",
+  "Zambia", "Zimbabwe"
+];
 
 type VehicleFormData = z.infer<typeof vehicleSchema>;
 
@@ -75,8 +144,8 @@ const VehicleFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<VehicleFormData>({
-    resolver: zodResolver(vehicleSchema),
+  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<VehicleFormData>({
+    resolver: zodResolver(vehicleSchema) as any,
     defaultValues: {
       type: 'dry-truck',
       fuelType: 'diesel',
@@ -91,6 +160,8 @@ const VehicleFormPage: React.FC = () => {
   const selectedStatus = watch('status');
   const selectedOwnership = watch('ownership');
   const vehicleImages = watch('vehicleImages') || [];
+  const selectedPaymentModel = watch('ownerDetails.paymentModel');
+  const selectedOwnershipType = watch('ownerDetails.ownershipType');
 
   useEffect(() => {
     if (id) {
@@ -117,10 +188,19 @@ const VehicleFormPage: React.FC = () => {
   const onSubmit = async (data: VehicleFormData) => {
     try {
       setLoading(true);
+
+      // Calculate CBM before saving if internal dimensions exist
+      if (data.dimensions?.internal) {
+        const { length, width, height } = data.dimensions.internal;
+        if (length && width && height) {
+          data.dimensions.internal.cbm = Number(((length * width * height) / 35.315).toFixed(2));
+        }
+      }
+
       if (id) {
-        await updateVehicle(id, data);
+        await updateVehicle(id, data as any);
       } else {
-        await createVehicle(data);
+        await createVehicle(data as any);
       }
       navigate('/fleet');
     } catch (err) {
@@ -152,7 +232,7 @@ const VehicleFormPage: React.FC = () => {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 relative z-10">
           {/* Primary Identification */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="lg:col-span-1 space-y-3">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Vehicle Plate No.</label>
               <div className="relative group">
@@ -167,6 +247,20 @@ const VehicleFormPage: React.FC = () => {
                 />
               </div>
               {errors.plateNo && <p className="mt-1 text-[10px] font-bold text-red-500 px-1 uppercase">{errors.plateNo.message}</p>}
+            </div>
+
+            <div className="lg:col-span-1 space-y-3">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Nickname (Optional)</label>
+              <div className="relative group">
+                <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
+                <input
+                  {...register('nickname')}
+                  placeholder="e.g. Big Blue"
+                  className={cn(
+                    "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-black text-gray-900 placeholder:text-gray-400"
+                  )}
+                />
+              </div>
             </div>
 
             <div className="lg:col-span-2 space-y-3">
@@ -248,10 +342,19 @@ const VehicleFormPage: React.FC = () => {
                 </div>
                 <div className="space-y-2">
                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Country of Origin</label>
-                   <div className="relative group">
-                     <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-4 h-4" />
-                     <input {...register('countryOfOrigin')} placeholder="e.g. India" className="w-full pl-10 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" />
-                   </div>
+                   <Controller
+                     control={control}
+                     name="countryOfOrigin"
+                     render={({ field }) => (
+                       <SearchableSelect
+                         options={countriesList.map(c => ({ value: c, label: c }))}
+                         value={field.value || ''}
+                         onChange={field.onChange}
+                         placeholder="Select Country"
+                         icon={<Globe className="w-4 h-4 text-gray-400" />}
+                       />
+                     )}
+                   />
                 </div>
              </div>
           </div>
@@ -264,58 +367,127 @@ const VehicleFormPage: React.FC = () => {
                 <div className="h-px bg-gray-100 flex-1"></div>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100">
+                <div className="lg:col-span-4 flex items-center justify-between mb-2">
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Internal Dimensions (Loadable Space)</span>
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
+                     CBM: {(() => {
+                       const l = watch('dimensions.internal.length') || 0;
+                       const w = watch('dimensions.internal.width') || 0;
+                       const h = watch('dimensions.internal.height') || 0;
+                       const cbm = (l * w * h) / 35.315;
+                       return cbm.toFixed(2);
+                     })()} m³
+                   </span>
+                </div>
                 <div className="space-y-2">
                    <div className="flex items-center gap-2 px-1">
                       <Maximize className="w-3 h-3 text-gray-400" />
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Length (FT)</label>
                    </div>
-                   <input 
-                    type="number" 
-                    step="0.01"
-                    {...register('length', { valueAsNumber: true })} 
-                    placeholder="0.00" 
-                    className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" 
-                   />
+                   <input type="number" step="0.01" {...register('dimensions.internal.length', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
                 </div>
                 <div className="space-y-2">
                    <div className="flex items-center gap-2 px-1">
                       <Maximize className="w-3 h-3 text-gray-400 rotate-90" />
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Width (FT)</label>
                    </div>
-                   <input 
-                    type="number" 
-                    step="0.01"
-                    {...register('width', { valueAsNumber: true })} 
-                    placeholder="0.00" 
-                    className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" 
-                   />
+                   <input type="number" step="0.01" {...register('dimensions.internal.width', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
                 </div>
                 <div className="space-y-2">
                    <div className="flex items-center gap-2 px-1">
                       <Maximize className="w-3 h-3 text-gray-400" />
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Height (FT)</label>
                    </div>
-                   <input 
-                    type="number" 
-                    step="0.01"
-                    {...register('height', { valueAsNumber: true })} 
-                    placeholder="0.00" 
-                    className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" 
-                   />
+                   <input type="number" step="0.01" {...register('dimensions.internal.height', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
                 </div>
                 <div className="space-y-2">
                    <div className="flex items-center gap-2 px-1">
                       <Weight className="w-3 h-3 text-gray-400" />
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Max Capacity (Tons)</label>
                    </div>
-                   <input 
-                    type="number" 
-                    step="0.1"
-                    {...register('weightCapacity', { valueAsNumber: true })} 
-                    placeholder="0.0" 
-                    className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" 
-                   />
+                   <input type="number" step="0.1" {...register('weightCapacity', { valueAsNumber: true })} placeholder="0.0" className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 rounded-[2rem] border border-gray-100">
+                <div className="lg:col-span-3 mb-2">
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">External Dimensions (Overall Size)</span>
+                </div>
+                <div className="space-y-2">
+                   <div className="flex items-center gap-2 px-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Ext. Length (FT)</label>
+                   </div>
+                   <input type="number" step="0.01" {...register('dimensions.external.length', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                </div>
+                <div className="space-y-2">
+                   <div className="flex items-center gap-2 px-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Ext. Width (FT)</label>
+                   </div>
+                   <input type="number" step="0.01" {...register('dimensions.external.width', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                </div>
+                <div className="space-y-2">
+                   <div className="flex items-center gap-2 px-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Ext. Height (FT)</label>
+                   </div>
+                   <input type="number" step="0.01" {...register('dimensions.external.height', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                </div>
+             </div>              {selectedType === 'freezer-truck' && (
+               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-cyan-50 p-6 rounded-[2rem] border border-cyan-100">
+                  <div className="md:col-span-2 flex items-center gap-2 mb-2">
+                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-600">Temperature Control Settings</span>
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-bold text-cyan-700 uppercase tracking-tighter px-1">Minimum Temp (°C)</label>
+                     <input type="number" step="1" {...register('freezerConfig.minTemp', { valueAsNumber: true })} placeholder="-20" className="w-full px-4 py-3 bg-white border border-cyan-200 rounded-xl focus:ring-1 focus:ring-cyan-500/50 outline-none transition-all font-bold text-cyan-900 text-sm" />
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-bold text-cyan-700 uppercase tracking-tighter px-1">Maximum Temp (°C)</label>
+                     <input type="number" step="1" {...register('freezerConfig.maxTemp', { valueAsNumber: true })} placeholder="5" className="w-full px-4 py-3 bg-white border border-cyan-200 rounded-xl focus:ring-1 focus:ring-cyan-500/50 outline-none transition-all font-bold text-cyan-900 text-sm" />
+                  </div>
+               </motion.div>
+             )}
+
+             <div className="flex items-center gap-4 mt-8">
+                <div className="h-px bg-gray-100 flex-1"></div>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Vehicle Options & Tyres</h3>
+                <div className="h-px bg-gray-100 flex-1"></div>
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100">
+                <div className="space-y-4">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 mb-2 block">Available Options</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { id: 'sideDoor', label: 'Side Door' },
+                      { id: 'doubleCompartment', label: 'Double Compartment' },
+                      { id: 'powerGate', label: 'PowerGate' },
+                      { id: 'pluginOption', label: 'Plugin Option' }
+                    ].map((opt) => (
+                      <label key={opt.id} className="flex items-center space-x-3 p-3 bg-white border border-gray-200 rounded-xl cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-colors">
+                        <input type="checkbox" {...register(`options.${opt.id as 'sideDoor'|'doubleCompartment'|'powerGate'|'pluginOption'}`)} className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" />
+                        <span className="text-[10px] font-bold text-gray-700 uppercase tracking-widest">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 mb-2 block">Tyre Specifications</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Rim Size</label>
+                      <input {...register('tyres.rimSize')} placeholder="e.g. 16 inch" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Tyre Size</label>
+                      <input {...register('tyres.tyreSize')} placeholder="e.g. 205/75 R16" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Number of Studs</label>
+                      <input type="number" step="1" {...register('tyres.numberOfStuds', { valueAsNumber: true })} placeholder="6" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                    </div>
+                  </div>
                 </div>
              </div>
           </div>
@@ -418,16 +590,30 @@ const VehicleFormPage: React.FC = () => {
                     </div>
                  </div>
                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner NIC / BR No</label>
+                    <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner NIC</label>
                     <div className="relative">
-                       <Building className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 w-4 h-4" />
-                       <input {...register('ownerDetails.ownerNicBr')} placeholder="ID or BR Number" className="w-full pl-10 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                       <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 w-4 h-4" />
+                       <input {...register('ownerDetails.ownerNicBr')} placeholder="National Identity Card No" className="w-full pl-10 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
                     </div>
                  </div>
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Ownership Type</label>
-                    <input {...register('ownerDetails.ownershipType')} placeholder="Individual / Private Ltd" className="w-full px-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                    <select {...register('ownerDetails.ownershipType')} className="w-full px-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900 appearance-none cursor-pointer">
+                       <option value="">Select Type...</option>
+                       <option value="sole-proprietor">Sole Proprietor</option>
+                       <option value="single-owner">Single Owner</option>
+                       <option value="private-limited">Private Limited</option>
+                    </select>
                  </div>
+                 {(selectedOwnershipType === 'sole-proprietor' || selectedOwnershipType === 'private-limited') && (
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Business Reg (BR) No</label>
+                       <div className="relative">
+                          <Building className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 w-4 h-4" />
+                          <input {...register('ownerDetails.brNumber')} placeholder="BR Number" className="w-full pl-10 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                       </div>
+                    </div>
+                 )}
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Payment Model</label>
                     <select {...register('ownerDetails.paymentModel')} className="w-full px-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900 appearance-none">
@@ -437,6 +623,23 @@ const VehicleFormPage: React.FC = () => {
                        <option value="Percentage">Percentage</option>
                     </select>
                  </div>
+
+                 {selectedPaymentModel === 'Fixed Monthly' && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6 bg-emerald-100/50 p-6 rounded-2xl border border-emerald-200">
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest px-1">Fixed Amount (Rs.)</label>
+                          <input type="number" step="0.01" {...register('ownerDetails.monthlyConfig.fixedAmount', { valueAsNumber: true })} placeholder="160000" className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl outline-none font-bold text-gray-900" />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest px-1">KM Limit</label>
+                          <input type="number" step="1" {...register('ownerDetails.monthlyConfig.kmLimit', { valueAsNumber: true })} placeholder="3500" className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl outline-none font-bold text-gray-900" />
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest px-1">Extra KM Rate (Rs.)</label>
+                          <input type="number" step="0.01" {...register('ownerDetails.monthlyConfig.extraKmRate', { valueAsNumber: true })} placeholder="50" className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl outline-none font-bold text-gray-900" />
+                       </div>
+                    </motion.div>
+                 )}
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Agreement Start</label>
                     <input {...register('ownerDetails.agreementStart')} type="date" className="w-full px-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
@@ -473,6 +676,18 @@ const VehicleFormPage: React.FC = () => {
                       path="fleet/reports" 
                       onUploadComplete={(url) => setValue('ownerDetails.handoverConditionReport', url)} 
                       currentUrl={watch('ownerDetails.handoverConditionReport')}
+                    />
+                    <FileUpload 
+                      label="Business Registration (BR) Document" 
+                      path="fleet/documents" 
+                      onUploadComplete={(url) => setValue('ownerDetails.brDocumentUrl', url)} 
+                      currentUrl={watch('ownerDetails.brDocumentUrl')}
+                    />
+                    <FileUpload 
+                      label="Owner ID Copy" 
+                      path="fleet/documents" 
+                      onUploadComplete={(url) => setValue('ownerDetails.idCopyUrl', url)} 
+                      currentUrl={watch('ownerDetails.idCopyUrl')}
                     />
                  </div>
               </div>

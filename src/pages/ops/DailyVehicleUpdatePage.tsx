@@ -43,6 +43,52 @@ const DailyVehicleUpdatePage: React.FC = () => {
     }
   };
 
+  const handleSendWhatsApp = () => {
+    if (updates.length === 0) {
+      alert("No operations data logged for this date to generate summary.");
+      return;
+    }
+
+    const statuses = {
+      'On Trip': 0,
+      'Yard Parking': 0,
+      'Under Repair': 0,
+      'Breakdown': 0
+    };
+
+    updates.forEach(u => {
+      const statusKey = u.status as keyof typeof statuses;
+      if (statusKey in statuses) {
+        statuses[statusKey]++;
+      }
+    });
+
+    let message = `*☀️ WEDAGE & CO. - DAILY OPERATIONS SUMMARY*\n`;
+    message += `*Date:* ${selectedDate}\n\n`;
+    message += `*📊 FLEET STATUS MATRIX*\n`;
+    message += `• On Trip: *${statuses['On Trip']}*\n`;
+    message += `• Yard Parking: *${statuses['Yard Parking']}*\n`;
+    message += `• Under Repair: *${statuses['Under Repair']}*\n`;
+    message += `• Breakdown: *${statuses['Breakdown']}*\n\n`;
+
+    message += `*🚛 DAILY DEPLOYMENTS*\n`;
+    updates.forEach(u => {
+      message += `• *${u.vehicleNo}* | ${u.status}\n`;
+      message += `  D: ${u.actualDriverName} | Client: ${u.customerName || 'N/A'}\n`;
+    });
+
+    const breakdowns = updates.filter(u => u.status === 'Breakdown');
+    if (breakdowns.length > 0) {
+      message += `\n*⚠️ ACTIVE BREAKDOWNS / ALERTS*\n`;
+      breakdowns.forEach(b => {
+        message += `• *${b.vehicleNo}*: ${b.breakdownReason || 'No reason specified'}\n`;
+      });
+    }
+
+    const encoded = encodeURIComponent(message);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'On Trip': return 'text-blue-600 bg-blue-50 border-blue-100';
@@ -62,8 +108,8 @@ const DailyVehicleUpdatePage: React.FC = () => {
 
       {/* Control Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-         <div className="flex items-center gap-4">
-            <div className="bg-white border border-gray-200 rounded-2xl p-2 flex items-center gap-2 shadow-sm">
+         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-2 flex items-center justify-between sm:justify-start gap-2 shadow-sm w-full sm:w-auto">
                <Calendar className="w-4 h-4 text-gray-400 ml-2" />
                <input 
                 type="date" 
@@ -72,19 +118,28 @@ const DailyVehicleUpdatePage: React.FC = () => {
                 className="bg-transparent border-none text-gray-900 text-sm font-bold outline-none [color-scheme:light] pr-4 cursor-pointer"
                />
             </div>
-            <div className="h-8 w-px bg-gray-200"></div>
+            <div className="hidden sm:block h-8 w-px bg-gray-200"></div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
                {updates.length} Assets Logged Today
             </p>
          </div>
 
-         <button 
-          onClick={() => navigate('/daily-updates/new')}
-          className="group/btn bg-indigo-600 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-700 transition-all flex items-center gap-3 active:scale-95 shadow-lg shadow-indigo-100"
-         >
-          <Plus className="w-4 h-4 transition-transform group-hover/btn:rotate-90" />
-          Log Asset Status
-         </button>
+         <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+            <button 
+              onClick={handleSendWhatsApp}
+              className="w-full sm:w-auto group/btn bg-emerald-600 text-white px-8 py-3.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-700 transition-all flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-emerald-100 animate-pulse"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Send WhatsApp Summary
+            </button>
+            <button 
+              onClick={() => navigate('/daily-updates/new')}
+              className="w-full sm:w-auto group/btn bg-indigo-600 text-white px-8 py-3.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-indigo-100"
+            >
+              <Plus className="w-4 h-4 transition-transform group-hover/btn:rotate-90" />
+              Log Asset Status
+            </button>
+         </div>
       </div>
 
       {/* Operations Grid */}

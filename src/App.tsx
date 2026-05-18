@@ -13,6 +13,9 @@ import DashboardPage from './pages/DashboardPage';
 import StaffListPage from './pages/staff/StaffListPage';
 import StaffFormPage from './pages/staff/StaffFormPage';
 import StaffDetailPage from './pages/staff/StaffDetailPage';
+import AttendancePage from './pages/staff/AttendancePage';
+import PayrollPage from './pages/staff/PayrollPage';
+import LeaveRequestsPage from './pages/staff/LeaveRequestsPage';
 import CustomerListPage from './pages/customers/CustomerListPage';
 import CustomerFormPage from './pages/customers/CustomerFormPage';
 import CustomerDetailPage from './pages/customers/CustomerDetailPage';
@@ -82,6 +85,9 @@ function App() {
                 
                 {/* Module 4: Staff */}
                 <Route path="/staff" element={<StaffListPage />} />
+                <Route path="/staff/attendance" element={<AttendancePage />} />
+                <Route path="/payroll" element={<PayrollPage />} />
+                <Route path="/payroll/leaves" element={<LeaveRequestsPage />} />
                 <Route path="/staff/new" element={<StaffFormPage />} />
                 <Route path="/staff/:id" element={<StaffDetailPage />} />
                 <Route path="/staff/:id/edit" element={<StaffFormPage />} />

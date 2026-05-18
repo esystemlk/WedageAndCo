@@ -10,6 +10,7 @@ import {
   FileBarChart, 
   LogOut,
   ChevronRight,
+  UserCheck,
   Package,
   ShieldCheck,
   DollarSign,
@@ -49,7 +50,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard, permission: null },
     { type: 'header', name: 'CRM & Workforce' },
     { name: 'Customers', path: '/customers', icon: Users, permission: 'view_customers' },
-    { name: 'Staff / HR', path: '/staff', icon: UserSquare2, permission: 'view_staff' },
+    { name: 'Staff Directory', path: '/staff', icon: UserSquare2, permission: 'view_staff' },
+    
+    { type: 'header', name: 'Payroll & Leaves' },
+    { name: 'Attendance Board', path: '/staff/attendance', icon: UserCheck, permission: 'view_staff' },
+    { name: 'Holiday Requests', path: '/payroll/leaves', icon: CalendarIcon, permission: 'view_staff' },
+    { name: 'Payroll & Exit Registry', path: '/payroll', icon: ClipboardList, permission: 'view_staff' },
     
     { type: 'header', name: 'Procurement' },
     { name: 'Inventory', path: '/inventory', icon: ShoppingCart, permission: 'view_suppliers' },

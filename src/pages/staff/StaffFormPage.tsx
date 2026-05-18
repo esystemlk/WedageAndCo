@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useParams, useNavigate } from 'react-router-dom';
-import { createStaffMember, updateStaffMember, getStaffMember, StaffMember } from '../../services/staffService';
+import { createStaffMember, updateStaffMember, getStaffMember, getStaffMembers, StaffMember } from '../../services/staffService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import FileUpload from '../../components/shared/FileUpload';
-import { Save, User, Phone, Mail, FileCheck, ShieldCheck } from 'lucide-react';
+import { Save, User, Phone, Mail, FileCheck, ShieldCheck, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 
@@ -22,15 +22,38 @@ const staffSchema = z.object({
   department: z.enum(['Operations', 'Accounts/HR/IT']),
   active: z.boolean(),
   bloodType: z.string().optional(),
-  emergencyContactName: z.string().optional(),
-  emergencyContactPhone: z.string().optional(),
-  emergencyContactRelation: z.string().optional(),
+  emergencyContacts: z.array(z.object({
+    name: z.string().min(1, 'Name is required'),
+    phone: z.string().min(1, 'Phone is required'),
+    relation: z.string().min(1, 'Relation is required')
+  })).optional(),
+  
+  // HR & Identity
+  staffId: z.string().optional(),
+  epfNo: z.string().optional(),
+  etfNo: z.string().optional(),
+  position: z.string().optional(),
+  basicSalary: z.any().optional(),
+  uniformProvided: z.boolean(),
+  
+  // Documents
   profilePicture: z.string().optional(),
   policeReportUrl: z.string().optional(),
+  policeReportAddLater: z.boolean().optional(),
+  policeReportDeadline: z.string().optional().or(z.literal('')),
   gramaNiladariUrl: z.string().optional(),
+  gramaNiladariAddLater: z.boolean().optional(),
+  gramaNiladariDeadline: z.string().optional().or(z.literal('')),
   birthCertificateUrl: z.string().optional(),
+  birthCertificateAddLater: z.boolean().optional(),
+  birthCertificateDeadline: z.string().optional().or(z.literal('')),
   idCopyUrl: z.string().optional(),
+  cvUrl: z.string().optional(),
+  cvAddLater: z.boolean().optional(),
+  cvDeadline: z.string().optional().or(z.literal('')),
   certificatesUrls: z.array(z.string()).optional(),
+  additionalCertificatesAddLater: z.boolean().optional(),
+  additionalCertificatesDeadline: z.string().optional().or(z.literal('')),
 });
 
 type StaffFormData = z.infer<typeof staffSchema>;
@@ -39,9 +62,9 @@ const StaffFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(!!id);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<StaffFormData>({
+  const { register, handleSubmit, watch, setValue, control, formState: { errors } } = useForm<StaffFormData>({
     resolver: zodResolver(staffSchema),
     defaultValues: {
       active: true,
@@ -53,23 +76,52 @@ const StaffFormPage: React.FC = () => {
       nicNumber: '',
       licenseNo: '',
       department: 'Operations',
-      certificatesUrls: []
+      certificatesUrls: [],
+      emergencyContacts: [],
+      staffId: '',
+      epfNo: '',
+      etfNo: '',
+      position: '',
+      basicSalary: undefined,
+      uniformProvided: false,
+      cvUrl: '',
+      policeReportAddLater: false,
+      policeReportDeadline: '',
+      gramaNiladariAddLater: false,
+      gramaNiladariDeadline: '',
+      birthCertificateAddLater: false,
+      birthCertificateDeadline: '',
+      cvAddLater: false,
+      cvDeadline: '',
+      additionalCertificatesAddLater: false,
+      additionalCertificatesDeadline: ''
     }
+  });
+
+  const { fields: emergencyFields, append: appendEmergency, remove: removeEmergency } = useFieldArray({
+    control,
+    name: 'emergencyContacts'
   });
 
   const selectedCategory = watch('category');
   const isActive = watch('active');
   const profilePicture = watch('profilePicture');
   const policeReportUrl = watch('policeReportUrl');
+  const policeReportAddLater = watch('policeReportAddLater');
   const gramaNiladariUrl = watch('gramaNiladariUrl');
+  const gramaNiladariAddLater = watch('gramaNiladariAddLater');
   const birthCertificateUrl = watch('birthCertificateUrl');
+  const birthCertificateAddLater = watch('birthCertificateAddLater');
   const idCopyUrl = watch('idCopyUrl');
+  const cvUrl = watch('cvUrl');
+  const cvAddLater = watch('cvAddLater');
   const certificatesUrls = watch('certificatesUrls') || [];
+  const additionalCertificatesAddLater = watch('additionalCertificatesAddLater');
 
   useEffect(() => {
-    if (id) {
-      const fetchMember = async () => {
-        try {
+    const initForm = async () => {
+      try {
+        if (id) {
           const data = await getStaffMember(id);
           if (data) {
             setValue('fullName', data.fullName);
@@ -82,34 +134,59 @@ const StaffFormPage: React.FC = () => {
             setValue('active', data.active ?? true);
             setValue('department', (data.department as any) || 'Operations');
             setValue('bloodType', data.bloodType || '');
-            setValue('emergencyContactName', data.emergencyContactName || '');
-            setValue('emergencyContactPhone', data.emergencyContactPhone || '');
-            setValue('emergencyContactRelation', data.emergencyContactRelation || '');
+            setValue('emergencyContacts', data.emergencyContacts || []);
             setValue('profilePicture', data.profilePicture || '');
             setValue('policeReportUrl', data.policeReportUrl || '');
+            setValue('policeReportAddLater', data.policeReportAddLater || false);
+            setValue('policeReportDeadline', data.policeReportDeadline || '');
             setValue('gramaNiladariUrl', data.gramaNiladariUrl || '');
+            setValue('gramaNiladariAddLater', data.gramaNiladariAddLater || false);
+            setValue('gramaNiladariDeadline', data.gramaNiladariDeadline || '');
             setValue('birthCertificateUrl', data.birthCertificateUrl || '');
+            setValue('birthCertificateAddLater', data.birthCertificateAddLater || false);
+            setValue('birthCertificateDeadline', data.birthCertificateDeadline || '');
             setValue('idCopyUrl', data.idCopyUrl || '');
+            setValue('cvUrl', data.cvUrl || '');
+            setValue('cvAddLater', data.cvAddLater || false);
+            setValue('cvDeadline', data.cvDeadline || '');
             setValue('certificatesUrls', data.certificatesUrls || []);
+            setValue('additionalCertificatesAddLater', data.additionalCertificatesAddLater || false);
+            setValue('additionalCertificatesDeadline', data.additionalCertificatesDeadline || '');
+            setValue('staffId', data.staffId || '');
+            setValue('epfNo', data.epfNo || '');
+            setValue('etfNo', data.etfNo || '');
+            setValue('position', data.position || '');
+            setValue('basicSalary', data.basicSalary);
+            setValue('uniformProvided', data.uniformProvided || false);
           }
-        } catch (err) {
-          console.error(err);
-          navigate('/staff');
-        } finally {
-          setInitialLoading(false);
+        } else {
+          // Generate unique sequential employee ID automatically
+          const allStaff = await getStaffMembers();
+          const nextCount = (allStaff?.length || 0) + 1;
+          const generatedId = `EMP-${String(nextCount).padStart(3, '0')}`;
+          setValue('staffId', generatedId);
         }
-      };
-      fetchMember();
-    }
+      } catch (err) {
+        console.error(err);
+        if (id) navigate('/staff');
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    initForm();
   }, [id, setValue, navigate]);
 
   const onSubmit = async (data: StaffFormData) => {
     setLoading(true);
     try {
+      const processedData = {
+        ...data,
+        basicSalary: data.basicSalary ? Number(data.basicSalary) : undefined
+      };
       if (id) {
-        await updateStaffMember(id, data);
+        await updateStaffMember(id, processedData as any);
       } else {
-        await createStaffMember(data);
+        await createStaffMember(processedData as any);
       }
       navigate('/staff');
     } catch (err) {
@@ -286,22 +363,102 @@ const StaffFormPage: React.FC = () => {
               {errors.email && <p className="mt-1 text-[10px] font-bold text-red-500 px-1 uppercase tracking-tighter">{errors.email.message}</p>}
             </div>
 
-            {/* Emergency Contact */}
-            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-rose-50 rounded-3xl border border-rose-100">
-              <div className="md:col-span-3">
-                 <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-2">Emergency Contact Information</p>
+            {/* Emergency Contacts */}
+            <div className="md:col-span-2 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Emergency Contact Information</p>
+                <button 
+                  type="button" 
+                  onClick={() => appendEmergency({ name: '', phone: '', relation: '' })}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-full text-[9px] font-black uppercase hover:bg-rose-100 transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> Add Contact
+                </button>
               </div>
-              <div className="space-y-2">
-                <label className="text-[9px] font-bold text-rose-400 uppercase tracking-tighter">Contact Name</label>
-                <input {...register('emergencyContactName')} className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl outline-none focus:ring-1 focus:ring-rose-500 text-xs font-bold" />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {emergencyFields.map((field, index) => (
+                  <div key={field.id} className="p-6 bg-rose-50 rounded-3xl border border-rose-100 relative group">
+                    <button 
+                      type="button" 
+                      onClick={() => removeEmergency(index)}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-rose-400 uppercase tracking-tighter">Contact Name</label>
+                        <input {...register(`emergencyContacts.${index}.name` as const)} className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl outline-none focus:ring-1 focus:ring-rose-500 text-xs font-bold" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-rose-400 uppercase tracking-tighter">Phone Number</label>
+                        <input {...register(`emergencyContacts.${index}.phone` as const)} className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl outline-none focus:ring-1 focus:ring-rose-500 text-xs font-bold" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-rose-400 uppercase tracking-tighter">Relation</label>
+                        <input {...register(`emergencyContacts.${index}.relation` as const)} className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl outline-none focus:ring-1 focus:ring-rose-500 text-xs font-bold" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="space-y-2">
-                <label className="text-[9px] font-bold text-rose-400 uppercase tracking-tighter">Phone Number</label>
-                <input {...register('emergencyContactPhone')} className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl outline-none focus:ring-1 focus:ring-rose-500 text-xs font-bold" />
+            </div>
+
+            {/* Employment & Identity Credentials */}
+            <div className="md:col-span-2 space-y-8 pt-6 border-t border-gray-100">
+              <div className="flex items-center gap-4">
+                <div className="h-px bg-gray-150 flex-1"></div>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Employment Credentials</h3>
+                <div className="h-px bg-gray-150 flex-1"></div>
               </div>
-              <div className="space-y-2">
-                <label className="text-[9px] font-bold text-rose-400 uppercase tracking-tighter">Relation</label>
-                <input {...register('emergencyContactRelation')} className="w-full px-4 py-3 bg-white border border-rose-200 rounded-xl outline-none focus:ring-1 focus:ring-rose-500 text-xs font-bold" />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Staff unique ID No.</label>
+                  <input
+                    {...register('staffId')}
+                    placeholder="e.g. EMP-1001"
+                    className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Designated Position</label>
+                  <input
+                    {...register('position')}
+                    placeholder="e.g. Operations Coordinator"
+                    className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Basic Monthly Salary (LKR)</label>
+                  <input
+                    type="number"
+                    {...register('basicSalary')}
+                    placeholder="e.g. 85000"
+                    className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">EPF Registration No.</label>
+                  <input
+                    {...register('epfNo')}
+                    placeholder="e.g. EPF-5678"
+                    className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">ETF Registration No.</label>
+                  <input
+                    {...register('etfNo')}
+                    placeholder="e.g. ETF-5678"
+                    className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400"
+                  />
+                </div>
               </div>
             </div>
 
@@ -326,36 +483,129 @@ const StaffFormPage: React.FC = () => {
             {/* Document Uploads */}
             <div className="md:col-span-2 space-y-8 pt-6">
               <div className="flex items-center gap-4">
-                <div className="h-px bg-gray-100 flex-1"></div>
+                <div className="h-px bg-gray-150 flex-1"></div>
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Document Dossier</h3>
-                <div className="h-px bg-gray-100 flex-1"></div>
+                <div className="h-px bg-gray-150 flex-1"></div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <FileUpload label="Police Report" path="staff/docs" onUploadComplete={(url) => setValue('policeReportUrl', url)} currentUrl={policeReportUrl} />
-                <FileUpload label="Grama Niladari Certificate" path="staff/docs" onUploadComplete={(url) => setValue('gramaNiladariUrl', url)} currentUrl={gramaNiladariUrl} />
-                <FileUpload label="Birth Certificate Copy" path="staff/docs" onUploadComplete={(url) => setValue('birthCertificateUrl', url)} currentUrl={birthCertificateUrl} />
-                <FileUpload label="NIC/ID Copy" path="staff/docs" onUploadComplete={(url) => setValue('idCopyUrl', url)} currentUrl={idCopyUrl} />
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 px-1">Additional Certificates</label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {certificatesUrls.map((url, i) => (
-                      <div key={i} className="relative group">
-                        <img src={url} alt="Cert" className="w-full h-32 rounded-2xl object-cover border border-gray-200" />
-                        <button 
-                          type="button"
-                          onClick={() => setValue('certificatesUrls', certificatesUrls.filter((_, idx) => idx !== i))}
-                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    <FileUpload 
-                      path="staff/certificates" 
-                      onUploadComplete={(url) => setValue('certificatesUrls', [...certificatesUrls, url])} 
-                      showPreview={false}
-                    />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Police Report */}
+                <div className="space-y-4 p-6 bg-gray-50/50 border border-gray-100 rounded-3xl relative flex flex-col justify-between shadow-sm">
+                  <FileUpload label="Police Report" path="staff/docs" onUploadComplete={(url) => setValue('policeReportUrl', url)} currentUrl={policeReportUrl} />
+                  <div className="pt-4 border-t border-gray-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" {...register('policeReportAddLater')} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+                      Submit Later / Grace Period
+                    </label>
+                    {policeReportAddLater && (
+                      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest shrink-0">Grace Date:</span>
+                        <input type="date" {...register('policeReportDeadline')} className="px-3 py-1.5 text-xs font-bold bg-white border border-gray-200 rounded-xl outline-none [color-scheme:light]" />
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Grama Niladari Certificate */}
+                <div className="space-y-4 p-6 bg-gray-50/50 border border-gray-100 rounded-3xl relative flex flex-col justify-between shadow-sm">
+                  <FileUpload label="Grama Niladari Certificate" path="staff/docs" onUploadComplete={(url) => setValue('gramaNiladariUrl', url)} currentUrl={gramaNiladariUrl} />
+                  <div className="pt-4 border-t border-gray-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" {...register('gramaNiladariAddLater')} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+                      Submit Later / Grace Period
+                    </label>
+                    {gramaNiladariAddLater && (
+                      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest shrink-0">Grace Date:</span>
+                        <input type="date" {...register('gramaNiladariDeadline')} className="px-3 py-1.5 text-xs font-bold bg-white border border-gray-200 rounded-xl outline-none [color-scheme:light]" />
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Birth Certificate Copy */}
+                <div className="space-y-4 p-6 bg-gray-50/50 border border-gray-100 rounded-3xl relative flex flex-col justify-between shadow-sm">
+                  <FileUpload label="Birth Certificate Copy" path="staff/docs" onUploadComplete={(url) => setValue('birthCertificateUrl', url)} currentUrl={birthCertificateUrl} />
+                  <div className="pt-4 border-t border-gray-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" {...register('birthCertificateAddLater')} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+                      Submit Later / Grace Period
+                    </label>
+                    {birthCertificateAddLater && (
+                      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest shrink-0">Grace Date:</span>
+                        <input type="date" {...register('birthCertificateDeadline')} className="px-3 py-1.5 text-xs font-bold bg-white border border-gray-200 rounded-xl outline-none [color-scheme:light]" />
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+
+                {/* NIC/ID Copy - Mandatory! */}
+                <div className="space-y-4 p-6 bg-indigo-50/20 border border-indigo-100/50 rounded-3xl relative flex flex-col justify-between shadow-sm">
+                  <FileUpload label="NIC/ID Copy" path="staff/docs" onUploadComplete={(url) => setValue('idCopyUrl', url)} currentUrl={idCopyUrl} />
+                  <div className="pt-4 border-t border-indigo-100/40 flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase text-indigo-500 tracking-wider">
+                      🛡️ Mandatory Identity Document
+                    </span>
+                    <span className="text-[9px] font-bold text-indigo-400">
+                      Cannot submit later
+                    </span>
+                  </div>
+                </div>
+
+                {/* Copy of CV */}
+                <div className="space-y-4 p-6 bg-gray-50/50 border border-gray-100 rounded-3xl relative flex flex-col justify-between shadow-sm">
+                  <FileUpload label="Copy of CV" path="staff/docs" onUploadComplete={(url) => setValue('cvUrl', url)} currentUrl={cvUrl} />
+                  <div className="pt-4 border-t border-gray-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" {...register('cvAddLater')} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+                      Submit Later / Grace Period
+                    </label>
+                    {cvAddLater && (
+                      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest shrink-0">Grace Date:</span>
+                        <input type="date" {...register('cvDeadline')} className="px-3 py-1.5 text-xs font-bold bg-white border border-gray-200 rounded-xl outline-none [color-scheme:light]" />
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Certificates */}
+                <div className="space-y-4 p-6 bg-gray-50/50 border border-gray-100 rounded-3xl relative flex flex-col justify-between shadow-sm md:col-span-2">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 px-1">Additional Certificates</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                      {certificatesUrls.map((url, i) => (
+                        <div key={i} className="relative group">
+                          <img src={url} alt="Cert" className="w-full h-32 rounded-2xl object-cover border border-gray-200" />
+                          <button 
+                            type="button"
+                            onClick={() => setValue('certificatesUrls', certificatesUrls.filter((_, idx) => idx !== i))}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <FileUpload 
+                        path="staff/certificates" 
+                        onUploadComplete={(url) => setValue('certificatesUrls', [...certificatesUrls, url])} 
+                        showPreview={false}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" {...register('additionalCertificatesAddLater')} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
+                      Submit Later / Grace Period
+                    </label>
+                    {additionalCertificatesAddLater && (
+                      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest shrink-0">Grace Date:</span>
+                        <input type="date" {...register('additionalCertificatesDeadline')} className="px-3 py-1.5 text-xs font-bold bg-white border border-gray-200 rounded-xl outline-none [color-scheme:light]" />
+                      </motion.div>
+                    )}
                   </div>
                 </div>
               </div>

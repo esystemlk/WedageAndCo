@@ -15,11 +15,14 @@ export interface AdditionalContact {
 export interface Supplier {
   id?: string;
   name: string;
+  nickname?: string;
   contactName?: string;
   email: string;
   phone: string;
   brNo?: string;
   vatNo?: string;
+  supplyCategories?: string[]; // e.g., mechanical, electrical, etc.
+  description?: string;
   // Additional contacts with + button
   additionalContacts?: AdditionalContact[];
 }

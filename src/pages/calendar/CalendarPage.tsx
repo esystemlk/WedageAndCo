@@ -137,7 +137,10 @@ const CalendarPage: React.FC = () => {
   }, [currentDate]);
 
   const getEventsForDate = (date: Date) => {
-    const holiday = slHolidays.find(h => h.date === date.toISOString().split('T')[0]);
+    // Prevent timezone shift by using local date parts
+    const localDateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    
+    const holiday = slHolidays.find(h => h.date === localDateString);
     const dayEvents = events.filter(event => {
       const eventDate = new Date(event.date);
       return eventDate.toDateString() === date.toDateString();

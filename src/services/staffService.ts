@@ -21,19 +21,56 @@ export interface StaffMember {
   bankAccountNo?: string;
   joinDate?: string;
 
+  // New HR / Identity fields
+  staffId?: string; // EMP-001
+  epfNo?: string;
+  etfNo?: string;
+  position?: string;
+  uniformProvided?: boolean;
+
+  // Offboarding / Exit Registry
+  resignationDate?: string;
+  leavingDate?: string;
+  leavingReason?: string;
+  resignationLetterUrl?: string;
+  uniformReturned?: {
+    shirts: boolean;
+    trousers: boolean;
+    boots: boolean;
+    cap: boolean;
+  };
+
   // New fields
   bloodType?: string;
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  emergencyContactRelation?: string;
+  emergencyContacts?: {
+    name: string;
+    phone: string;
+    relation: string;
+  }[];
 
   // Document uploads
   profilePicture?: string;
   policeReportUrl?: string;
+  policeReportAddLater?: boolean;
+  policeReportDeadline?: string;
+
   gramaNiladariUrl?: string;
+  gramaNiladariAddLater?: boolean;
+  gramaNiladariDeadline?: string;
+
   birthCertificateUrl?: string;
+  birthCertificateAddLater?: boolean;
+  birthCertificateDeadline?: string;
+
   idCopyUrl?: string;
+
+  cvUrl?: string;
+  cvAddLater?: boolean;
+  cvDeadline?: string;
+
   certificatesUrls?: string[];
+  additionalCertificatesAddLater?: boolean;
+  additionalCertificatesDeadline?: string;
 
   createdAt?: any;
   updatedAt?: any;

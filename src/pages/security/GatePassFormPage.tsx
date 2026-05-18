@@ -12,14 +12,16 @@ import {
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { createGatePass, getGatePass, updateGatePass, GatePass } from '../../services/gatePassService';
 import { getVehicles } from '../../services/fleetService';
 import { getStaffMembers } from '../../services/staffService';
+import { getCustomers } from '../../services/customerService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import SearchableSelect from '../../components/shared/SearchableSelect';
 import { cn } from '../../lib/utils';
 
 const gatePassSchema = z.object({
@@ -27,6 +29,8 @@ const gatePassSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   vehicleNo: z.string().min(1, 'Vehicle is required'),
   driverName: z.string().min(1, 'Driver is required'),
+  helperName: z.string().optional().or(z.literal('')),
+  customerName: z.string().optional().or(z.literal('')),
   passengers: z.string().optional(),
   timeOut: z.string().min(1, 'Time Out is required'),
   meterOut: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v),
@@ -36,6 +40,30 @@ const gatePassSchema = z.object({
   status: z.enum(['Open', 'Returned', 'Cancelled']),
   timeIn: z.string().optional(),
   meterIn: z.number().optional().or(z.literal(null)).or(z.literal('')).transform(v => (v === null || v === '') ? undefined : typeof v === 'string' ? parseFloat(v) : v),
+  invoiceNotAvailable: z.boolean().optional(),
+  invoiceNo: z.string().optional(),
+  invoiceReason: z.string().optional(),
+  partyType: z.enum(['Supplier', 'Other']).optional(),
+  managerApproved: z.boolean().optional(),
+  securityApproved: z.boolean().optional(),
+  managerApprovedBy: z.string().optional(),
+  securityApprovedBy: z.string().optional(),
+}).refine(data => {
+  if (!data.invoiceNotAvailable && !data.invoiceNo?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Invoice No is required",
+  path: ["invoiceNo"]
+}).refine(data => {
+  if (data.invoiceNotAvailable && !data.invoiceReason?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Reason for no invoice is required",
+  path: ["invoiceReason"]
 });
 
 type GatePassFormData = z.infer<typeof gatePassSchema>;
@@ -47,15 +75,28 @@ const GatePassFormPage: React.FC = () => {
   const [fetching, setFetching] = useState(!!id);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<GatePassFormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<GatePassFormData>({
     resolver: zodResolver(gatePassSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
       status: 'Open',
-      timeOut: formatTime(new Date())
+      timeOut: formatTime(new Date()),
+      helperName: '',
+      customerName: '',
+      invoiceNotAvailable: false,
+      invoiceNo: '',
+      invoiceReason: '',
+      partyType: 'Supplier',
+      managerApproved: false,
+      securityApproved: false,
+      managerApprovedBy: '',
+      securityApprovedBy: ''
     }
   });
+
+  const invoiceNotAvailable = watch('invoiceNotAvailable');
 
   function formatTime(date: Date) {
     let hours = date.getHours();
@@ -70,9 +111,10 @@ const GatePassFormPage: React.FC = () => {
   useEffect(() => {
     const loadDependencies = async () => {
       try {
-        const [vData, sData] = await Promise.all([getVehicles(), getStaffMembers()]);
+        const [vData, sData, cData] = await Promise.all([getVehicles(), getStaffMembers(), getCustomers()]);
         setVehicles(vData || []);
         setStaff(sData || []);
+        setCustomers(cData || []);
 
         if (id) {
           const pass = await getGatePass(id);
@@ -137,7 +179,7 @@ const GatePassFormPage: React.FC = () => {
                 <div className="h-px bg-gray-100 flex-1"></div>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="space-y-3">
                    <div className="flex items-center gap-2 px-1">
                       <FileText className="w-3 h-3 text-indigo-600" />
@@ -156,6 +198,26 @@ const GatePassFormPage: React.FC = () => {
 
                 <div className="space-y-3">
                    <div className="flex items-center gap-2 px-1">
+                      <User className="w-3 h-3 text-indigo-600" />
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</label>
+                   </div>
+                   <Controller
+                    control={control}
+                    name="customerName"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        options={customers.map(c => ({ value: c.nickname || c.name, label: c.name, subLabel: c.nickname || undefined }))}
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select Customer"
+                        icon={<User className="w-4 h-4 text-indigo-600" />}
+                      />
+                    )}
+                   />
+                </div>
+
+                <div className="space-y-3">
+                   <div className="flex items-center gap-2 px-1">
                       <Clock className="w-3 h-3 text-indigo-600" />
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Movement Date</label>
                    </div>
@@ -167,21 +229,26 @@ const GatePassFormPage: React.FC = () => {
                 </div>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="space-y-3">
                    <div className="flex items-center gap-2 px-1">
                       <Truck className="w-3 h-3 text-indigo-600" />
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Vehicle No</label>
                    </div>
-                   <select 
-                    {...register('vehicleNo')}
-                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm appearance-none cursor-pointer shadow-sm shadow-inner"
-                   >
-                    <option value="" className="bg-white text-gray-900">Select Vehicle</option>
-                    {vehicles.map(v => (
-                      <option key={v.id} value={v.plateNo} className="bg-white text-gray-900">{v.plateNo} - {v.type}</option>
-                    ))}
-                   </select>
+                   <Controller
+                    control={control}
+                    name="vehicleNo"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        options={vehicles.map(v => ({ value: v.plateNo, label: v.plateNo, subLabel: v.type }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select Vehicle"
+                        icon={<Truck className="w-4 h-4 text-indigo-600" />}
+                      />
+                    )}
+                   />
+                   {errors.vehicleNo && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.vehicleNo.message}</p>}
                 </div>
 
                 <div className="space-y-3">
@@ -189,15 +256,97 @@ const GatePassFormPage: React.FC = () => {
                       <User className="w-3 h-3 text-indigo-600" />
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Driver Name</label>
                    </div>
-                   <select 
-                    {...register('driverName')}
-                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm appearance-none cursor-pointer shadow-sm shadow-inner"
-                   >
-                    <option value="" className="bg-white text-gray-900">Select Driver</option>
-                    {staff.filter(s => s.category === 'Driver').map(s => (
-                      <option key={s.id} value={s.fullName} className="bg-white text-gray-900">{s.fullName}</option>
-                    ))}
-                   </select>
+                   <Controller
+                    control={control}
+                    name="driverName"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        options={staff.filter(s => s.category === 'Driver').map(s => ({ value: s.fullName, label: s.fullName, subLabel: s.phone }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select Driver"
+                        icon={<User className="w-4 h-4 text-indigo-600" />}
+                      />
+                    )}
+                   />
+                   {errors.driverName && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.driverName.message}</p>}
+                </div>
+
+                <div className="space-y-3">
+                   <div className="flex items-center gap-2 px-1">
+                      <User className="w-3 h-3 text-indigo-600" />
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Helper Name</label>
+                   </div>
+                   <Controller
+                    control={control}
+                    name="helperName"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        options={staff.filter(s => s.category === 'Helper').map(s => ({ value: s.fullName, label: s.fullName, subLabel: s.phone }))}
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="None Assigned"
+                        icon={<User className="w-4 h-4 text-indigo-600" />}
+                      />
+                    )}
+                   />
+                   {errors.helperName && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.helperName.message}</p>}
+                </div>
+             </div>
+
+             {/* Invoice & Billing Section */}
+             <div className="pt-6 border-t border-gray-100 space-y-8">
+                <div className="flex items-center justify-between">
+                   <div>
+                      <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Invoice & Billing Verification</h4>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 tracking-widest">Enforce financial clearance at yard departure</p>
+                   </div>
+                   <div className="flex items-center gap-3">
+                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest cursor-pointer select-none" htmlFor="invoiceNotAvailable">Invoice Not Available</label>
+                      <input 
+                         type="checkbox" 
+                         id="invoiceNotAvailable" 
+                         {...register('invoiceNotAvailable')}
+                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" 
+                      />
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                   <div className="space-y-3">
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Party / Association Type</label>
+                      <select 
+                         {...register('partyType')}
+                         className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none font-bold text-gray-900 text-sm appearance-none cursor-pointer shadow-sm"
+                      >
+                         <option value="Supplier" className="bg-white">Supplier</option>
+                         <option value="Other" className="bg-white">Other</option>
+                      </select>
+                   </div>
+
+                   {!invoiceNotAvailable ? (
+                      <div className="space-y-3 md:col-span-2">
+                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Invoice Number</label>
+                         <input 
+                            type="text" 
+                            {...register('invoiceNo')}
+                            placeholder="e.g. INV-10492"
+                            className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none font-bold text-gray-900 text-sm placeholder:text-gray-300 shadow-sm"
+                         />
+                         {errors.invoiceNo && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.invoiceNo.message}</p>}
+                      </div>
+                   ) : (
+                      <div className="space-y-3 md:col-span-2">
+                         <label className="block text-[10px] font-black text-rose-600 uppercase tracking-widest px-1">Reason for No Invoice</label>
+                         <input 
+                            type="text" 
+                            {...register('invoiceReason')}
+                            placeholder="Specify release justification reason"
+                            className="w-full px-6 py-4 bg-rose-50/30 border border-rose-100 rounded-2xl focus:ring-1 focus:ring-rose-500/50 outline-none font-bold text-gray-900 text-sm placeholder:text-rose-300 shadow-sm"
+                         />
+                         {errors.invoiceReason && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.invoiceReason.message}</p>}
+                      </div>
+                   )}
                 </div>
              </div>
           </div>
@@ -326,6 +475,57 @@ const GatePassFormPage: React.FC = () => {
                     />
                  </div>
               </div>
+
+               {/* System Approval from Manager & Security */}
+               <div className="pt-6 border-t border-gray-100 space-y-6">
+                  <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.25em]">System Approvals</h4>
+                  
+                  <div className="space-y-4 p-5 bg-emerald-50/20 border border-emerald-100/50 rounded-2xl">
+                     <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-emerald-700 uppercase tracking-wider cursor-pointer" htmlFor="managerApproved">Manager Approval</label>
+                        <input 
+                           type="checkbox" 
+                           id="managerApproved" 
+                           {...register('managerApproved')}
+                           className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" 
+                        />
+                     </div>
+                     {watch('managerApproved') && (
+                        <div className="space-y-2">
+                           <label className="block text-[8px] font-black text-emerald-600 uppercase tracking-wider px-0.5">Approved By Manager Name</label>
+                           <input 
+                              type="text" 
+                              {...register('managerApprovedBy')}
+                              placeholder="Manager Name" 
+                              className="w-full px-4 py-2 text-xs bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900"
+                           />
+                        </div>
+                     )}
+                  </div>
+
+                  <div className="space-y-4 p-5 bg-indigo-50/20 border border-indigo-100/50 rounded-2xl">
+                     <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-indigo-700 uppercase tracking-wider cursor-pointer" htmlFor="securityApproved">Security Clearance</label>
+                        <input 
+                           type="checkbox" 
+                           id="securityApproved" 
+                           {...register('securityApproved')}
+                           className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" 
+                        />
+                     </div>
+                     {watch('securityApproved') && (
+                        <div className="space-y-2">
+                           <label className="block text-[8px] font-black text-indigo-600 uppercase tracking-wider px-0.5">Security Approved By Name</label>
+                           <input 
+                              type="text" 
+                              {...register('securityApprovedBy')}
+                              placeholder="Security Officer / Yard Head" 
+                              className="w-full px-4 py-2 text-xs bg-white border border-indigo-100 rounded-xl outline-none font-bold text-gray-900"
+                           />
+                        </div>
+                     )}
+                  </div>
+               </div>
 
               <button 
                 type="submit"

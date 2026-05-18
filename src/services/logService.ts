@@ -8,11 +8,15 @@ export interface LogSheet {
   id?: string;
   logSheetCode: string;
   date: string;
+  endDate?: string;
   customerId: string;
   vehicleId: string;
   driverId: string;
   helperId?: string;
   representative?: string;
+  temporaryDriverName?: string;
+  temporaryHelperName?: string;
+  additionalHelpers?: string;
   
   // Meter Reading
   meterStatus: 'Working' | 'Not Working';
@@ -22,20 +26,23 @@ export interface LogSheet {
   outTime: string;       // Departure time
   inTime?: string;       // Return time
   meterNonWorkingReason?: string;
+  googleMapsKm?: number;
+  totalHours?: number;
 
   // Freezer Section
   vehicleHasFreezer: boolean;
   freezerOnTime?: string;
   freezerOffTime?: string;
   freezerTotalHours?: string;
-  freezerTemp?: number;
   freezerRemarks?: string;
   freezerStatus?: 'ON' | 'OFF';
+  freezerMode?: 'Plus Cool' | 'Negative Temp' | 'Ambient' | 'Not Mentioned';
 
   // Status & Approval
   status: 'On Trip' | 'Completed' | 'Breakdown' | 'Cancelled';
   remarks?: string;
   breakdownReason?: string;
+  cancelReason?: string;
   isApproved?: boolean;
   approvedBy?: string;
   enteredBy: string;
