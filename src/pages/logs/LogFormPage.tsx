@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -11,7 +11,10 @@ import {
   Save,
   Compass,
   Zap,
-  User
+  User,
+  Plus,
+  Trash2,
+  Clock
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -36,7 +39,10 @@ const logSchema = z.object({
   representative: z.string().optional().or(z.literal('')),
   temporaryDriverName: z.string().optional(),
   temporaryHelperName: z.string().optional(),
-  additionalHelpers: z.string().optional(),
+  additionalHelperIds: z.array(z.object({
+    staffId: z.string().optional(),
+    tempName: z.string().optional()
+  })).optional(),
 
   // Meter Reading
   meterStatus: z.enum(['Working', 'Not Working']),
@@ -57,9 +63,11 @@ const logSchema = z.object({
   freezerTotalHours: z.string().optional().or(z.literal('')),
   freezerRemarks: z.string().optional(),
   freezerMode: z.enum(['Plus Cool', 'Negative Temp', 'Ambient', 'Not Mentioned']).optional(),
+  idlingFreezerHours: z.number().min(0).max(99).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+  idlingFreezerMinutes: z.number().min(0).max(59).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
 
   // Status & Remarks
-  status: z.enum(['On Trip', 'Completed', 'Breakdown', 'Cancelled']),
+  status: z.enum(['Completed', 'Breakdown', 'Cancelled']),
   remarks: z.string().optional(),
   breakdownReason: z.string().optional(),
   cancelReason: z.string().optional(),
@@ -115,7 +123,7 @@ const LogFormPage: React.FC = () => {
       logSheetCode: `LS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       date: new Date().toISOString().split('T')[0],
       endDate: new Date().toISOString().split('T')[0],
-      status: 'On Trip',
+      status: 'Completed',
       meterStatus: 'Working',
       vehicleHasFreezer: false,
       freezerStatus: 'OFF',
@@ -128,8 +136,13 @@ const LogFormPage: React.FC = () => {
       cancelReason: '',
       temporaryDriverName: '',
       temporaryHelperName: '',
-      additionalHelpers: ''
+      additionalHelperIds: []
     }
+  });
+
+  const { fields: helperFields, append: appendHelper, remove: removeHelper } = useFieldArray({
+    control,
+    name: 'additionalHelperIds'
   });
 
   const meterStatus = watch('meterStatus');
@@ -176,7 +189,7 @@ const LogFormPage: React.FC = () => {
     if (selectedVehicleId && vehicles.length > 0) {
       const vehicle = vehicles.find(v => v.id === selectedVehicleId);
       if (vehicle) {
-        setValue('vehicleHasFreezer', vehicle.type === 'freezer-truck');
+        setValue('vehicleHasFreezer', vehicle.type === 'freezer-truck' || vehicle.type === 'refrigerated-truck');
       }
     }
   }, [selectedVehicleId, vehicles, setValue]);
@@ -226,13 +239,24 @@ const LogFormPage: React.FC = () => {
             setValue('freezerTotalHours', data.freezerTotalHours || '');
             setValue('freezerRemarks', data.freezerRemarks || '');
             setValue('freezerMode', (data as any).freezerMode || 'Not Mentioned');
-            setValue('status', data.status);
+            setValue('idlingFreezerHours', (data as any).idlingFreezerHours || undefined);
+            setValue('idlingFreezerMinutes', (data as any).idlingFreezerMinutes || undefined);
+            // Keep status — if old record had 'On Trip', treat as Completed
+            const savedStatus = data.status as string;
+            setValue('status', (savedStatus === 'On Trip' ? 'Completed' : savedStatus) as any);
             setValue('remarks', data.remarks || '');
             setValue('breakdownReason', data.breakdownReason || '');
             setValue('cancelReason', (data as any).cancelReason || '');
             setValue('temporaryDriverName', (data as any).temporaryDriverName || '');
             setValue('temporaryHelperName', (data as any).temporaryHelperName || '');
-            setValue('additionalHelpers', (data as any).additionalHelpers || '');
+            // Migrate old additionalHelpers string to array
+            const oldAdditional = (data as any).additionalHelpers;
+            if (oldAdditional && typeof oldAdditional === 'string') {
+              const names = oldAdditional.split(',').map((n: string) => n.trim()).filter(Boolean);
+              setValue('additionalHelperIds', names.map((n: string) => ({ staffId: '', tempName: n })));
+            } else if (Array.isArray((data as any).additionalHelperIds)) {
+              setValue('additionalHelperIds', (data as any).additionalHelperIds);
+            }
           }
         } catch (err) {
           console.error(err);
@@ -247,15 +271,25 @@ const LogFormPage: React.FC = () => {
   const onSubmit = async (data: LogFormData) => {
     try {
       setLoading(true);
+      const additionalHelperNames = (data.additionalHelperIds || [])
+        .map(h => {
+          if (h.staffId) {
+            const staffMember = staff.find(s => s.id === h.staffId);
+            return staffMember?.fullName || h.tempName || '';
+          }
+          return h.tempName || '';
+        })
+        .filter(Boolean);
+
       const payload = {
         ...data,
         enteredBy: user?.email || 'Unknown',
-        // Filter out empty strings for optional IDs
         helperId: data.helperId === 'temp' ? undefined : (data.helperId || undefined),
         driverId: data.driverId === 'temp' ? 'temp' : data.driverId,
         temporaryDriverName: data.driverId === 'temp' ? data.temporaryDriverName : undefined,
         temporaryHelperName: data.helperId === 'temp' ? data.temporaryHelperName : undefined,
-        additionalHelpers: data.additionalHelpers || undefined,
+        additionalHelpers: additionalHelperNames.join(', '),
+        additionalHelperIds: data.additionalHelperIds || [],
       };
 
       if (id) {
@@ -289,6 +323,7 @@ const LogFormPage: React.FC = () => {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         <input type="hidden" {...register('vehicleHasFreezer')} />
         <input type="hidden" {...register('freezerStatus')} />
+
         {/* Header Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -384,7 +419,7 @@ const LogFormPage: React.FC = () => {
               )}
             </div>
             <div className="space-y-3">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Mission Helper</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Primary Helper</label>
               <Controller
                 control={control}
                 name="helperId"
@@ -413,10 +448,66 @@ const LogFormPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Additional Helpers / Crew */}
-          <div className="space-y-3 pt-4 border-t border-gray-100">
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Additional Helpers / Mission Crew</label>
-            <input type="text" {...register('additionalHelpers')} placeholder="e.g. Nimal, Sunil (comma separated)" className="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl text-gray-900 font-bold outline-none placeholder:text-gray-300" />
+          {/* Additional Helpers — Dynamic with + button */}
+          <div className="space-y-4 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Additional Helpers</label>
+              <button
+                type="button"
+                onClick={() => appendHelper({ staffId: '', tempName: '' })}
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px] font-black uppercase tracking-wider hover:bg-indigo-100 transition-colors border border-indigo-100"
+              >
+                <Plus className="w-3 h-3" /> Add Helper
+              </button>
+            </div>
+
+            {helperFields.length === 0 && (
+              <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider px-1">No additional helpers. Click "+ Add Helper" to assign more.</p>
+            )}
+
+            <div className="space-y-3">
+              {helperFields.map((field, index) => (
+                <motion.div
+                  key={field.id}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-3"
+                >
+                  <div className="flex-1">
+                    <Controller
+                      control={control}
+                      name={`additionalHelperIds.${index}.staffId`}
+                      render={({ field: f }) => (
+                        <SearchableSelect
+                          options={[
+                            { value: 'temp', label: 'Manual Entry' },
+                            ...activeHelpers.map(h => ({ value: h.id!, label: h.fullName, subLabel: h.phone }))
+                          ]}
+                          value={f.value || ''}
+                          onChange={f.onChange}
+                          placeholder="Select Helper"
+                          icon={<User className="w-4 h-4 text-gray-400" />}
+                        />
+                      )}
+                    />
+                  </div>
+                  {watch(`additionalHelperIds.${index}.staffId`) === 'temp' && (
+                    <input
+                      {...register(`additionalHelperIds.${index}.tempName`)}
+                      placeholder="Enter name"
+                      className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeHelper(index)}
+                    className="p-2 text-rose-400 hover:bg-rose-50 rounded-xl transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </motion.div>
 
@@ -539,7 +630,7 @@ const LogFormPage: React.FC = () => {
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-600">Refrigeration Control</h3>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Freezer Status</span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Reefer Status</span>
                 <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
                   {['ON', 'OFF'].map((s) => (
                     <button
@@ -561,11 +652,11 @@ const LogFormPage: React.FC = () => {
             <div className={cn("space-y-6 transition-all", freezerStatus !== 'ON' && "opacity-30 pointer-events-none grayscale")}>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Freezer ON (Date & Time)</label>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Reefer ON (Date & Time)</label>
                   <input type="datetime-local" {...register('freezerOnTime')} className="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl text-gray-900 font-bold outline-none" />
                 </div>
                 <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Freezer OFF (Date & Time)</label>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Reefer OFF (Date & Time)</label>
                   <input type="datetime-local" {...register('freezerOffTime')} className="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl text-gray-900 font-bold outline-none" />
                 </div>
               </div>
@@ -587,15 +678,48 @@ const LogFormPage: React.FC = () => {
                 </div>
 
                 <div className="p-6 bg-emerald-50/80 border border-emerald-100 rounded-2xl flex items-center justify-between">
-                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Total Freezer Duration (HRS)</span>
+                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Total Freezer Hours (Reefer ON)</span>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
                       {...register('freezerTotalHours')}
                       readOnly
-                      className="bg-transparent text-2xl font-black text-gray-900 text-right outline-none w-32 font-mono cursor-default"
+                      className="bg-transparent text-2xl font-black text-gray-900 text-right outline-none w-24 font-mono cursor-default"
                     />
                     <span className="text-xs font-bold text-emerald-400">HRS</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Idling Freezer Hours */}
+              <div className="p-6 bg-cyan-50/50 border border-cyan-100 rounded-2xl space-y-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-cyan-600" />
+                  <span className="text-[10px] font-black text-cyan-700 uppercase tracking-widest">Total Idling Freezer Hours</span>
+                </div>
+                <p className="text-[10px] text-cyan-600/70 font-bold uppercase tracking-wider">Enter separately — total hours the reefer was idling (not active cooling)</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-cyan-700 uppercase tracking-widest px-1">Hours</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      {...register('idlingFreezerHours', { valueAsNumber: true })}
+                      placeholder="0"
+                      className="w-full bg-white border border-cyan-200 p-4 rounded-xl text-gray-900 font-black font-mono outline-none text-center text-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-cyan-700 uppercase tracking-widest px-1">Minutes</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      {...register('idlingFreezerMinutes', { valueAsNumber: true })}
+                      placeholder="00"
+                      className="w-full bg-white border border-cyan-200 p-4 rounded-xl text-gray-900 font-black font-mono outline-none text-center text-xl"
+                    />
                   </div>
                 </div>
               </div>
@@ -622,12 +746,12 @@ const LogFormPage: React.FC = () => {
             <div className="space-y-10">
               <div className="space-y-3">
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Log Disposition / Status</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {['On Trip', 'Completed', 'Breakdown', 'Cancelled'].map((s) => (
+                <div className="grid grid-cols-3 gap-3">
+                  {(['Completed', 'Breakdown', 'Cancelled'] as const).map((s) => (
                     <button
                       key={s}
                       type="button"
-                      onClick={() => setValue('status', s as any)}
+                      onClick={() => setValue('status', s)}
                       className={cn(
                         "px-6 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border",
                         selectedStatus === s

@@ -36,7 +36,6 @@ const staffSchema = z.object({
   epfNo: z.string().optional(),
   etfNo: z.string().optional(),
   position: z.string().optional(),
-  basicSalary: z.any().optional(),
   uniformProvided: z.boolean(),
   
   // Documents
@@ -88,7 +87,6 @@ const StaffFormPage: React.FC = () => {
       epfNo: '',
       etfNo: '',
       position: '',
-      basicSalary: undefined,
       uniformProvided: false,
       cvUrl: '',
       policeReportAddLater: false,
@@ -165,7 +163,6 @@ const StaffFormPage: React.FC = () => {
             setValue('epfNo', data.epfNo || '');
             setValue('etfNo', data.etfNo || '');
             setValue('position', data.position || '');
-            setValue('basicSalary', data.basicSalary);
             setValue('uniformProvided', data.uniformProvided || false);
           }
         } else {
@@ -190,7 +187,6 @@ const StaffFormPage: React.FC = () => {
     try {
       const processedData = {
         ...data,
-        basicSalary: data.basicSalary ? Number(data.basicSalary) : undefined,
         additionalPhones: data.additionalPhones ? data.additionalPhones.split(',').map(s => s.trim()).filter(Boolean) : [],
         landline: data.landline || '',
         address: data.address || ''
@@ -504,7 +500,7 @@ const StaffFormPage: React.FC = () => {
             </div>
 
             <div className="md:col-span-2 space-y-3 pt-4">
-              <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">Driving License No. (Optional for Drivers / Operators)</label>
+              <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest px-1">License No. (Optional — if available)</label>
               <div className="relative">
                 <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-600 w-5 h-5" />
                 <input

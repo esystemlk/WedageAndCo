@@ -51,6 +51,11 @@ import FinancialDashboard from './pages/financial/FinancialDashboard';
 import CalendarPage from './pages/calendar/CalendarPage';
 import DocumentsPage from './pages/documents/DocumentsPage';
 import InventoryPage from './pages/inventory/InventoryPage';
+import JobCardListPage from './pages/garage/JobCardListPage';
+import JobCardFormPage from './pages/garage/JobCardFormPage';
+import InventoryItemFormPage from './pages/inventory/InventoryItemFormPage';
+import FuelIssueFormPage from './pages/inventory/FuelIssueFormPage';
+import OilIssueFormPage from './pages/inventory/OilIssueFormPage';
 
 function App() {
   return (
@@ -82,6 +87,12 @@ function App() {
               <Route path="/grn" element={<GRNListPage />} />
               <Route path="/grn/new" element={<GRNFormPage />} />
               <Route path="/inventory" element={<InventoryPage />} />
+              <Route path="/inventory/new" element={<InventoryItemFormPage />} />
+              <Route path="/inventory/:id/edit" element={<InventoryItemFormPage />} />
+              <Route path="/inventory/fuel/new" element={<FuelIssueFormPage />} />
+              <Route path="/inventory/fuel/:id/edit" element={<FuelIssueFormPage />} />
+              <Route path="/inventory/oil/new" element={<OilIssueFormPage />} />
+              <Route path="/inventory/oil/:id/edit" element={<OilIssueFormPage />} />
                 
                 {/* Module 4: Staff */}
                 <Route path="/staff" element={<StaffListPage />} />
@@ -120,6 +131,9 @@ function App() {
                 <Route path="/garage/new" element={<MaintenanceFormPage />} />
                 <Route path="/garage/:id" element={<MaintenanceDetailPage />} />
                 <Route path="/garage/:id/edit" element={<MaintenanceFormPage />} />
+                <Route path="/garage/job-cards" element={<JobCardListPage />} />
+                <Route path="/garage/job-cards/new" element={<JobCardFormPage />} />
+                <Route path="/garage/job-cards/:id/edit" element={<JobCardFormPage />} />
 
                 {/* Module 8: Invoices */}
               <Route path="/invoices" element={<InvoiceListPage />} />

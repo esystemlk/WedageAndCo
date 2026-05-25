@@ -26,10 +26,10 @@ export const getCalendarEvents = async () => {
   try {
     const q = query(collection(db, COLLECTION), orderBy('date', 'asc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return { 
-        id: doc.id, 
+    return snapshot.docs.map(d => {
+      const { id: _storedId, ...data } = d.data();
+      return {
+        id: d.id,
         ...data,
         date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date)
       } as CalendarEvent;

@@ -5,12 +5,12 @@ import {
    Save,
    ArrowLeft,
    User,
-   MapPin,
    AlertTriangle,
    FileText,
    Info,
-   LayoutDashboard,
-   Building2
+   Building2,
+   Wrench,
+   HelpCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -33,9 +33,11 @@ const dailyUpdateSchema = z.object({
    actualDriverId: z.string().min(1, 'Driver is required'),
    actualHelperId: z.string().optional().or(z.literal('')),
    customerId: z.string().optional().or(z.literal('')),
-   status: z.enum(['On Trip', 'Breakdown', 'Yard Parking', 'Under Repair', 'Personal Use', 'Other']),
+   status: z.enum(['On Trip', 'Breakdown', 'Yard Parking', 'Under Repair', 'Other']),
    fuelPumped: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
    breakdownReason: z.string().optional().or(z.literal('')),
+   underRepairReason: z.string().optional().or(z.literal('')),
+   otherReason: z.string().optional().or(z.literal('')),
    remarks: z.string().optional().or(z.literal('')),
    temporaryDriverName: z.string().optional(),
    temporaryHelperName: z.string().optional(),
@@ -48,6 +50,22 @@ const dailyUpdateSchema = z.object({
 }, {
    message: "Critical Failure Reason is required",
    path: ["breakdownReason"]
+}).refine(data => {
+   if (data.status === 'Under Repair' && !data.underRepairReason?.trim()) {
+      return false;
+   }
+   return true;
+}, {
+   message: "Under Repair reason is required",
+   path: ["underRepairReason"]
+}).refine(data => {
+   if (data.status === 'Other' && !data.otherReason?.trim()) {
+      return false;
+   }
+   return true;
+}, {
+   message: "Please specify reason for 'Other' status",
+   path: ["otherReason"]
 }).refine(data => {
    if (data.actualDriverId === 'temp' && !data.temporaryDriverName?.trim()) {
       return false;
@@ -87,7 +105,9 @@ const DailyUpdateFormPage: React.FC = () => {
          temporaryDriverName: '',
          temporaryHelperName: '',
          additionalHelpers: '',
-         breakdownReason: ''
+         breakdownReason: '',
+         underRepairReason: '',
+         otherReason: ''
       }
    });
 
@@ -128,6 +148,14 @@ const DailyUpdateFormPage: React.FC = () => {
    const activeVehicles = vehicles.filter(v => v.status === 'active');
    const activeDrivers = staff.filter(s => s.category === 'Driver');
    const activeHelpers = staff.filter(s => s.category === 'Helper');
+
+   const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
+      'On Trip': { color: 'bg-blue-600', icon: <Truck className="w-3 h-3" /> },
+      'Yard Parking': { color: 'bg-gray-600', icon: <Building2 className="w-3 h-3" /> },
+      'Breakdown': { color: 'bg-rose-600', icon: <AlertTriangle className="w-3 h-3" /> },
+      'Under Repair': { color: 'bg-amber-600', icon: <Wrench className="w-3 h-3" /> },
+      'Other': { color: 'bg-purple-600', icon: <HelpCircle className="w-3 h-3" /> },
+   };
 
    return (
       <div className="max-w-4xl mx-auto pb-20">
@@ -247,16 +275,16 @@ const DailyUpdateFormPage: React.FC = () => {
                </div>
 
                {/* Deployment Status */}
-               <div className="space-y-3">
+               <div className="space-y-4">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Current Tactical Status</label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                     {['On Trip', 'Yard Parking', 'Breakdown', 'Under Repair', 'Personal Use', 'Other'].map(s => (
+                     {(['On Trip', 'Yard Parking', 'Breakdown', 'Under Repair', 'Other'] as const).map(s => (
                         <button
                            key={s}
                            type="button"
-                           onClick={() => setValue('status', s as any)}
+                           onClick={() => setValue('status', s)}
                            className={cn(
-                              "px-4 py-4 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border shadow-sm",
+                              "px-4 py-4 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border shadow-sm flex items-center justify-center gap-2",
                               selectedStatus === s
                                  ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-100"
                                  : "bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200"
@@ -266,40 +294,65 @@ const DailyUpdateFormPage: React.FC = () => {
                         </button>
                      ))}
                   </div>
+                  {selectedStatus === 'On Trip' && (
+                     <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl">
+                        <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Note: Changing from "On Trip" from a previous day requires Manager authorization.</p>
+                     </motion.div>
+                  )}
                </div>
 
-               {/* Contextual Fields */}
-               <div className="grid grid-cols-1 gap-8">
-                  <div className="space-y-3">
-                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Assign to Customer</label>
-                     <Controller
-                        control={control}
-                        name="customerId"
-                        render={({ field }) => (
-                           <SearchableSelect
-                              options={customers.map(c => ({ value: c.id!, label: c.name, subLabel: c.nickname || undefined }))}
-                              value={field.value || ''}
-                              onChange={field.onChange}
-                              placeholder="Select Customer (Optional)"
-                              icon={<Building2 className="w-4 h-4 text-gray-400" />}
-                           />
-                        )}
-                     />
-                  </div>
-
-
-               </div>
-
-               <div className="grid grid-cols-1">
+               {/* Reason fields for statuses that require it */}
+               <div className="space-y-4">
                   {selectedStatus === 'Breakdown' && (
                      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3">
-                        <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest px-1">Critical Failure Reason</label>
+                        <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest px-1">Critical Failure Reason *</label>
                         <div className="relative">
                            <AlertTriangle className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-600" />
                            <input type="text" {...register('breakdownReason')} placeholder="Describe mechanical fault" className="w-full bg-rose-50 border border-rose-100 pl-12 pr-4 py-4 rounded-2xl text-rose-900 font-bold outline-none" />
                         </div>
+                        {errors.breakdownReason && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.breakdownReason.message}</p>}
                      </motion.div>
                   )}
+
+                  {selectedStatus === 'Under Repair' && (
+                     <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3">
+                        <label className="text-[10px] font-black text-amber-600 uppercase tracking-widest px-1">Under Repair — Reason *</label>
+                        <div className="relative">
+                           <Wrench className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-600" />
+                           <input type="text" {...register('underRepairReason')} placeholder="Describe what is being repaired" className="w-full bg-amber-50 border border-amber-100 pl-12 pr-4 py-4 rounded-2xl text-amber-900 font-bold outline-none" />
+                        </div>
+                        {errors.underRepairReason && <p className="text-[10px] font-bold text-amber-600 px-1">{errors.underRepairReason.message}</p>}
+                     </motion.div>
+                  )}
+
+                  {selectedStatus === 'Other' && (
+                     <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3">
+                        <label className="text-[10px] font-black text-purple-600 uppercase tracking-widest px-1">Specify Reason *</label>
+                        <div className="relative">
+                           <HelpCircle className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-600" />
+                           <input type="text" {...register('otherReason')} placeholder="Describe the situation" className="w-full bg-purple-50 border border-purple-100 pl-12 pr-4 py-4 rounded-2xl text-purple-900 font-bold outline-none" />
+                        </div>
+                        {errors.otherReason && <p className="text-[10px] font-bold text-purple-600 px-1">{errors.otherReason.message}</p>}
+                     </motion.div>
+                  )}
+               </div>
+
+               {/* Customer Assignment */}
+               <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Assign to Customer</label>
+                  <Controller
+                     control={control}
+                     name="customerId"
+                     render={({ field }) => (
+                        <SearchableSelect
+                           options={customers.map(c => ({ value: c.id!, label: c.name, subLabel: c.nickname || undefined }))}
+                           value={field.value || ''}
+                           onChange={field.onChange}
+                           placeholder="Select Customer (Optional)"
+                           icon={<Building2 className="w-4 h-4 text-gray-400" />}
+                        />
+                     )}
+                  />
                </div>
 
                <div className="space-y-3">

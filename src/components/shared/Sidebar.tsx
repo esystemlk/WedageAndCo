@@ -21,7 +21,10 @@ import {
   X,
   Calendar as CalendarIcon,
   Folder,
-  ShoppingCart
+  ShoppingCart,
+  Fuel,
+  Droplets,
+  ClipboardCheck
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -59,6 +62,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     
     { type: 'header', name: 'Procurement' },
     { name: 'Inventory', path: '/inventory', icon: ShoppingCart, permission: 'view_suppliers' },
+    { name: 'Fuel Issues', path: '/inventory/fuel/new', icon: Fuel, permission: 'view_suppliers' },
+    { name: 'Oil / Lubricant Issues', path: '/inventory/oil/new', icon: Droplets, permission: 'view_suppliers' },
     { name: 'Suppliers', path: '/suppliers', icon: Package, permission: 'view_suppliers' },
     { name: 'Purchase Orders', path: '/purchase-orders', icon: ClipboardList, permission: 'view_logs' },
     { name: 'GRN Registry', path: '/grn', icon: Package, permission: 'view_logs' },
@@ -71,6 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     { name: 'Log Sheets', path: '/logs', icon: ClipboardList, permission: 'view_logs' },
     { name: 'Security Book', path: '/security', icon: ShieldCheck, permission: 'view_logs' },
     { name: 'Garage', path: '/garage', icon: Wrench, permission: 'view_garage' },
+    { name: 'Job Cards', path: '/garage/job-cards', icon: ClipboardCheck, permission: 'view_garage' },
     
     { type: 'header', name: 'Analytics' },
     { name: 'Invoices', path: '/invoices', icon: DollarSign, permission: 'view_reports' },
