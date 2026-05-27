@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStaff } from '../../hooks/useStaff';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+  getAttendanceForDate,
+  saveAttendanceForDate,
+  AttendanceStatus,
+} from '../../services/attendanceService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
-import { 
+import {
   Calendar,
   Search,
   CheckCircle2,
   XCircle,
   Clock,
-  Save
+  Save,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -16,13 +22,19 @@ import { PermissionGate } from '../../components/auth/RouteGuards';
 
 const AttendancePage: React.FC = () => {
   const { staff, loading } = useStaff();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'Operations' | 'Office Staff'>('Operations');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  
-  // Dummy state to handle local changes for the day
-  // In a real scenario, we'd fetch this from the backend
-  const [attendanceRecords, setAttendanceRecords] = useState<Record<string, 'Present' | 'Absent' | 'Half-Day'>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  const [attendanceRecords, setAttendanceRecords] = useState<Record<string, AttendanceStatus>>({});
+
+  // Load saved attendance whenever date changes
+  useEffect(() => {
+    getAttendanceForDate(date).then(setAttendanceRecords);
+  }, [date]);
 
   const filteredStaff = staff.filter(member => {
     const matchesSearch = member.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -35,16 +47,22 @@ const AttendancePage: React.FC = () => {
     return matchesSearch && matchesTab;
   });
 
-  const handleMarkAttendance = (staffId: string, status: 'Present' | 'Absent' | 'Half-Day') => {
-    setAttendanceRecords(prev => ({
-      ...prev,
-      [staffId]: status
-    }));
+  const handleMarkAttendance = (staffId: string, status: AttendanceStatus) => {
+    setAttendanceRecords(prev => ({ ...prev, [staffId]: status }));
   };
 
-  const handleSaveAttendance = () => {
-    alert('Attendance saved successfully!');
-    // Real implementation would save to Firestore here
+  const handleSaveAttendance = async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      await saveAttendanceForDate(date, attendanceRecords, user?.email || 'Unknown');
+      setSaveMsg('Attendance saved successfully!');
+    } catch (err) {
+      setSaveMsg('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSaveMsg(null), 3000);
+    }
   };
 
   return (
@@ -74,13 +92,22 @@ const AttendancePage: React.FC = () => {
               />
             </div>
             <PermissionGate permission="edit_staff">
-              <button 
-                onClick={handleSaveAttendance}
-                className="bg-indigo-600 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                <span>Save Registry</span>
-              </button>
+              <div className="flex flex-col items-end gap-1">
+                {saveMsg && (
+                  <p className={cn(
+                    "text-[10px] font-bold uppercase tracking-widest",
+                    saveMsg.includes('success') ? 'text-emerald-600' : 'text-rose-600'
+                  )}>{saveMsg}</p>
+                )}
+                <button
+                  onClick={handleSaveAttendance}
+                  disabled={saving}
+                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:opacity-60"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{saving ? 'Saving...' : 'Save Registry'}</span>
+                </button>
+              </div>
             </PermissionGate>
           </div>
         }

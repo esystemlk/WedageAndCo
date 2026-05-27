@@ -118,13 +118,36 @@ const ReportsPage: React.FC = () => {
     return data;
   }, [invoices, logs, maintenance]);
 
-  const maintenanceData = [
-    { name: 'Engine', value: 35 },
-    { name: 'Tyres', value: 25 },
-    { name: 'Service', value: 20 },
-    { name: 'Brakes', value: 12 },
-    { name: 'Other', value: 8 },
-  ];
+  // Compute maintenance breakdown from real records by keyword in description
+  const maintenanceData = useMemo(() => {
+    const KEYWORDS: Record<string, string[]> = {
+      Engine: ['engine', 'motor', 'cylinder', 'piston', 'timing', 'oil'],
+      Tyres: ['tyre', 'tire', 'wheel', 'puncture', 'rim'],
+      Service: ['service', 'filter', 'grease', 'lube', 'wash', 'inspection'],
+      Brakes: ['brake', 'pad', 'disc', 'caliper'],
+      Electrical: ['battery', 'alternator', 'fuse', 'wiring', 'electric', 'light', 'sensor'],
+      Body: ['body', 'dent', 'paint', 'glass', 'door', 'mirror'],
+    };
+    const counts: Record<string, number> = {};
+    maintenance.forEach(rec => {
+      const desc = (rec.description || '').toLowerCase();
+      let matched = false;
+      for (const [cat, keywords] of Object.entries(KEYWORDS)) {
+        if (keywords.some(k => desc.includes(k))) {
+          counts[cat] = (counts[cat] || 0) + 1;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) counts['Other'] = (counts['Other'] || 0) + 1;
+    });
+    const total = Object.values(counts).reduce((s, v) => s + v, 0);
+    if (total === 0) return [];
+    return Object.entries(counts).map(([name, count]) => ({
+      name,
+      value: Math.round((count / total) * 100),
+    }));
+  }, [maintenance]);
 
   const handleExport = () => {
     const csvContent = [
@@ -185,11 +208,11 @@ const ReportsPage: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {[
-          { label: 'Total Revenue', value: stats.totalRevenue, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', suffix: 'LKR', trend: '+12.5%' },
-          { label: 'Maintenance Cost', value: stats.totalMaintenance, icon: Wrench, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', suffix: 'LKR', trend: '-3.2%', negative: true },
-          { label: 'Total Trips', value: stats.totalTrips, icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100', suffix: 'Trips', trend: '+8.1%' },
-          { label: 'Completed', value: stats.completedTrips, icon: Activity, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', suffix: 'Trips', trend: '+15.3%' },
-          { label: 'Active Fleet', value: stats.activeVehicles, icon: Truck, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100', suffix: 'Vehicles', trend: '+2' },
+          { label: 'Total Revenue', value: stats.totalRevenue, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', suffix: 'LKR', trend: `${invoices.length} invoices` },
+          { label: 'Maintenance Cost', value: stats.totalMaintenance, icon: Wrench, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', suffix: 'LKR', trend: `${maintenance.length} records`, negative: true },
+          { label: 'Total Trips', value: stats.totalTrips, icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100', suffix: 'Trips', trend: `${logs.length} log sheets` },
+          { label: 'Completed', value: stats.completedTrips, icon: Activity, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', suffix: 'Trips', trend: stats.totalTrips > 0 ? `${Math.round((stats.completedTrips / stats.totalTrips) * 100)}% rate` : '0% rate' },
+          { label: 'Active Fleet', value: stats.activeVehicles, icon: Truck, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100', suffix: 'Vehicles', trend: `of ${vehicles.length} total` },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -358,18 +381,25 @@ const ReportsPage: React.FC = () => {
             </div>
 
             <div className="h-[300px] w-full">
-               <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={maintenanceData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} fontWeight="bold" axisLine={false} tickLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={11} fontWeight="bold" axisLine={false} tickLine={false} />
-                    <Tooltip 
-                      cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }}
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #f1f5f9', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    />
-                    <Bar dataKey="value" fill="#f59e0b" radius={[8, 8, 0, 0]} barSize={40} />
-                  </BarChart>
-               </ResponsiveContainer>
+               {maintenanceData.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-gray-400 text-sm font-bold uppercase tracking-widest">
+                    No maintenance records yet
+                  </div>
+               ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={maintenanceData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} fontWeight="bold" axisLine={false} tickLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={11} fontWeight="bold" axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }}
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #f1f5f9', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        formatter={(v: number) => [`${v}%`, 'Share']}
+                      />
+                      <Bar dataKey="value" fill="#f59e0b" radius={[8, 8, 0, 0]} barSize={40} />
+                    </BarChart>
+                  </ResponsiveContainer>
+               )}
             </div>
          </motion.div>
       </div>

@@ -5,6 +5,7 @@ import {
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import type { FuelType } from '../config/fuelTypes';
 
 export type InventoryCategory =
   | 'fuel'
@@ -16,7 +17,8 @@ export type InventoryCategory =
   | 'battery-used'
   | 'electrical'
   | 'stationery'
-  | 'other';
+  | 'other'
+  | (string & {});  // allows custom user-defined categories
 
 export type StockStatus = 'available' | 'low-stock' | 'out-of-stock' | 'reserved' | 'damaged' | 'expired';
 
@@ -34,7 +36,7 @@ export const CATEGORY_LABELS: Record<InventoryCategory, string> = {
 };
 
 export const SUB_CATEGORIES: Record<InventoryCategory, string[]> = {
-  'fuel': ['Diesel', 'Petrol'],
+  'fuel': ['Auto Diesel', 'Super Diesel', 'Petrol (92 Oct)', 'Petrol (95 Oct)', 'CNG', 'LPG', 'Kerosene', 'Other'],
   'lubricants': ['Engine Oil', 'Gear Oil', 'Differential Oil', 'Brake Fluid', 'ATF / Power Steering', 'Hydraulic Oil', 'Coolant'],
   'filters': ['Oil Filter', 'Air Filter', 'Fuel Filter', 'Cabin Air Filter', 'Hydraulic Filter'],
   'parts-new': ['Engine', 'Transmission', 'Suspension', 'Brakes', 'Cooling', 'Refrigeration Unit', 'Body', 'Electrical', 'Other'],
@@ -59,11 +61,12 @@ const SKU_PREFIXES: Record<InventoryCategory, string> = {
   'other': 'INV',
 };
 
-export function generateSKU(category: InventoryCategory): string {
-  const prefix = SKU_PREFIXES[category];
+export function generateSKU(category: string): string {
+  const derived = (SKU_PREFIXES as Record<string, string>)[category]
+    ?? category.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase();
+  const prefix = derived || 'INV';
   const year = new Date().getFullYear();
-  const random = Math.floor(1000 + Math.random() * 9000);
-  return `${prefix}-${year}-${random}`;
+  return `${prefix}-${year}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
 }
 
 export function computeStockStatus(currentStock: number, minStockLevel: number): StockStatus {
@@ -73,7 +76,7 @@ export function computeStockStatus(currentStock: number, minStockLevel: number):
 }
 
 export interface InventoryItemExtended {
-  fuelType?: 'diesel' | 'petrol';
+  fuelType?: FuelType;
   tankCapacityL?: number;
   oilGrade?: string;
   compatibleVehicleTypes?: string;

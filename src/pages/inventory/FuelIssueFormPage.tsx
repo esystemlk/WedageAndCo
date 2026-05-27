@@ -3,13 +3,17 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  Fuel, Save, Truck, User, MapPin, Clock, AlertTriangle, Gauge, Droplets
+  Fuel, Save, Truck, User, MapPin, Clock, AlertTriangle, Gauge, Droplets,
+  Plus, X, Check, RefreshCw
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { cn } from '../../lib/utils';
 import { createFuelTransaction, updateFuelTransaction, getFuelTransaction } from '../../services/fuelStockService';
 import { getInventoryItems, InventoryItem } from '../../services/inventoryService';
+import { FUEL_TYPE_VALUES, FUEL_TYPE_SHORT, FUEL_TYPE_COLOR, FUEL_PILL_IDLE } from '../../config/fuelTypes';
+import { getCustomFuelTypes, addCustomFuelType, CustomFuelType } from '../../services/configService';
 import { getVehicles } from '../../services/fleetService';
 import { getStaffMembers } from '../../services/staffService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,7 +28,7 @@ const schema = z.object({
   driverName: z.string().min(1, 'Driver is required'),
   location: z.string().optional(),
   issuingOfficer: z.string().min(1, 'Issuing officer is required'),
-  fuelType: z.enum(['diesel', 'petrol']),
+  fuelType: z.string().min(1, 'Fuel type is required'),
   vehiclePrevMeterReading: z.number({ required_error: 'Required' }).min(0),
   vehicleCurrentMeterReading: z.number({ required_error: 'Required' }).min(0),
   tankMeterReadingBefore: z.number({ required_error: 'Required' }).min(0),
@@ -57,6 +61,14 @@ const FuelIssueFormPage: React.FC = () => {
   const [fuelItems, setFuelItems] = useState<InventoryItem[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
+
+  // Custom fuel types from Firestore
+  const [customFuelTypes, setCustomFuelTypes] = useState<CustomFuelType[]>([]);
+  const [addingFuel, setAddingFuel] = useState(false);
+  const [newFuelName, setNewFuelName] = useState('');
+  const [savingFuel, setSavingFuel] = useState(false);
 
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
@@ -84,6 +96,19 @@ const FuelIssueFormPage: React.FC = () => {
 
   const selectedFuelItem = fuelItems.find(i => i.id === stockItemId);
 
+  // Refresh reference data when an entity is quick-added
+  useEffect(() => {
+    if (refreshKey === 0) return;
+    Promise.all([getVehicles(), getStaffMembers()]).then(([v, s]) => {
+      setVehicles(v || []); setStaff(s || []);
+    }).catch(console.error);
+  }, [refreshKey]);
+
+  // Load custom fuel types on mount
+  useEffect(() => {
+    getCustomFuelTypes().then(setCustomFuelTypes);
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       const [fi, v, s] = await Promise.all([
@@ -107,6 +132,37 @@ const FuelIssueFormPage: React.FC = () => {
     };
     load();
   }, [id, setValue]);
+
+  // Merge built-in + custom fuel types
+  const allFuelTypes = [
+    ...FUEL_TYPE_VALUES.map(v => ({
+      value: v,
+      shortLabel: FUEL_TYPE_SHORT[v],
+      colorClass: FUEL_TYPE_COLOR[v],
+    })),
+    ...customFuelTypes.map(ft => ({
+      value: ft.value,
+      shortLabel: ft.shortLabel,
+      colorClass: 'bg-violet-50 border-violet-300 text-violet-700',
+    })),
+  ];
+
+  const handleAddFuel = async () => {
+    const label = newFuelName.trim();
+    if (!label) return;
+    setSavingFuel(true);
+    try {
+      const value = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const shortLabel = label.length > 10 ? label.slice(0, 9).trim() + '…' : label;
+      const saved = await addCustomFuelType({ value, label, shortLabel });
+      setCustomFuelTypes(prev => [...prev, saved]);
+      setValue('fuelType', saved.value as any);
+      setAddingFuel(false);
+      setNewFuelName('');
+    } finally {
+      setSavingFuel(false);
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
@@ -215,16 +271,44 @@ const FuelIssueFormPage: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <label className={cn(labelCls, "text-amber-700")}>Fuel Type</label>
-                <div className="flex gap-3">
-                  {(['diesel', 'petrol'] as const).map(t => (
-                    <button key={t} type="button" onClick={() => setValue('fuelType', t)}
+                <div className="grid grid-cols-3 gap-2">
+                  {allFuelTypes.map(t => (
+                    <button key={t.value} type="button" onClick={() => setValue('fuelType', t.value as any)}
                       className={cn(
-                        "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
-                        watch('fuelType') === t ? 'bg-amber-500 border-amber-400 text-white' : 'bg-white border-amber-200 text-amber-600'
+                        "py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all",
+                        watch('fuelType') === t.value ? t.colorClass : FUEL_PILL_IDLE
                       )}
-                    >{t}</button>
+                    >{t.shortLabel}</button>
                   ))}
+                  {!addingFuel ? (
+                    <button type="button" onClick={() => setAddingFuel(true)}
+                      className="py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 border-dashed border-gray-200 text-gray-400 hover:border-amber-400 hover:text-amber-600 transition-all"
+                    >+ New</button>
+                  ) : null}
                 </div>
+                {addingFuel && (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newFuelName}
+                      onChange={e => setNewFuelName(e.target.value)}
+                      placeholder="Fuel type name…"
+                      className="flex-1 px-3 py-2.5 bg-white border border-amber-200 rounded-xl text-sm font-bold outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-gray-400"
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { e.preventDefault(); handleAddFuel(); }
+                        if (e.key === 'Escape') { setAddingFuel(false); setNewFuelName(''); }
+                      }}
+                    />
+                    <button type="button" onClick={handleAddFuel}
+                      disabled={!newFuelName.trim() || savingFuel}
+                      className="px-3 py-2.5 bg-amber-600 text-white rounded-xl text-xs font-black disabled:opacity-40"
+                    >{savingFuel ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3.5 h-3.5" />}</button>
+                    <button type="button" onClick={() => { setAddingFuel(false); setNewFuelName(''); }}
+                      className="px-3 py-2.5 bg-white border border-gray-200 text-gray-400 rounded-xl"
+                    ><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                )}
               </div>
             </div>
             {selectedFuelItem && (
@@ -254,6 +338,8 @@ const FuelIssueFormPage: React.FC = () => {
                       onChange={field.onChange}
                       placeholder="Select vehicle"
                       icon={<Truck className="w-4 h-4 text-indigo-600" />}
+                      onAddNew={() => setQuickAdd({ type: 'vehicle', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
+                      addNewLabel="Add New Vehicle"
                     />
                   )}
                 />
@@ -269,6 +355,8 @@ const FuelIssueFormPage: React.FC = () => {
                       onChange={field.onChange}
                       placeholder="Select driver"
                       icon={<User className="w-4 h-4 text-indigo-600" />}
+                      onAddNew={() => setQuickAdd({ type: 'driver', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
+                      addNewLabel="Add New Driver"
                     />
                   )}
                 />
@@ -419,6 +507,16 @@ const FuelIssueFormPage: React.FC = () => {
           </div>
         </form>
       </motion.div>
+
+      <AnimatePresence>
+        {quickAdd && (
+          <QuickAddModal
+            type={quickAdd.type}
+            onCreated={(id, label) => { quickAdd.onCreated(id, label); setQuickAdd(null); }}
+            onClose={() => setQuickAdd(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

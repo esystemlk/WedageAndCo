@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, ChevronDown, Check } from 'lucide-react';
+import { Search, ChevronDown, Check, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 
@@ -17,6 +17,8 @@ interface SearchableSelectProps {
   placeholder?: string;
   icon?: React.ReactNode;
   className?: string;
+  onAddNew?: () => void;
+  addNewLabel?: string;
 }
 
 interface DropdownPos {
@@ -34,7 +36,9 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   onChange,
   placeholder = 'Select Option',
   icon,
-  className
+  className,
+  onAddNew,
+  addNewLabel,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -133,7 +137,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
           </div>
 
           {/* Options list */}
-          <div className="overflow-y-auto p-2 space-y-1 scrollbar-thin" style={{ maxHeight: DROPDOWN_MAX_H - 64 }}>
+          <div className="overflow-y-auto p-2 space-y-1 scrollbar-thin" style={{ maxHeight: DROPDOWN_MAX_H - (onAddNew ? 116 : 64) }}>
             {filteredOptions.length === 0 ? (
               <div className="py-8 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">
                 No matches found
@@ -176,6 +180,24 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
               })
             )}
           </div>
+
+          {/* Add New button */}
+          {onAddNew && (
+            <div className="border-t border-gray-100 p-2 shrink-0">
+              <button
+                type="button"
+                onMouseDown={e => {
+                  e.preventDefault();
+                  close();
+                  onAddNew();
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 text-indigo-600 hover:bg-indigo-50 rounded-xl text-xs font-black uppercase tracking-wider transition-colors border border-dashed border-indigo-200 hover:border-indigo-400"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{addNewLabel || 'Add New'}</span>
+              </button>
+            </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

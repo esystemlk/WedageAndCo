@@ -75,7 +75,7 @@ export const getLogSheet = async (id: string) => {
 
 export const createLogSheet = async (data: Omit<LogSheet, 'id'>) => {
   try {
-    const logSheetCode = data.logSheetCode || `LS-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const logSheetCode = data.logSheetCode || `LS-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
     const docRef = await addDoc(collection(db, COLLECTION), {
       ...data,
       logSheetCode,

@@ -17,7 +17,8 @@ import {
   Clock
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { cn } from '../../lib/utils';
 import { getLogSheet, createLogSheet, updateLogSheet } from '../../services/logService';
 import { useCustomers } from '../../hooks/useCustomers';
@@ -111,16 +112,17 @@ const LogFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { customers } = useCustomers();
-  const { vehicles } = useFleet();
-  const { staff } = useStaff();
+  const { customers, refresh: refreshCustomers } = useCustomers();
+  const { vehicles, refresh: refreshVehicles } = useFleet();
+  const { staff, refresh: refreshStaff } = useStaff();
+  const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
 
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<LogFormData>({
     resolver: zodResolver(logSchema),
     defaultValues: {
-      logSheetCode: `LS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      logSheetCode: `LS-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`,
       date: new Date().toISOString().split('T')[0],
       endDate: new Date().toISOString().split('T')[0],
       status: 'Completed',
@@ -361,6 +363,8 @@ const LogFormPage: React.FC = () => {
                     onChange={field.onChange}
                     placeholder="Select Customer"
                     icon={<Building2 className="w-4 h-4 text-gray-400" />}
+                    onAddNew={() => setQuickAdd({ type: 'customer', onCreated: (id) => { field.onChange(id); refreshCustomers(); } })}
+                    addNewLabel="Add New Customer"
                   />
                 )}
               />
@@ -385,6 +389,8 @@ const LogFormPage: React.FC = () => {
                     onChange={field.onChange}
                     placeholder="Select Vehicle"
                     icon={<Truck className="w-4 h-4 text-emerald-600" />}
+                    onAddNew={() => setQuickAdd({ type: 'vehicle', onCreated: (id) => { field.onChange(id); refreshVehicles(); } })}
+                    addNewLabel="Add New Vehicle"
                   />
                 )}
               />
@@ -405,6 +411,8 @@ const LogFormPage: React.FC = () => {
                     onChange={field.onChange}
                     placeholder="Select Driver"
                     icon={<User className="w-4 h-4 text-indigo-600" />}
+                    onAddNew={() => setQuickAdd({ type: 'driver', onCreated: (id) => { field.onChange(id); refreshStaff(); } })}
+                    addNewLabel="Add New Driver"
                   />
                 )}
               />
@@ -433,6 +441,8 @@ const LogFormPage: React.FC = () => {
                     onChange={field.onChange}
                     placeholder="None Assigned"
                     icon={<User className="w-4 h-4 text-gray-400" />}
+                    onAddNew={() => setQuickAdd({ type: 'helper', onCreated: (id) => { field.onChange(id); refreshStaff(); } })}
+                    addNewLabel="Add New Helper"
                   />
                 )}
               />
@@ -487,6 +497,8 @@ const LogFormPage: React.FC = () => {
                           onChange={f.onChange}
                           placeholder="Select Helper"
                           icon={<User className="w-4 h-4 text-gray-400" />}
+                          onAddNew={() => setQuickAdd({ type: 'helper', onCreated: (id) => { f.onChange(id); refreshStaff(); } })}
+                          addNewLabel="Add New Helper"
                         />
                       )}
                     />
@@ -820,6 +832,16 @@ const LogFormPage: React.FC = () => {
           </div>
         </motion.div>
       </form>
+
+      <AnimatePresence>
+        {quickAdd && (
+          <QuickAddModal
+            type={quickAdd.type}
+            onCreated={(id, label) => { quickAdd.onCreated(id, label); setQuickAdd(null); }}
+            onClose={() => setQuickAdd(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -4,7 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Droplets, Save, Truck, User, Plus, Trash2, Gauge, Wrench, CheckCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { cn } from '../../lib/utils';
 import { createOilTransaction, updateOilTransaction, getOilTransaction } from '../../services/oilStockService';
 import { getInventoryItems, InventoryItem } from '../../services/inventoryService';
@@ -46,6 +47,8 @@ const OilIssueFormPage: React.FC = () => {
   const [oilItems, setOilItems] = useState<InventoryItem[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
 
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
@@ -71,6 +74,14 @@ const OilIssueFormPage: React.FC = () => {
   const closingStockL = Math.max(0, openingStockL - quantityL);
 
   const selectedItem = oilItems.find(i => i.id === stockItemId);
+
+  // Refresh reference data when an entity is quick-added
+  useEffect(() => {
+    if (refreshKey === 0) return;
+    Promise.all([getVehicles(), getStaffMembers()]).then(([v, s]) => {
+      setVehicles(v || []); setStaff(s || []);
+    }).catch(console.error);
+  }, [refreshKey]);
 
   useEffect(() => {
     const load = async () => {
@@ -216,6 +227,8 @@ const OilIssueFormPage: React.FC = () => {
                       onChange={field.onChange}
                       placeholder="Select vehicle"
                       icon={<Truck className="w-4 h-4 text-indigo-600" />}
+                      onAddNew={() => setQuickAdd({ type: 'vehicle', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
+                      addNewLabel="Add New Vehicle"
                     />
                   )}
                 />
@@ -231,6 +244,8 @@ const OilIssueFormPage: React.FC = () => {
                       onChange={field.onChange}
                       placeholder="Select driver"
                       icon={<User className="w-4 h-4 text-indigo-600" />}
+                      onAddNew={() => setQuickAdd({ type: 'driver', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
+                      addNewLabel="Add New Driver"
                     />
                   )}
                 />
@@ -325,6 +340,8 @@ const OilIssueFormPage: React.FC = () => {
                           onChange={f.onChange}
                           placeholder="Select or type technician name"
                           icon={<Wrench className="w-4 h-4 text-gray-400" />}
+                          onAddNew={() => setQuickAdd({ type: 'staff', onCreated: (id, label) => { f.onChange(label); setRefreshKey(k => k + 1); } })}
+                          addNewLabel="Add New Technician"
                         />
                       )}
                     />
@@ -386,6 +403,16 @@ const OilIssueFormPage: React.FC = () => {
           </div>
         </form>
       </motion.div>
+
+      <AnimatePresence>
+        {quickAdd && (
+          <QuickAddModal
+            type={quickAdd.type}
+            onCreated={(id, label) => { quickAdd.onCreated(id, label); setQuickAdd(null); }}
+            onClose={() => setQuickAdd(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,80 +1,112 @@
-import React, { useMemo, useState } from 'react';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  Wallet, 
-  CreditCard, 
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
   PieChart as PieChartIcon,
   BarChart3,
-  Plus,
-  Filter,
-  Calendar,
-  FileText,
-  Target
+  Target,
 } from 'lucide-react';
 import { useInvoices } from '../../hooks/useInvoices';
 import { useMaintenance } from '../../hooks/useMaintenance';
+import { useStaff } from '../../hooks/useStaff';
+import { getFuelTransactions, FuelTransaction } from '../../services/fuelStockService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { motion } from 'motion/react';
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  ResponsiveContainer, 
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
   Tooltip,
   AreaChart,
   Area,
   XAxis,
   YAxis,
   CartesianGrid,
-  BarChart,
-  Bar
 } from 'recharts';
 import { cn } from '../../lib/utils';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
-const EXPENSE_CATEGORIES = ['Fuel', 'Maintenance', 'Salaries', 'Insurance', 'Other'];
 
 const FinancialDashboard: React.FC = () => {
   const { invoices, loading: invLoading } = useInvoices();
   const { records: maintenance, loading: maintLoading } = useMaintenance();
+  const { staff, loading: staffLoading } = useStaff();
+  const [fuelTransactions, setFuelTransactions] = useState<FuelTransaction[]>([]);
+  const [fuelLoading, setFuelLoading] = useState(true);
   const [view, setView] = useState<'overview' | 'expenses' | 'budget'>('overview');
 
-  const loading = invLoading || maintLoading;
+  useEffect(() => {
+    getFuelTransactions()
+      .then(data => setFuelTransactions(data || []))
+      .catch(console.error)
+      .finally(() => setFuelLoading(false));
+  }, []);
+
+  const loading = invLoading || maintLoading || staffLoading || fuelLoading;
 
   const financialData = useMemo(() => {
     const totalRevenue = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
     const totalMaintenanceCost = maintenance.reduce((sum, rec) => sum + rec.cost, 0);
 
+    // Real fuel cost: sum quantity × average price (360 LKR/L default)
+    const totalFuelCost = fuelTransactions.reduce(
+      (sum, tx) => sum + (tx.quantityIssuedL || 0) * 360,
+      0
+    );
+
+    // Real salary estimate: sum of active staff basicSalary
+    const totalSalaries = staff
+      .filter(s => s.active)
+      .reduce((sum, s) => sum + (s.basicSalary || 0), 0);
+
     const expenses = [
-      { category: 'Fuel', amount: 1250000, color: '#6366f1' },
+      { category: 'Fuel', amount: totalFuelCost, color: '#6366f1' },
       { category: 'Maintenance', amount: totalMaintenanceCost, color: '#f59e0b' },
-      { category: 'Salaries', amount: 2500000, color: '#10b981' },
-      { category: 'Insurance', amount: 350000, color: '#8b5cf6' },
-      { category: 'Other', amount: 180000, color: '#06b6d4' },
+      { category: 'Salaries', amount: totalSalaries, color: '#10b981' },
     ];
 
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const netProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-    const monthlyData = [
-      { month: 'Jan', revenue: 1800000, expenses: 1450000 },
-      { month: 'Feb', revenue: 2200000, expenses: 1580000 },
-      { month: 'Mar', revenue: 1950000, expenses: 1490000 },
-      { month: 'Apr', revenue: 2400000, expenses: 1720000 },
-      { month: 'May', revenue: 2800000, expenses: 1890000 },
-      { month: 'Jun', revenue: 2550000, expenses: 1780000 },
-    ];
+    // Monthly data derived from real invoices and maintenance grouped by month
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthMap: Record<string, { revenue: number; expenses: number }> = {};
+
+    invoices.forEach(inv => {
+      try {
+        const m = monthNames[new Date(inv.date).getMonth()];
+        if (!monthMap[m]) monthMap[m] = { revenue: 0, expenses: 0 };
+        monthMap[m].revenue += inv.totalAmount;
+      } catch { /* skip */ }
+    });
+    maintenance.forEach(rec => {
+      try {
+        const m = monthNames[new Date(rec.date).getMonth()];
+        if (!monthMap[m]) monthMap[m] = { revenue: 0, expenses: 0 };
+        monthMap[m].expenses += rec.cost;
+      } catch { /* skip */ }
+    });
+    fuelTransactions.forEach(tx => {
+      try {
+        const m = monthNames[new Date(tx.date).getMonth()];
+        if (!monthMap[m]) monthMap[m] = { revenue: 0, expenses: 0 };
+        monthMap[m].expenses += (tx.quantityIssuedL || 0) * 360;
+      } catch { /* skip */ }
+    });
+
+    const monthlyData = Object.entries(monthMap)
+      .map(([month, v]) => ({ month, ...v }))
+      .slice(-6);
 
     const budgetData = [
-      { category: 'Fuel', budget: 1300000, spent: 1250000 },
-      { category: 'Maintenance', budget: 500000, spent: totalMaintenanceCost },
-      { category: 'Salaries', budget: 2600000, spent: 2500000 },
-      { category: 'Insurance', budget: 400000, spent: 350000 },
-      { category: 'Other', budget: 200000, spent: 180000 },
+      { category: 'Fuel', budget: Math.max(totalFuelCost * 1.1, 500000), spent: totalFuelCost },
+      { category: 'Maintenance', budget: Math.max(totalMaintenanceCost * 1.2, 300000), spent: totalMaintenanceCost },
+      { category: 'Salaries', budget: Math.max(totalSalaries * 1.05, totalSalaries), spent: totalSalaries },
     ];
 
     return {
@@ -84,9 +116,9 @@ const FinancialDashboard: React.FC = () => {
       profitMargin,
       expenses,
       monthlyData,
-      budgetData
+      budgetData,
     };
-  }, [invoices, maintenance]);
+  }, [invoices, maintenance, staff, fuelTransactions]);
 
   if (loading) return <LoadingSpinner />;
 
@@ -126,49 +158,45 @@ const FinancialDashboard: React.FC = () => {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { 
-                label: 'Total Revenue', 
-                value: financialData.totalRevenue.toLocaleString(), 
-                icon: DollarSign, 
-                color: 'text-emerald-600', 
+              {
+                label: 'Total Revenue',
+                value: financialData.totalRevenue.toLocaleString(),
+                icon: DollarSign,
+                color: 'text-emerald-600',
                 bg: 'bg-emerald-50',
                 border: 'border-emerald-100',
                 suffix: 'LKR',
-                trend: '+15.2%',
-                positive: true
+                positive: true,
               },
-              { 
-                label: 'Total Expenses', 
-                value: financialData.totalExpenses.toLocaleString(), 
-                icon: Wallet, 
-                color: 'text-rose-600', 
+              {
+                label: 'Total Expenses',
+                value: financialData.totalExpenses.toLocaleString(),
+                icon: Wallet,
+                color: 'text-rose-600',
                 bg: 'bg-rose-50',
                 border: 'border-rose-100',
                 suffix: 'LKR',
-                trend: '+3.8%',
-                positive: false
+                positive: false,
               },
-              { 
-                label: 'Net Profit', 
-                value: financialData.netProfit.toLocaleString(), 
-                icon: TrendingUp, 
-                color: 'text-indigo-600', 
+              {
+                label: 'Net Profit',
+                value: financialData.netProfit.toLocaleString(),
+                icon: TrendingUp,
+                color: 'text-indigo-600',
                 bg: 'bg-indigo-50',
                 border: 'border-indigo-100',
                 suffix: 'LKR',
-                trend: '+22.5%',
-                positive: true
+                positive: financialData.netProfit >= 0,
               },
-              { 
-                label: 'Profit Margin', 
-                value: `${financialData.profitMargin.toFixed(1)}%`, 
-                icon: Target, 
-                color: 'text-purple-600', 
+              {
+                label: 'Profit Margin',
+                value: `${financialData.profitMargin.toFixed(1)}%`,
+                icon: Target,
+                color: 'text-purple-600',
                 bg: 'bg-purple-50',
                 border: 'border-purple-100',
                 suffix: '',
-                trend: '+5.2%',
-                positive: true
+                positive: financialData.profitMargin >= 0,
               },
             ].map((stat, i) => (
               <motion.div
@@ -190,7 +218,7 @@ const FinancialDashboard: React.FC = () => {
                 </div>
                 <div className={cn("mt-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest", stat.positive ? 'text-emerald-600' : 'text-rose-600')}>
                    {stat.positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                   <span>{stat.trend} VS PREV MONTH</span>
+                   <span>{stat.positive ? 'Positive' : 'Negative'} Balance</span>
                 </div>
               </motion.div>
             ))}

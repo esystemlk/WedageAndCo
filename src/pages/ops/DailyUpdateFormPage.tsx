@@ -13,7 +13,8 @@ import {
    HelpCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -89,9 +90,10 @@ type DailyUpdateFormData = z.infer<typeof dailyUpdateSchema>;
 const DailyUpdateFormPage: React.FC = () => {
    const navigate = useNavigate();
    const { user } = useAuth();
-   const { vehicles } = useFleet();
-   const { staff } = useStaff();
-   const { customers } = useCustomers();
+   const { vehicles, refresh: refreshVehicles } = useFleet();
+   const { staff, refresh: refreshStaff } = useStaff();
+   const { customers, refresh: refreshCustomers } = useCustomers();
+   const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
    const [loading, setLoading] = useState(false);
 
    const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<DailyUpdateFormData>({
@@ -200,6 +202,8 @@ const DailyUpdateFormPage: React.FC = () => {
                               onChange={field.onChange}
                               placeholder="Select Vehicle"
                               icon={<Truck className="w-4 h-4 text-emerald-600" />}
+                              onAddNew={() => setQuickAdd({ type: 'vehicle', onCreated: (id) => { field.onChange(id); refreshVehicles(); } })}
+                              addNewLabel="Add New Vehicle"
                            />
                         )}
                      />
@@ -224,6 +228,8 @@ const DailyUpdateFormPage: React.FC = () => {
                               onChange={field.onChange}
                               placeholder="Assigned Duty Driver"
                               icon={<User className="w-4 h-4 text-indigo-600" />}
+                              onAddNew={() => setQuickAdd({ type: 'driver', onCreated: (id) => { field.onChange(id); refreshStaff(); } })}
+                              addNewLabel="Add New Driver"
                            />
                         )}
                      />
@@ -253,6 +259,8 @@ const DailyUpdateFormPage: React.FC = () => {
                               onChange={field.onChange}
                               placeholder="No Helper Assigned"
                               icon={<User className="w-4 h-4 text-gray-400" />}
+                              onAddNew={() => setQuickAdd({ type: 'helper', onCreated: (id) => { field.onChange(id); refreshStaff(); } })}
+                              addNewLabel="Add New Helper"
                            />
                         )}
                      />
@@ -350,6 +358,8 @@ const DailyUpdateFormPage: React.FC = () => {
                            onChange={field.onChange}
                            placeholder="Select Customer (Optional)"
                            icon={<Building2 className="w-4 h-4 text-gray-400" />}
+                           onAddNew={() => setQuickAdd({ type: 'customer', onCreated: (id) => { field.onChange(id); refreshCustomers(); } })}
+                           addNewLabel="Add New Customer"
                         />
                      )}
                   />
@@ -389,6 +399,16 @@ const DailyUpdateFormPage: React.FC = () => {
                </div>
             </motion.div>
          </form>
+
+         <AnimatePresence>
+           {quickAdd && (
+             <QuickAddModal
+               type={quickAdd.type}
+               onCreated={(id, label) => { quickAdd.onCreated(id, label); setQuickAdd(null); }}
+               onClose={() => setQuickAdd(null)}
+             />
+           )}
+         </AnimatePresence>
       </div>
    );
 };

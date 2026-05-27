@@ -74,7 +74,7 @@ export const getPurchaseOrder = async (id: string) => {
 
 export const createPurchaseOrder = async (data: Omit<PurchaseOrder, 'id'>) => {
   try {
-    const poNumber = `PO-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const poNumber = `PO-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
     const docRef = await addDoc(collection(db, COLLECTION), {
       ...data,
       poNumber,

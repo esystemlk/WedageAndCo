@@ -6,6 +6,7 @@ import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
 import { adjustInventoryStock } from './inventoryService';
+import type { FuelType } from '../config/fuelTypes';
 
 export interface FuelTransaction {
   id?: string;
@@ -15,7 +16,7 @@ export interface FuelTransaction {
   driverName: string;
   location: string;
   issuingOfficer: string;
-  fuelType: 'diesel' | 'petrol';
+  fuelType: FuelType;
   vehiclePrevMeterReading: number;
   vehicleCurrentMeterReading: number;
   kmDriven: number;

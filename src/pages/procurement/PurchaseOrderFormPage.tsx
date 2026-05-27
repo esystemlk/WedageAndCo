@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -59,8 +60,9 @@ type POFormData = z.infer<typeof poSchema>;
 const PurchaseOrderFormPage: React.FC = () => {
    const navigate = useNavigate();
    const { user } = useAuth();
-   const { suppliers } = useSuppliers();
+   const { suppliers, refresh: refreshSuppliers } = useSuppliers();
    const { vehicles } = useFleet();
+   const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
    const [loading, setLoading] = useState(false);
    const [monthlySpend, setMonthlySpend] = useState(0);
    const MONTHLY_LIMIT = 500000; // Default monthly PO limit in LKR
@@ -217,6 +219,8 @@ const PurchaseOrderFormPage: React.FC = () => {
                                  onChange={field.onChange}
                                  placeholder="Select Supplier"
                                  icon={<User className="w-4 h-4 text-emerald-600" />}
+                                 onAddNew={() => setQuickAdd({ type: 'supplier', onCreated: (id) => { field.onChange(id); refreshSuppliers(); } })}
+                                 addNewLabel="Add New Supplier"
                               />
                            )}
                         />
@@ -453,6 +457,16 @@ const PurchaseOrderFormPage: React.FC = () => {
                </div>
             </motion.div>
          </form>
+
+         <AnimatePresence>
+           {quickAdd && (
+             <QuickAddModal
+               type={quickAdd.type}
+               onCreated={(id, label) => { quickAdd.onCreated(id, label); setQuickAdd(null); }}
+               onClose={() => setQuickAdd(null)}
+             />
+           )}
+         </AnimatePresence>
       </div>
    );
 };

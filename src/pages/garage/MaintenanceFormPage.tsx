@@ -12,7 +12,8 @@ import {
   FileText
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { cn } from '../../lib/utils';
 import { getMaintenanceRecord, createMaintenanceRecord, updateMaintenanceRecord } from '../../services/maintenanceService';
 import { useFleet } from '../../hooks/useFleet';
@@ -37,8 +38,9 @@ type MaintenanceFormData = z.infer<typeof maintenanceSchema>;
 const MaintenanceFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { vehicles } = useFleet();
-  const { suppliers } = useSuppliers();
+  const { vehicles, refresh: refreshVehicles } = useFleet();
+  const { suppliers, refresh: refreshSuppliers } = useSuppliers();
+  const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
 
@@ -125,6 +127,8 @@ const MaintenanceFormPage: React.FC = () => {
                     onChange={field.onChange}
                     placeholder="Select Vehicle"
                     icon={<Truck className="w-4 h-4 text-indigo-600" />}
+                    onAddNew={() => setQuickAdd({ type: 'vehicle', onCreated: (id) => { field.onChange(id); refreshVehicles(); } })}
+                    addNewLabel="Add New Vehicle"
                   />
                 )}
               />
@@ -143,6 +147,8 @@ const MaintenanceFormPage: React.FC = () => {
                     onChange={field.onChange}
                     placeholder="Internal / Third Party"
                     icon={<Package className="w-4 h-4 text-gray-400" />}
+                    onAddNew={() => setQuickAdd({ type: 'supplier', onCreated: (id) => { field.onChange(id); refreshSuppliers(); } })}
+                    addNewLabel="Add New Supplier"
                   />
                 )}
               />
@@ -230,6 +236,16 @@ const MaintenanceFormPage: React.FC = () => {
           </div>
         </form>
       </motion.div>
+
+      <AnimatePresence>
+        {quickAdd && (
+          <QuickAddModal
+            type={quickAdd.type}
+            onCreated={(id, label) => { quickAdd.onCreated(id, label); setQuickAdd(null); }}
+            onClose={() => setQuickAdd(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -19,7 +19,8 @@ import {
   Clock
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { cn } from '../../lib/utils';
 import { createInvoice, updateInvoice, getInvoice, InvoiceItem } from '../../services/invoiceService';
 import { useCustomers } from '../../hooks/useCustomers';
@@ -52,7 +53,8 @@ type InvoiceFormData = z.infer<typeof invoiceSchema>;
 const InvoiceFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { customers } = useCustomers();
+  const { customers, refresh: refreshCustomers } = useCustomers();
+  const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
 
@@ -169,6 +171,8 @@ const InvoiceFormPage: React.FC = () => {
                         onChange={field.onChange}
                         placeholder="Select Customer"
                         icon={<Building2 className="w-5 h-5 text-indigo-400" />}
+                        onAddNew={() => setQuickAdd({ type: 'customer', onCreated: (id) => { field.onChange(id); refreshCustomers(); } })}
+                        addNewLabel="Add New Customer"
                       />
                     )}
                   />
@@ -408,6 +412,16 @@ const InvoiceFormPage: React.FC = () => {
           </div>
         </form>
       </motion.div>
+
+      <AnimatePresence>
+        {quickAdd && (
+          <QuickAddModal
+            type={quickAdd.type}
+            onCreated={(id, label) => { quickAdd.onCreated(id, label); setQuickAdd(null); }}
+            onClose={() => setQuickAdd(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

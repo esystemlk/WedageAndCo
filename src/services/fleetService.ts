@@ -2,6 +2,7 @@ import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, 
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import type { FuelType } from '../config/fuelTypes';
 
 const COLLECTION = 'fleet';
 
@@ -36,7 +37,7 @@ export interface Vehicle {
   model?: string;
   chassisNo?: string;
   engineNo?: string;
-  fuelType: 'diesel' | 'petrol';
+  fuelType: FuelType;
   status: 'active' | 'maintenance' | 'unavailable';
   statusChangeReason?: string;
   statusConfirmedBy?: string; // Operations Manager

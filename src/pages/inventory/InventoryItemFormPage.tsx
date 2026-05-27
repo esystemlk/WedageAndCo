@@ -5,7 +5,7 @@ import { z } from 'zod';
 import {
   Package, Save, Tag, MapPin, Truck, DollarSign, Calendar,
   Fuel, Droplets, Filter, Zap, Battery, FileText, Archive,
-  RefreshCw, BarChart2, AlertCircle
+  RefreshCw, BarChart2, AlertCircle, Plus, X, Check
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -14,6 +14,11 @@ import {
   createInventoryItem, updateInventoryItem, getInventoryItem,
   InventoryCategory, CATEGORY_LABELS, SUB_CATEGORIES
 } from '../../services/inventoryService';
+import { FUEL_TYPE_VALUES, FUEL_TYPE_LABELS } from '../../config/fuelTypes';
+import {
+  getCustomCategories, addCustomCategory, getCustomFuelTypes, addCustomFuelType,
+  CustomCategory, CustomFuelType
+} from '../../services/configService';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -22,7 +27,7 @@ const numOpt = z.number().optional().or(z.literal(null)).transform(v => v === nu
 
 const schema = z.object({
   name: z.string().min(1, 'Item name is required'),
-  category: z.enum(['fuel','lubricants','filters','parts-new','parts-used','battery-new','battery-used','electrical','stationery','other']),
+  category: z.string().min(1, 'Category is required'),
   subCategory: z.string().optional(),
   brand: z.string().optional(),
   unitType: z.string().min(1, 'Unit type is required'),
@@ -43,7 +48,7 @@ const schema = z.object({
   binRackNumber: z.string().optional(),
   notes: z.string().optional(),
   extended: z.object({
-    fuelType: z.enum(['diesel','petrol']).optional(),
+    fuelType: z.string().optional(),
     tankCapacityL: numOpt,
     oilGrade: z.string().optional(),
     compatibleVehicleTypes: z.string().optional(),
@@ -108,6 +113,21 @@ const InventoryItemFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
 
+  // Custom categories & fuel types loaded from Firestore
+  const [customCategories, setCustomCategories] = useState<CustomCategory[]>([]);
+  const [customFuelTypes, setCustomFuelTypes] = useState<CustomFuelType[]>([]);
+
+  // Inline "Add Category" form state
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatSubcats, setNewCatSubcats] = useState('');
+  const [savingCat, setSavingCat] = useState(false);
+
+  // Inline "Add Fuel Type" form state
+  const [addingFuel, setAddingFuel] = useState(false);
+  const [newFuelName, setNewFuelName] = useState('');
+  const [savingFuel, setSavingFuel] = useState(false);
+
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
@@ -128,6 +148,12 @@ const InventoryItemFormPage: React.FC = () => {
   const maxStockLevel = watch('maxStockLevel') || 0;
   const minStockLevel = watch('minStockLevel') || 0;
 
+  // Load custom config from Firestore on mount
+  useEffect(() => {
+    getCustomCategories().then(setCustomCategories);
+    getCustomFuelTypes().then(setCustomFuelTypes);
+  }, []);
+
   useEffect(() => {
     if (id) {
       getInventoryItem(id).then(data => {
@@ -142,6 +168,68 @@ const InventoryItemFormPage: React.FC = () => {
       });
     }
   }, [id, setValue]);
+
+  // Merge built-in + custom categories for the selector
+  const allCategories = [
+    ...Object.keys(CATEGORY_LABELS).map(v => ({
+      value: v,
+      label: CATEGORY_LABELS[v as keyof typeof CATEGORY_LABELS],
+      subCategories: (SUB_CATEGORIES as Record<string, string[]>)[v] || [],
+      isCustom: false,
+    })),
+    ...customCategories.map(c => ({
+      value: c.value,
+      label: c.label,
+      subCategories: c.subCategories,
+      isCustom: true,
+    })),
+  ];
+
+  // Merge built-in + custom fuel types for the select
+  const allFuelTypes = [
+    ...FUEL_TYPE_VALUES.map(v => ({ value: v, label: FUEL_TYPE_LABELS[v] })),
+    ...customFuelTypes.map(ft => ({ value: ft.value, label: ft.label })),
+  ];
+
+  // Handle adding a new custom category
+  const handleAddCategory = async () => {
+    const label = newCatName.trim();
+    if (!label) return;
+    setSavingCat(true);
+    try {
+      const value = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const skuPrefix = label.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'CUST';
+      const subs = newCatSubcats.trim()
+        ? newCatSubcats.split(',').map(s => s.trim()).filter(Boolean)
+        : ['General'];
+      const saved = await addCustomCategory({ value, label, skuPrefix, subCategories: subs });
+      setCustomCategories(prev => [...prev, saved]);
+      setValue('category', saved.value);
+      setValue('subCategory', '');
+      setAddingCategory(false);
+      setNewCatName('');
+      setNewCatSubcats('');
+    } finally {
+      setSavingCat(false);
+    }
+  };
+
+  // Handle adding a new custom fuel type
+  const handleAddFuelType = async () => {
+    const label = newFuelName.trim();
+    if (!label) return;
+    setSavingFuel(true);
+    try {
+      const value = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const shortLabel = label.length > 10 ? label.slice(0, 9).trim() + '…' : label;
+      const saved = await addCustomFuelType({ value, label, shortLabel });
+      setCustomFuelTypes(prev => [...prev, saved]);
+      setAddingFuel(false);
+      setNewFuelName('');
+    } finally {
+      setSavingFuel(false);
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
@@ -181,7 +269,8 @@ const InventoryItemFormPage: React.FC = () => {
   if (initialLoading) return <LoadingSpinner />;
 
   const CatIcon = CATEGORY_ICONS[category] || Package;
-  const subCats = SUB_CATEGORIES[category] || [];
+  const selectedCatObj = allCategories.find(c => c.value === category);
+  const subCats = selectedCatObj?.subCategories || [];
   const stockPct = maxStockLevel > 0 ? Math.min(100, (currentStock / maxStockLevel) * 100) : 0;
 
   return (
@@ -203,25 +292,83 @@ const InventoryItemFormPage: React.FC = () => {
 
           {/* Category Selector */}
           <div className="space-y-4">
-            <label className={labelCls}>Stock Category</label>
+            <div className="flex items-center justify-between">
+              <label className={labelCls}>Stock Category</label>
+              <span className="text-[9px] text-gray-400 font-bold">{allCategories.length} categories</span>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              {(Object.keys(CATEGORY_LABELS) as InventoryCategory[]).map(cat => {
-                const Icon = CATEGORY_ICONS[cat] || Package;
+              {allCategories.map(cat => {
+                const Icon = CATEGORY_ICONS[cat.value] || Package;
                 return (
-                  <button key={cat} type="button" onClick={() => { setValue('category', cat); setValue('subCategory', ''); }}
+                  <button key={cat.value} type="button"
+                    onClick={() => { setValue('category', cat.value); setValue('subCategory', ''); }}
                     className={cn(
                       "flex flex-col items-center gap-2 p-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all",
-                      category === cat
+                      category === cat.value
                         ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-100"
-                        : "bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-300"
+                        : cat.isCustom
+                          ? "bg-violet-50 border-violet-200 text-violet-600 hover:border-violet-400"
+                          : "bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-300"
                     )}
                   >
                     <Icon className="w-4 h-4" />
-                    {CATEGORY_LABELS[cat]}
+                    {cat.label}
                   </button>
                 );
               })}
+
+              {/* ── Add new category ── */}
+              {!addingCategory ? (
+                <button type="button" onClick={() => setAddingCategory(true)}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-indigo-400 hover:text-indigo-500 text-[9px] font-black uppercase tracking-widest transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Type
+                </button>
+              ) : null}
             </div>
+
+            {/* Inline add-category form */}
+            {addingCategory && (
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-200 space-y-3">
+                <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">New Stock Category</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCatName}
+                    onChange={e => setNewCatName(e.target.value)}
+                    placeholder="Category name (e.g. Tyres, Chemicals, Tools)"
+                    className="flex-1 px-3 py-2.5 bg-white border border-indigo-200 rounded-xl text-sm font-bold outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-gray-400"
+                    autoFocus
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleAddCategory(); }
+                      if (e.key === 'Escape') { setAddingCategory(false); setNewCatName(''); setNewCatSubcats(''); }
+                    }}
+                  />
+                  <button type="button" onClick={handleAddCategory}
+                    disabled={!newCatName.trim() || savingCat}
+                    className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black disabled:opacity-40 flex items-center gap-1.5"
+                  >
+                    {savingCat ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    {savingCat ? 'Saving…' : 'Add'}
+                  </button>
+                  <button type="button"
+                    onClick={() => { setAddingCategory(false); setNewCatName(''); setNewCatSubcats(''); }}
+                    className="px-3 py-2.5 bg-white border border-gray-200 text-gray-500 rounded-xl text-xs"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={newCatSubcats}
+                  onChange={e => setNewCatSubcats(e.target.value)}
+                  placeholder="Sub-categories (comma separated, optional) — e.g. Radial, Bias-ply, Winter, All-season"
+                  className="w-full px-3 py-2.5 bg-white border border-indigo-200 rounded-xl text-sm font-bold outline-none placeholder:text-gray-400"
+                />
+                <p className="text-[9px] text-indigo-500 font-bold">Leave sub-categories blank for a single "General" bucket.</p>
+              </div>
+            )}
           </div>
 
           {/* Core Identity */}
@@ -406,12 +553,46 @@ const InventoryItemFormPage: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className={cn(labelCls, "text-amber-600")}>Fuel Type</label>
-                  <select {...register('extended.fuelType')} className={cn(fieldCls, "bg-white border-amber-200 appearance-none")}>
-                    <option value="">Select...</option>
-                    <option value="diesel">Diesel</option>
-                    <option value="petrol">Petrol</option>
-                  </select>
+                  <div className="flex items-center justify-between">
+                    <label className={cn(labelCls, "text-amber-600")}>Fuel Type</label>
+                    {!addingFuel && (
+                      <button type="button" onClick={() => setAddingFuel(true)}
+                        className="text-[9px] font-black text-amber-600 hover:text-amber-700 flex items-center gap-1 uppercase tracking-widest"
+                      >
+                        <Plus className="w-3 h-3" /> Add Type
+                      </button>
+                    )}
+                  </div>
+                  {addingFuel ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newFuelName}
+                        onChange={e => setNewFuelName(e.target.value)}
+                        placeholder="New fuel type name…"
+                        className="flex-1 px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-sm font-bold outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-gray-400"
+                        autoFocus
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { e.preventDefault(); handleAddFuelType(); }
+                          if (e.key === 'Escape') { setAddingFuel(false); setNewFuelName(''); }
+                        }}
+                      />
+                      <button type="button" onClick={handleAddFuelType}
+                        disabled={!newFuelName.trim() || savingFuel}
+                        className="px-3 py-2.5 bg-amber-600 text-white rounded-xl text-xs font-black disabled:opacity-40"
+                      >{savingFuel ? '…' : <Check className="w-3.5 h-3.5" />}</button>
+                      <button type="button" onClick={() => { setAddingFuel(false); setNewFuelName(''); }}
+                        className="px-3 py-2.5 bg-white border border-gray-200 text-gray-500 rounded-xl"
+                      ><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ) : (
+                    <select {...register('extended.fuelType')} className={cn(fieldCls, "bg-white border-amber-200 appearance-none")}>
+                      <option value="">Select...</option>
+                      {allFuelTypes.map(ft => (
+                        <option key={ft.value} value={ft.value}>{ft.label}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className={cn(labelCls, "text-amber-600")}>Tank Capacity (Litres)</label>

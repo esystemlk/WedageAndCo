@@ -37,7 +37,7 @@ const COLLECTION_NAME = 'visitor_logs';
 
 export const createVisitorLog = async (data: Omit<VisitorLog, 'id' | 'logNo' | 'createdAt'>) => {
   try {
-    const logNo = `VST-${Math.floor(10000 + Math.random() * 90000)}`;
+    const logNo = `VST-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
       ...data,
       logNo,

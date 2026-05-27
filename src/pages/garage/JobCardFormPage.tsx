@@ -8,7 +8,8 @@ import {
   Calendar, Gauge, Hash, UserCheck, Shield, Users
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { cn } from '../../lib/utils';
 import {
   createJobCard, updateJobCard, getJobCard, generateWorkOrderNo, JobCardStatus
@@ -79,7 +80,8 @@ const SectionHeader: React.FC<{ icon: React.FC<any>; title: string; color: strin
 const JobCardFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { vehicles } = useFleet();
+  const { vehicles, refresh: refreshVehicles } = useFleet();
+  const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
@@ -270,6 +272,8 @@ const JobCardFormPage: React.FC = () => {
                       onChange={field.onChange}
                       placeholder="Select vehicle"
                       icon={<Truck className="w-4 h-4 text-indigo-500" />}
+                      onAddNew={() => setQuickAdd({ type: 'vehicle', onCreated: (id, label) => { field.onChange(id); setValue('vehicleNo', label); refreshVehicles(); } })}
+                      addNewLabel="Add New Vehicle"
                     />
                   )}
                 />
@@ -624,6 +628,16 @@ const JobCardFormPage: React.FC = () => {
           </button>
         </div>
       </form>
+
+      <AnimatePresence>
+        {quickAdd && (
+          <QuickAddModal
+            type={quickAdd.type}
+            onCreated={(id, label) => { quickAdd.onCreated(id, label); setQuickAdd(null); }}
+            onClose={() => setQuickAdd(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

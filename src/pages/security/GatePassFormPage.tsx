@@ -13,7 +13,8 @@ import {
   Navigation
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -88,6 +89,8 @@ const GatePassFormPage: React.FC = () => {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
 
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<GatePassFormData>({
     resolver: zodResolver(gatePassSchema) as any,
@@ -114,6 +117,14 @@ const GatePassFormPage: React.FC = () => {
 
   const invoiceNotAvailable = watch('invoiceNotAvailable');
   const tripType = watch('tripType');
+
+  // Refresh reference data when an entity is quick-added
+  useEffect(() => {
+    if (refreshKey === 0) return;
+    Promise.all([getVehicles(), getStaffMembers(), getCustomers()]).then(([v, s, c]) => {
+      setVehicles(v || []); setStaff(s || []); setCustomers(c || []);
+    }).catch(console.error);
+  }, [refreshKey]);
 
   useEffect(() => {
     const loadDependencies = async () => {
@@ -237,6 +248,8 @@ const GatePassFormPage: React.FC = () => {
                       onChange={field.onChange}
                       placeholder="Select Vehicle"
                       icon={<Truck className="w-4 h-4 text-indigo-600" />}
+                      onAddNew={() => setQuickAdd({ type: 'vehicle', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
+                      addNewLabel="Add New Vehicle"
                     />
                   )}
                 />
@@ -258,6 +271,8 @@ const GatePassFormPage: React.FC = () => {
                       onChange={field.onChange}
                       placeholder="Select Driver"
                       icon={<User className="w-4 h-4 text-indigo-600" />}
+                      onAddNew={() => setQuickAdd({ type: 'driver', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
+                      addNewLabel="Add New Driver"
                     />
                   )}
                 />
@@ -322,6 +337,8 @@ const GatePassFormPage: React.FC = () => {
                             onChange={f.onChange}
                             placeholder="Select or type helper name"
                             icon={<User className="w-4 h-4 text-indigo-600" />}
+                            onAddNew={() => setQuickAdd({ type: 'helper', onCreated: (id, label) => { f.onChange(label); setRefreshKey(k => k + 1); } })}
+                            addNewLabel="Add New Helper"
                           />
                         )}
                       />
@@ -381,6 +398,8 @@ const GatePassFormPage: React.FC = () => {
                         onChange={field.onChange}
                         placeholder="Select Customer"
                         icon={<User className="w-4 h-4 text-indigo-600" />}
+                        onAddNew={() => setQuickAdd({ type: 'customer', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
+                        addNewLabel="Add New Customer"
                       />
                     )}
                   />
@@ -637,6 +656,15 @@ const GatePassFormPage: React.FC = () => {
           )}
         </div>
       </form>
+      <AnimatePresence>
+        {quickAdd && (
+          <QuickAddModal
+            type={quickAdd.type}
+            onCreated={(id, label) => { quickAdd.onCreated(id, label); setQuickAdd(null); }}
+            onClose={() => setQuickAdd(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -53,8 +53,7 @@ export interface JobCard {
 
 export function generateWorkOrderNo(): string {
   const year = new Date().getFullYear();
-  const random = Math.floor(1000 + Math.random() * 9000);
-  return `JC-${year}-${random}`;
+  return `JC-${year}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
 }
 
 export const createJobCard = async (data: Omit<JobCard, 'id' | 'createdAt'>) => {

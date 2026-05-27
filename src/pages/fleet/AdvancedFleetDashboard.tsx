@@ -1,32 +1,28 @@
-import React, { useMemo } from 'react';
-import { 
-  Truck, 
-  Fuel, 
-  Activity, 
-  AlertTriangle, 
-  CheckCircle, 
-  MapPin, 
-  Gauge, 
+import React, { useMemo, useEffect, useState } from 'react';
+import {
+  Truck,
+  Fuel,
+  Activity,
+  AlertTriangle,
+  CheckCircle,
   Wrench,
-  Calendar,
-  ArrowUpRight,
-  ArrowDownRight
 } from 'lucide-react';
 import { useFleet } from '../../hooks/useFleet';
 import { useMaintenance } from '../../hooks/useMaintenance';
+import { getFuelTransactions, FuelTransaction } from '../../services/fuelStockService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { motion } from 'motion/react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   BarChart,
-  Bar
+  Bar,
 } from 'recharts';
 
 const COLORS = {
@@ -39,8 +35,17 @@ const COLORS = {
 const AdvancedFleetDashboard: React.FC = () => {
   const { vehicles, loading: fleetLoading } = useFleet();
   const { records: maintenance, loading: maintLoading } = useMaintenance();
+  const [fuelTransactions, setFuelTransactions] = useState<FuelTransaction[]>([]);
+  const [fuelLoading, setFuelLoading] = useState(true);
 
-  const loading = fleetLoading || maintLoading;
+  useEffect(() => {
+    getFuelTransactions()
+      .then(data => setFuelTransactions(data || []))
+      .catch(console.error)
+      .finally(() => setFuelLoading(false));
+  }, []);
+
+  const loading = fleetLoading || maintLoading || fuelLoading;
 
   const stats = useMemo(() => {
     const activeVehicles = vehicles.filter(v => v.status === 'active').length;
@@ -48,30 +53,50 @@ const AdvancedFleetDashboard: React.FC = () => {
     const totalVehicles = vehicles.length;
     const totalMaintenanceCost = maintenance.reduce((sum, rec) => sum + rec.cost, 0);
 
-    const fuelData = [
-      { month: 'Jan', fuel: 1250, cost: 450000 },
-      { month: 'Feb', fuel: 1420, cost: 511200 },
-      { month: 'Mar', fuel: 1180, cost: 424800 },
-      { month: 'Apr', fuel: 1350, cost: 486000 },
-      { month: 'May', fuel: 1480, cost: 532800 },
-      { month: 'Jun', fuel: 1290, cost: 464400 },
-    ];
+    // Build monthly fuel data from actual transactions
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthMap: Record<string, { fuel: number; cost: number }> = {};
+    fuelTransactions.forEach(tx => {
+      try {
+        const d = new Date(tx.date);
+        const key = monthNames[d.getMonth()];
+        if (!monthMap[key]) monthMap[key] = { fuel: 0, cost: 0 };
+        monthMap[key].fuel += tx.quantityIssuedL || 0;
+        // Cost = quantity × average pump price (use 360 LKR/L as default if not stored)
+        monthMap[key].cost += (tx.quantityIssuedL || 0) * 360;
+      } catch { /* skip bad dates */ }
+    });
 
-    const vehicleHealthData = vehicles.map(v => ({
-      name: v.registrationNumber || v.id.slice(0, 6),
-      health: v.status === 'active' ? 85 + Math.random() * 15 : 40 + Math.random() * 30,
-      mileage: Math.floor(Math.random() * 100000),
-    }));
+    // Show last 6 unique months present in data, falling back to current year months
+    const fuelData = Object.entries(monthMap)
+      .map(([month, v]) => ({ month, ...v }))
+      .slice(-6);
 
-    return { 
-      activeVehicles, 
-      maintenanceVehicles, 
-      totalVehicles, 
+    // Vehicle health: derived from status & recent maintenance frequency (no random)
+    const vehicleHealthData = vehicles.map(v => {
+      const vehicleMaintCount = maintenance.filter(m => m.vehicleId === v.id).length;
+      let health = 90;
+      if (v.status === 'maintenance') health = 45;
+      else if (v.status === 'inactive') health = 20;
+      else {
+        // More maintenance records = potentially more issues, cap at 95
+        health = Math.max(60, 95 - vehicleMaintCount * 5);
+      }
+      return {
+        name: (v as any).plateNo || (v as any).registrationNumber || v.id.slice(0, 6),
+        health,
+      };
+    });
+
+    return {
+      activeVehicles,
+      maintenanceVehicles,
+      totalVehicles,
       totalMaintenanceCost,
       fuelData,
-      vehicleHealthData
+      vehicleHealthData,
     };
-  }, [vehicles, maintenance]);
+  }, [vehicles, maintenance, fuelTransactions]);
 
   if (loading) return <LoadingSpinner />;
 

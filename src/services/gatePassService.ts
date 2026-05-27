@@ -49,7 +49,7 @@ const COLLECTION_NAME = 'gate_passes';
 
 export const createGatePass = async (data: Omit<GatePass, 'id' | 'createdAt' | 'gatePassNo'>) => {
   try {
-    const gatePassNo = `GP-${Math.floor(1000 + Math.random() * 9000)}`; // Simple sequential-like ID for demo
+    const gatePassNo = `GP-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
       ...data,
       gatePassNo,

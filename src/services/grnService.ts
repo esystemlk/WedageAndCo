@@ -60,7 +60,7 @@ export const getGRNs = async () => {
 
 export const createGRN = async (data: Omit<GRN, 'id'>) => {
   try {
-    const grnNo = `GRN-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const grnNo = `GRN-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
     const docRef = await addDoc(collection(db, COLLECTION), {
       ...data,
       grnNo,
