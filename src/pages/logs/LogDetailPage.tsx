@@ -283,8 +283,14 @@ const LogDetailPage: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                    <div className="p-4 bg-white/5 rounded-2xl">
-                      <p className="text-[9px] font-black text-gray-500 uppercase mb-1">Temperature</p>
-                      <p className="text-lg font-black text-white">{log.freezerTemp || '---'}°C</p>
+                      <p className="text-[9px] font-black text-gray-500 uppercase mb-1">Temp Class</p>
+                      <p className="text-sm font-black text-white">
+                        {(log as any).freezerMode === 'Plus Cool' ? '+ Cool'
+                          : (log as any).freezerMode === 'Negative Temp' ? '− Cool'
+                          : (log as any).freezerMode === 'Ambient' ? 'Ambient'
+                          : (log as any).freezerMode === 'Not Mentioned' ? 'Not Specified'
+                          : '---'}
+                      </p>
                    </div>
                    <div className="p-4 bg-white/5 rounded-2xl">
                       <p className="text-[9px] font-black text-gray-500 uppercase mb-1">Active Hours</p>
@@ -292,16 +298,36 @@ const LogDetailPage: React.FC = () => {
                    </div>
                 </div>
 
-                <div className="space-y-3 font-mono text-[10px] font-bold text-gray-500 pt-2">
-                   <div className="flex justify-between">
-                      <span>ON TIME:</span>
-                      <span className="text-white">{log.freezerOnTime || '---'}</span>
-                   </div>
-                   <div className="flex justify-between">
-                      <span>OFF TIME:</span>
-                      <span className="text-white">{log.freezerOffTime || '---'}</span>
-                   </div>
-                </div>
+                {/* Per-day ON/OFF times */}
+                {(() => {
+                  const dailyTimes = (log as any).freezerDailyTimes as { date: string; onTime?: string; offTime?: string }[] | undefined;
+                  const rows = dailyTimes && dailyTimes.length > 0
+                    ? dailyTimes
+                    : (log.freezerOnTime || log.freezerOffTime)
+                      ? [{ date: log.date, onTime: log.freezerOnTime?.slice(11, 16), offTime: log.freezerOffTime?.slice(11, 16) }]
+                      : [];
+                  return rows.length > 0 ? (
+                    <div className="space-y-2 pt-2">
+                      {rows.map((row, i) => {
+                        const d = new Date(row.date + 'T00:00:00');
+                        const label = `Day ${i + 1} · ${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
+                        return (
+                          <div key={row.date} className="flex items-center justify-between py-2 border-t border-white/5 font-mono text-[10px] font-bold text-gray-500">
+                            <span className="text-emerald-500/80">{label}</span>
+                            <span className="text-white">{row.onTime || '--:--'} → {row.offTime || '--:--'}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null;
+                })()}
+
+                {(log as any).idlingFreezerHours != null && (
+                  <div className="flex justify-between font-mono text-[10px] font-bold text-gray-500 pt-2 border-t border-white/5">
+                    <span>IDLE HRS:</span>
+                    <span className="text-cyan-400">{(log as any).idlingFreezerHours}H</span>
+                  </div>
+                )}
              </motion.div>
            )}
 

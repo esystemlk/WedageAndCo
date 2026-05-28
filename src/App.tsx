@@ -56,6 +56,7 @@ import JobCardFormPage from './pages/garage/JobCardFormPage';
 import InventoryItemFormPage from './pages/inventory/InventoryItemFormPage';
 import FuelIssueFormPage from './pages/inventory/FuelIssueFormPage';
 import OilIssueFormPage from './pages/inventory/OilIssueFormPage';
+import SessionReportPage from './pages/SessionReportPage';
 
 function App() {
   return (
@@ -144,6 +145,7 @@ function App() {
                 
                 {/* Placeholders for other modules */}
                 <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/session-report" element={<SessionReportPage />} />
                 
                 <Route element={<RoleRoute minRole={UserRole.SUPER_ADMIN} />}>
                   <Route path="/users" element={<UserListPage />} />

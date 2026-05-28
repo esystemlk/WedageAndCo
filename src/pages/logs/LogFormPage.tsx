@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -59,13 +59,15 @@ const logSchema = z.object({
   // Freezer Section
   vehicleHasFreezer: z.boolean(),
   freezerStatus: z.enum(['ON', 'OFF']).optional(),
-  freezerOnTime: z.string().optional().or(z.literal('')),
-  freezerOffTime: z.string().optional().or(z.literal('')),
+  freezerDailyTimes: z.array(z.object({
+    date: z.string(),
+    onTime: z.string().optional().or(z.literal('')),
+    offTime: z.string().optional().or(z.literal(''))
+  })).optional().default([]),
   freezerTotalHours: z.string().optional().or(z.literal('')),
   freezerRemarks: z.string().optional(),
   freezerMode: z.enum(['Plus Cool', 'Negative Temp', 'Ambient', 'Not Mentioned']).optional(),
-  idlingFreezerHours: z.number().min(0).max(99).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
-  idlingFreezerMinutes: z.number().min(0).max(59).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+  idlingFreezerHours: z.number().min(0).max(999).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
 
   // Status & Remarks
   status: z.enum(['Completed', 'Breakdown', 'Cancelled']),
@@ -108,6 +110,27 @@ const logSchema = z.object({
 
 type LogFormData = z.infer<typeof logSchema>;
 
+const TEMP_MODES: { value: 'Plus Cool' | 'Negative Temp' | 'Ambient' | 'Not Mentioned'; label: string }[] = [
+  { value: 'Plus Cool', label: '+ Cool' },
+  { value: 'Negative Temp', label: '− Cool' },
+  { value: 'Ambient', label: 'Ambient' },
+  { value: 'Not Mentioned', label: 'Not Specified' },
+];
+
+const computeDayHours = (onTime: string, offTime: string): string => {
+  if (!onTime || !offTime) return '';
+  const [onH, onM] = onTime.split(':').map(Number);
+  const [offH, offM] = offTime.split(':').map(Number);
+  let diffMin = (offH * 60 + offM) - (onH * 60 + onM);
+  if (diffMin <= 0) diffMin += 24 * 60; // overnight span
+  return (diffMin / 60).toFixed(2);
+};
+
+const formatDayLabel = (dateStr: string, index: number): string => {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `Day ${index + 1} · ${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
+};
+
 const LogFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -118,8 +141,9 @@ const LogFormPage: React.FC = () => {
   const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
+  const isInitialLoadRef = useRef(!!id);
 
-  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<LogFormData>({
+  const { register, handleSubmit, setValue, watch, control, getValues, formState: { errors } } = useForm<LogFormData>({
     resolver: zodResolver(logSchema),
     defaultValues: {
       logSheetCode: `LS-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`,
@@ -134,6 +158,7 @@ const LogFormPage: React.FC = () => {
       googleMapsKm: undefined,
       totalHours: 0,
       freezerMode: 'Not Mentioned',
+      freezerDailyTimes: [],
       breakdownReason: '',
       cancelReason: '',
       temporaryDriverName: '',
@@ -145,6 +170,11 @@ const LogFormPage: React.FC = () => {
   const { fields: helperFields, append: appendHelper, remove: removeHelper } = useFieldArray({
     control,
     name: 'additionalHelperIds'
+  });
+
+  const { fields: dailyFreezerFields, replace: replaceDailyFreezer } = useFieldArray({
+    control,
+    name: 'freezerDailyTimes'
   });
 
   const meterStatus = watch('meterStatus');
@@ -159,8 +189,10 @@ const LogFormPage: React.FC = () => {
   const outTime = watch('outTime');
   const inTime = watch('inTime');
   const selectedVehicleId = watch('vehicleId');
-  const freezerOnTime = watch('freezerOnTime');
-  const freezerOffTime = watch('freezerOffTime');
+  const freezerMode = watch('freezerMode');
+  const watchedDate = watch('date');
+  const watchedEndDate = watch('endDate');
+  const watchedDailyTimes = watch('freezerDailyTimes');
 
   // Auto-calculate Total KM if meter is working
   useEffect(() => {
@@ -196,20 +228,42 @@ const LogFormPage: React.FC = () => {
     }
   }, [selectedVehicleId, vehicles, setValue]);
 
-  // Auto-calculate Total Freezer Hours
+  // Rebuild daily freezer rows when date range changes (skipped during initial load)
   useEffect(() => {
-    if (freezerOnTime && freezerOffTime) {
-      const onDate = new Date(freezerOnTime);
-      const offDate = new Date(freezerOffTime);
-      const diffMs = offDate.getTime() - onDate.getTime();
-      if (diffMs > 0) {
-        const diffHrs = (diffMs / (1000 * 60 * 60)).toFixed(2);
-        setValue('freezerTotalHours', diffHrs);
-      } else {
-        setValue('freezerTotalHours', '0.00');
-      }
+    if (!watchedDate || isInitialLoadRef.current) return;
+    const start = new Date(watchedDate + 'T00:00:00');
+    const end = watchedEndDate ? new Date(watchedEndDate + 'T00:00:00') : start;
+    if (isNaN(start.getTime()) || end < start) return;
+
+    const current = getValues('freezerDailyTimes') || [];
+    const newDays: { date: string; onTime: string; offTime: string }[] = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const ds = d.toISOString().split('T')[0];
+      const existing = current.find(f => f.date === ds);
+      newDays.push({ date: ds, onTime: existing?.onTime || '', offTime: existing?.offTime || '' });
     }
-  }, [freezerOnTime, freezerOffTime, setValue]);
+    replaceDailyFreezer(newDays);
+  }, [watchedDate, watchedEndDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-calculate Total Freezer Hours from all daily entries
+  useEffect(() => {
+    if (!vehicleHasFreezer || freezerStatus !== 'ON') {
+      setValue('freezerTotalHours', '');
+      return;
+    }
+    const dailyTimes = watchedDailyTimes || [];
+    let totalMin = 0;
+    dailyTimes.forEach(t => {
+      if (t.onTime && t.offTime) {
+        const [onH, onM] = t.onTime.split(':').map(Number);
+        const [offH, offM] = t.offTime.split(':').map(Number);
+        let diffMin = (offH * 60 + offM) - (onH * 60 + onM);
+        if (diffMin <= 0) diffMin += 24 * 60;
+        totalMin += diffMin;
+      }
+    });
+    setValue('freezerTotalHours', totalMin > 0 ? (totalMin / 60).toFixed(2) : '');
+  }, [watchedDailyTimes, vehicleHasFreezer, freezerStatus, setValue]);
 
   useEffect(() => {
     if (id) {
@@ -236,14 +290,29 @@ const LogFormPage: React.FC = () => {
             setValue('totalHours', data.totalHours || 0);
             setValue('vehicleHasFreezer', data.vehicleHasFreezer);
             setValue('freezerStatus', data.freezerStatus || 'OFF');
-            setValue('freezerOnTime', data.freezerOnTime || '');
-            setValue('freezerOffTime', data.freezerOffTime || '');
             setValue('freezerTotalHours', data.freezerTotalHours || '');
             setValue('freezerRemarks', data.freezerRemarks || '');
             setValue('freezerMode', (data as any).freezerMode || 'Not Mentioned');
             setValue('idlingFreezerHours', (data as any).idlingFreezerHours || undefined);
-            setValue('idlingFreezerMinutes', (data as any).idlingFreezerMinutes || undefined);
-            // Keep status — if old record had 'On Trip', treat as Completed
+
+            // Build daily freezer rows — merge saved data + legacy single on/off migration
+            const savedDailyTimes = (data as any).freezerDailyTimes;
+            const startD = new Date(data.date + 'T00:00:00');
+            const endD = new Date((data.endDate || data.date) + 'T00:00:00');
+            const generatedDays: { date: string; onTime: string; offTime: string }[] = [];
+            for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+              const ds = d.toISOString().split('T')[0];
+              const saved = Array.isArray(savedDailyTimes) ? savedDailyTimes.find((x: any) => x.date === ds) : null;
+              const legacyOn = ds === data.date && data.freezerOnTime ? data.freezerOnTime.slice(11, 16) : '';
+              const legacyOff = ds === data.date && data.freezerOffTime ? data.freezerOffTime.slice(11, 16) : '';
+              generatedDays.push({
+                date: ds,
+                onTime: saved?.onTime || legacyOn,
+                offTime: saved?.offTime || legacyOff
+              });
+            }
+            replaceDailyFreezer(generatedDays);
+
             const savedStatus = data.status as string;
             setValue('status', (savedStatus === 'On Trip' ? 'Completed' : savedStatus) as any);
             setValue('remarks', data.remarks || '');
@@ -251,7 +320,6 @@ const LogFormPage: React.FC = () => {
             setValue('cancelReason', (data as any).cancelReason || '');
             setValue('temporaryDriverName', (data as any).temporaryDriverName || '');
             setValue('temporaryHelperName', (data as any).temporaryHelperName || '');
-            // Migrate old additionalHelpers string to array
             const oldAdditional = (data as any).additionalHelpers;
             if (oldAdditional && typeof oldAdditional === 'string') {
               const names = oldAdditional.split(',').map((n: string) => n.trim()).filter(Boolean);
@@ -264,11 +332,12 @@ const LogFormPage: React.FC = () => {
           console.error(err);
         } finally {
           setInitialLoading(false);
+          isInitialLoadRef.current = false;
         }
       };
       fetchLog();
     }
-  }, [id, setValue]);
+  }, [id, setValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onSubmit = async (data: LogFormData) => {
     try {
@@ -458,7 +527,7 @@ const LogFormPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Additional Helpers — Dynamic with + button */}
+          {/* Additional Helpers */}
           <div className="space-y-4 pt-4 border-t border-gray-100">
             <div className="flex items-center justify-between">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Additional Helpers</label>
@@ -662,77 +731,108 @@ const LogFormPage: React.FC = () => {
             </div>
 
             <div className={cn("space-y-6 transition-all", freezerStatus !== 'ON' && "opacity-30 pointer-events-none grayscale")}>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Reefer ON (Date & Time)</label>
-                  <input type="datetime-local" {...register('freezerOnTime')} className="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl text-gray-900 font-bold outline-none" />
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Reefer OFF (Date & Time)</label>
-                  <input type="datetime-local" {...register('freezerOffTime')} className="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl text-gray-900 font-bold outline-none" />
+
+              {/* Temperature Class — 4-button selector */}
+              <div className="space-y-3">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Temperature Class</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {TEMP_MODES.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setValue('freezerMode', opt.value)}
+                      className={cn(
+                        "px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border",
+                        freezerMode === opt.value
+                          ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                          : "bg-gray-50 border-gray-200 text-gray-400 hover:border-emerald-300 hover:text-emerald-700"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Temperature Class</label>
-                  <div className="relative">
-                    <select {...register('freezerMode')} className="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl text-gray-900 font-bold outline-none appearance-none">
-                      <option value="Not Mentioned">Not Mentioned</option>
-                      <option value="Plus Cool">Plus Cool</option>
-                      <option value="Negative Temp">Negative Temp</option>
-                      <option value="Ambient">Ambient</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                  </div>
-                </div>
+              {/* Per-day Reefer ON / OFF times */}
+              <div className="space-y-3">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Reefer ON / OFF Times</label>
 
-                <div className="p-6 bg-emerald-50/80 border border-emerald-100 rounded-2xl flex items-center justify-between">
-                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Total Freezer Hours (Reefer ON)</span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      {...register('freezerTotalHours')}
-                      readOnly
-                      className="bg-transparent text-2xl font-black text-gray-900 text-right outline-none w-24 font-mono cursor-default"
-                    />
-                    <span className="text-xs font-bold text-emerald-400">HRS</span>
-                  </div>
+                {dailyFreezerFields.length === 0 && (
+                  <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider px-1">Set Start & End dates above to generate time entries.</p>
+                )}
+
+                <div className="space-y-2">
+                  {dailyFreezerFields.map((field, index) => {
+                    const timeData = watchedDailyTimes?.[index];
+                    const onVal = timeData?.onTime || '';
+                    const offVal = timeData?.offTime || '';
+                    const hrs = computeDayHours(onVal, offVal);
+                    return (
+                      <div key={field.id} className="grid grid-cols-[110px_1fr_1fr_72px] gap-3 items-center p-4 bg-gray-50 border border-gray-100 rounded-2xl">
+                        <div>
+                          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider leading-tight">
+                            {formatDayLabel(field.date, index)}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">ON</label>
+                          <input
+                            type="time"
+                            {...register(`freezerDailyTimes.${index}.onTime`)}
+                            className="w-full bg-white border border-gray-200 px-3 py-2.5 rounded-xl text-gray-900 font-bold text-sm outline-none focus:border-emerald-400"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">OFF</label>
+                          <input
+                            type="time"
+                            {...register(`freezerDailyTimes.${index}.offTime`)}
+                            className="w-full bg-white border border-gray-200 px-3 py-2.5 rounded-xl text-gray-900 font-bold text-sm outline-none focus:border-emerald-400"
+                          />
+                        </div>
+                        <div className="text-right pt-4">
+                          <p className={cn("text-lg font-black font-mono leading-none", hrs ? "text-emerald-600" : "text-gray-300")}>
+                            {hrs || '—'}
+                          </p>
+                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">hrs</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Idling Freezer Hours */}
+              {/* Total Freezer Hours (auto-computed) */}
+              <div className="p-6 bg-emerald-50/80 border border-emerald-100 rounded-2xl flex items-center justify-between">
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Total Freezer Hours (Reefer ON)</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    {...register('freezerTotalHours')}
+                    readOnly
+                    className="bg-transparent text-2xl font-black text-gray-900 text-right outline-none w-24 font-mono cursor-default"
+                  />
+                  <span className="text-xs font-bold text-emerald-400">HRS</span>
+                </div>
+              </div>
+
+              {/* Idle Freezer Hours — single decimal input */}
               <div className="p-6 bg-cyan-50/50 border border-cyan-100 rounded-2xl space-y-4">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-cyan-600" />
-                  <span className="text-[10px] font-black text-cyan-700 uppercase tracking-widest">Total Idling Freezer Hours</span>
+                  <span className="text-[10px] font-black text-cyan-700 uppercase tracking-widest">Idle Freezer Hours</span>
                 </div>
-                <p className="text-[10px] text-cyan-600/70 font-bold uppercase tracking-wider">Enter separately — total hours the reefer was idling (not active cooling)</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-cyan-700 uppercase tracking-widest px-1">Hours</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="99"
-                      {...register('idlingFreezerHours', { valueAsNumber: true })}
-                      placeholder="0"
-                      className="w-full bg-white border border-cyan-200 p-4 rounded-xl text-gray-900 font-black font-mono outline-none text-center text-xl"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-cyan-700 uppercase tracking-widest px-1">Minutes</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="59"
-                      {...register('idlingFreezerMinutes', { valueAsNumber: true })}
-                      placeholder="00"
-                      className="w-full bg-white border border-cyan-200 p-4 rounded-xl text-gray-900 font-black font-mono outline-none text-center text-xl"
-                    />
-                  </div>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    {...register('idlingFreezerHours', { valueAsNumber: true })}
+                    placeholder="0.0"
+                    className="flex-1 bg-white border border-cyan-200 p-4 rounded-xl text-gray-900 font-black font-mono outline-none text-center text-2xl focus:border-cyan-400"
+                  />
+                  <span className="text-[10px] font-black text-cyan-600 uppercase tracking-wider shrink-0">Total Hrs</span>
                 </div>
               </div>
 

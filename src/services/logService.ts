@@ -31,8 +31,9 @@ export interface LogSheet {
 
   // Freezer Section
   vehicleHasFreezer: boolean;
-  freezerOnTime?: string;
-  freezerOffTime?: string;
+  freezerOnTime?: string;   // legacy
+  freezerOffTime?: string;  // legacy
+  freezerDailyTimes?: { date: string; onTime?: string; offTime?: string }[];
   freezerTotalHours?: string;
   freezerRemarks?: string;
   freezerStatus?: 'ON' | 'OFF';
