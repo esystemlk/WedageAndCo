@@ -42,6 +42,13 @@ export interface GatePass {
   securityApproved?: boolean;
   managerApprovedBy?: string;
   securityApprovedBy?: string;
+  outsideFuelFills?: {
+    station?: string;
+    fuelType?: string;
+    quantityL?: number;
+    amount?: number;
+    billUrl?: string;
+  }[];
   createdAt: Timestamp;
 }
 

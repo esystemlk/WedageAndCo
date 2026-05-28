@@ -339,18 +339,6 @@ const GatePassListPage: React.FC = () => {
           )}
         </button>
 
-        <button
-          onClick={() => { setActiveTab('bills'); setSearchQuery(''); }}
-          className={cn(
-            "pb-4 px-6 text-xs font-black uppercase tracking-[0.25em] transition-all relative shrink-0",
-            activeTab === 'bills' ? "text-indigo-600 border-b-2 border-indigo-600" : "text-gray-400 hover:text-gray-900"
-          )}
-        >
-          Goods Inward verification
-          <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[8px] font-black tracking-tight">
-            {billChecks.length} LOGS
-          </span>
-        </button>
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

@@ -10,7 +10,9 @@ import {
   ArrowLeft,
   Plus,
   Trash2,
-  Navigation
+  Navigation,
+  Fuel,
+  Receipt
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -19,6 +21,7 @@ import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { createGatePass, getGatePass, updateGatePass } from '../../services/gatePassService';
+import FileUpload from '../../components/shared/FileUpload';
 import { getVehicles } from '../../services/fleetService';
 import { getStaffMembers } from '../../services/staffService';
 import { getCustomers } from '../../services/customerService';
@@ -51,6 +54,13 @@ const gatePassSchema = z.object({
   securityApproved: z.boolean().optional(),
   managerApprovedBy: z.string().optional(),
   securityApprovedBy: z.string().optional(),
+  outsideFuelFills: z.array(z.object({
+    station: z.string().optional(),
+    fuelType: z.string().optional(),
+    quantityL: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+    amount: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
+    billUrl: z.string().optional(),
+  })).optional(),
 })
 .refine(data => {
   if (data.tripType === 'Customer' && !data.customerName?.trim()) return false;
@@ -106,13 +116,19 @@ const GatePassFormPage: React.FC = () => {
       managerApproved: false,
       securityApproved: false,
       managerApprovedBy: '',
-      securityApprovedBy: ''
+      securityApprovedBy: '',
+      outsideFuelFills: []
     }
   });
 
   const { fields: helperFields, append: addHelper, remove: removeHelper } = useFieldArray({
     control,
     name: 'helperNames'
+  });
+
+  const { fields: fuelFillFields, append: addFuelFill, remove: removeFuelFill } = useFieldArray({
+    control,
+    name: 'outsideFuelFills'
   });
 
   const invoiceNotAvailable = watch('invoiceNotAvailable');
@@ -470,6 +486,116 @@ const GatePassFormPage: React.FC = () => {
                   {errors.invoiceReason && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.invoiceReason.message}</p>}
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Outside Fuel Fill */}
+          <div className="bg-white border border-gray-100 rounded-[2.5rem] p-10 space-y-8 shadow-xl shadow-gray-200/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="h-px bg-gray-100 flex-1 w-8"></div>
+                <div className="flex items-center gap-2">
+                  <Fuel className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">Outside Fuel Fill</h3>
+                </div>
+                <div className="h-px bg-gray-100 flex-1 w-8"></div>
+              </div>
+              <button
+                type="button"
+                onClick={() => addFuelFill({ station: '', fuelType: 'diesel', quantityL: undefined, amount: undefined, billUrl: '' })}
+                className="flex items-center gap-1.5 px-4 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors shrink-0"
+              >
+                <Plus className="w-3 h-3" /> Add Fill
+              </button>
+            </div>
+
+            {fuelFillFields.length === 0 && (
+              <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest text-center py-4">
+                No outside fuel fills recorded. Tap "+ Add Fill" to log one.
+              </p>
+            )}
+
+            <div className="space-y-6">
+              {fuelFillFields.map((field, idx) => (
+                <motion.div
+                  key={field.id}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-6 bg-amber-50/40 border border-amber-100 rounded-2xl space-y-5"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Fill #{idx + 1}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeFuelFill(idx)}
+                      className="p-1.5 text-rose-400 hover:bg-rose-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 col-span-2">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Station / Location</label>
+                      <input
+                        {...register(`outsideFuelFills.${idx}.station`)}
+                        placeholder="e.g. Keells Fuel — Galle Rd"
+                        className="w-full px-4 py-3 bg-white border border-amber-100 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-amber-400 placeholder:text-gray-300"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Fuel Type</label>
+                      <select
+                        {...register(`outsideFuelFills.${idx}.fuelType`)}
+                        className="w-full px-4 py-3 bg-white border border-amber-100 rounded-xl text-sm font-bold text-gray-700 outline-none focus:border-amber-400 appearance-none"
+                      >
+                        <option value="diesel">Diesel</option>
+                        <option value="super-diesel">Super Diesel</option>
+                        <option value="petrol">Petrol 92</option>
+                        <option value="petrol-95">Petrol 95</option>
+                        <option value="kerosene">Kerosene</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Quantity (L)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        {...register(`outsideFuelFills.${idx}.quantityL`, { valueAsNumber: true })}
+                        placeholder="0.0"
+                        className="w-full px-4 py-3 bg-white border border-amber-100 rounded-xl text-sm font-bold font-mono text-gray-900 outline-none focus:border-amber-400 placeholder:text-gray-300"
+                      />
+                    </div>
+
+                    <div className="space-y-2 col-span-2">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Amount (LKR)</label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        {...register(`outsideFuelFills.${idx}.amount`, { valueAsNumber: true })}
+                        placeholder="0.00"
+                        className="w-full px-4 py-3 bg-white border border-amber-100 rounded-xl text-sm font-bold font-mono text-gray-900 outline-none focus:border-amber-400 placeholder:text-gray-300"
+                      />
+                    </div>
+                  </div>
+
+                  <FileUpload
+                    path="gate-pass-fuel-bills"
+                    label="Bill / Receipt (Image or PDF)"
+                    accept="image/*,application/pdf"
+                    currentUrl={watch(`outsideFuelFills.${idx}.billUrl`) || ''}
+                    onUploadComplete={url => setValue(`outsideFuelFills.${idx}.billUrl`, url)}
+                  />
+                </motion.div>
+              ))}
             </div>
           </div>
 
