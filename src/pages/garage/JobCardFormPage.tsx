@@ -15,6 +15,7 @@ import {
   createJobCard, updateJobCard, getJobCard, generateWorkOrderNo, JobCardStatus
 } from '../../services/jobCardService';
 import { useFleet } from '../../hooks/useFleet';
+import { useStaff } from '../../hooks/useStaff';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -81,6 +82,7 @@ const JobCardFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { vehicles, refresh: refreshVehicles } = useFleet();
+  const { staff } = useStaff();
   const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -583,23 +585,89 @@ const JobCardFormPage: React.FC = () => {
         >
           <SectionHeader icon={Users} title="Authorizations & Signatures" color="gray" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { name: 'preparedBy', label: 'Prepared By', icon: User },
-              { name: 'authorizedTechnician', label: 'Authorized Technician', icon: Wrench },
-              { name: 'yardSupervisor', label: 'Yard Supervisor', icon: UserCheck },
-              { name: 'headOfLogistic', label: 'Head of Logistic', icon: Shield },
-            ].map(({ name, label, icon: Icon }) => (
-              <div key={name} className="space-y-2">
-                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                  <Icon className="w-3 h-3" /> {label}
-                </label>
-                <input
-                  {...register(name as any)}
-                  placeholder={label}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:outline-none focus:border-gray-400 placeholder:text-gray-400"
-                />
-              </div>
-            ))}
+            {/* Prepared By — free text (auto-filled) */}
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                <User className="w-3 h-3" /> Prepared By
+              </label>
+              <input
+                {...register('preparedBy')}
+                placeholder="Prepared by"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-900 focus:outline-none focus:border-gray-400 placeholder:text-gray-400"
+              />
+            </div>
+
+            {/* Authorized Technician — select from Garage staff */}
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                <Wrench className="w-3 h-3" /> Authorized Technician
+              </label>
+              <Controller
+                control={control}
+                name="authorizedTechnician"
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={staff.filter(s => s.active && s.category === 'Garage').map(s => ({
+                      value: s.fullName,
+                      label: s.fullName,
+                      subLabel: s.phone
+                    }))}
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    placeholder="Select technician"
+                    icon={<Wrench className="w-4 h-4 text-gray-400" />}
+                  />
+                )}
+              />
+            </div>
+
+            {/* Yard Supervisor — select from Office Staff + Garage */}
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                <UserCheck className="w-3 h-3" /> Yard Supervisor
+              </label>
+              <Controller
+                control={control}
+                name="yardSupervisor"
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={staff.filter(s => s.active && ['Office Staff', 'Garage'].includes(s.category)).map(s => ({
+                      value: s.fullName,
+                      label: s.fullName,
+                      subLabel: s.category
+                    }))}
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    placeholder="Select supervisor"
+                    icon={<UserCheck className="w-4 h-4 text-gray-400" />}
+                  />
+                )}
+              />
+            </div>
+
+            {/* Approved by Manager — select from Office Staff */}
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                <Shield className="w-3 h-3" /> Approved by Manager
+              </label>
+              <Controller
+                control={control}
+                name="headOfLogistic"
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={staff.filter(s => s.active && s.category === 'Office Staff').map(s => ({
+                      value: s.fullName,
+                      label: s.fullName,
+                      subLabel: s.phone
+                    }))}
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    placeholder="Select manager"
+                    icon={<Shield className="w-4 h-4 text-gray-400" />}
+                  />
+                )}
+              />
+            </div>
           </div>
         </motion.div>
 
