@@ -316,7 +316,7 @@ const GatePassListPage: React.FC = () => {
             activeTab === 'passes' ? "text-indigo-600 border-b-2 border-indigo-600" : "text-gray-400 hover:text-gray-900"
           )}
         >
-          Vehicle Gate Exit Passes
+          Vehicle In/Out Pass
           {gatePasses.filter(p => p.status === 'Open').length > 0 && (
             <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-500 text-white text-[8px] font-black tracking-tight">
               {gatePasses.filter(p => p.status === 'Open').length} ACTIVE

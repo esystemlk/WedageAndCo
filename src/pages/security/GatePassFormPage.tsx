@@ -266,10 +266,12 @@ const GatePassFormPage: React.FC = () => {
                   name="driverName"
                   render={({ field }) => (
                     <SearchableSelect
-                      options={staff.filter(s => s.category === 'Driver').map(s => ({ value: s.fullName, label: s.fullName, subLabel: s.phone }))}
+                      options={staff
+                        .filter(s => s.category === 'Driver' || (tripType === 'Test Run' && s.category === 'Garage'))
+                        .map(s => ({ value: s.fullName, label: s.fullName, subLabel: s.category === 'Garage' ? `Garage · ${s.phone || ''}` : s.phone }))}
                       value={field.value}
                       onChange={field.onChange}
-                      placeholder="Select Driver"
+                      placeholder={tripType === 'Test Run' ? 'Select Driver / Garage Tech' : 'Select Driver'}
                       icon={<User className="w-4 h-4 text-indigo-600" />}
                       onAddNew={() => setQuickAdd({ type: 'driver', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
                       addNewLabel="Add New Driver"
