@@ -43,6 +43,17 @@ export interface Customer {
   agreementUrl?: string;
   agreementStart: string;
   agreementEnd: string;
+
+  // Extended CRM fields
+  status?: 'active' | 'inactive' | 'prospect' | 'suspended';
+  agreementCycle?: 'monthly' | 'quarterly' | 'yearly' | 'project' | 'adhoc';
+  industry?: string;
+  creditLimit?: number;
+  paymentTerms?: string;    // e.g. Net 30
+  accountManager?: string;
+  notes?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export const getCustomers = async () => {
