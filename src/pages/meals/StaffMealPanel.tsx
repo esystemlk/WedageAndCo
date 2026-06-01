@@ -12,6 +12,7 @@ import {
 } from '../../services/mealService';
 import { exportCSV, exportPDF, monthName } from '../../utils/mealExports';
 import { PermissionGate } from '../../components/auth/RouteGuards';
+import { useToast } from '../../contexts/ToastContext';
 
 const fmt = (n: number) => `LKR ${n.toLocaleString('en-LK')}`;
 const MEAL_ICON: Record<MealType, React.ReactNode> = {
@@ -22,6 +23,7 @@ const MEAL_ICON: Record<MealType, React.ReactNode> = {
 /** Employee Meal Registration + Meal History panel embedded in the Staff Profile. */
 const StaffMealPanel: React.FC<{ member: StaffMember; onChange?: (m: StaffMember) => void }> = ({ member, onChange }) => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [settings, setSettings] = useState<MealSettings | null>(null);
   const [history, setHistory] = useState<EmployeeMeal[]>([]);
   const [enrolled, setEnrolled] = useState(!!member.usesMeals);
@@ -62,6 +64,7 @@ const StaffMealPanel: React.FC<{ member: StaffMember; onChange?: (m: StaffMember
     await updateStaffMember(member.id, { usesMeals: next });
     setEnrolled(next);
     onChange?.({ ...member, usesMeals: next });
+    toast.success(next ? 'Enrolled in meal program' : 'Removed from meal program', `${member.fullName} ${next ? 'now uses' : 'no longer uses'} company meals.`);
     setSaving(false);
   };
 

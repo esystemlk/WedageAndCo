@@ -29,9 +29,11 @@ import { cn } from '../../lib/utils';
 import { PermissionGate } from '../../components/auth/RouteGuards';
 import { getMonthlySummary, getMealSettings, MealSettings } from '../../services/mealService';
 import { generatePayslip } from '../../utils/generatePayslip';
+import { useToast } from '../../contexts/ToastContext';
 
 const PayrollPage: React.FC = () => {
   const { staff, loading, refresh } = useStaff();
+  const toast = useToast();
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [isOffboardingModalOpen, setIsOffboardingModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'Registry' | 'Uniforms' | 'Offboarding'>('Registry');
@@ -73,6 +75,7 @@ const PayrollPage: React.FC = () => {
       deductions: meal > 0 ? [{ label: `Meal Deduction (${mealCosts[member.id!]?.mealDays || 0} days)`, amount: meal }] : [],
       generatedBy: 'Wedage & Co. Payroll',
     });
+    toast.success('Payslip generated', `${member.fullName}'s payslip PDF was downloaded.`);
   };
 
   // Offboarding form states
@@ -94,10 +97,11 @@ const PayrollPage: React.FC = () => {
         // Save structured uniform information in metadata
         ...uniformDetails
       });
-      alert('Uniform status updated successfully!');
+      toast.success('Uniform status updated', `${member.fullName}'s uniform record was saved.`);
       refresh();
     } catch (err) {
       console.error(err);
+      toast.error('Update failed', 'Could not update the uniform status.');
     }
   };
 
@@ -119,7 +123,7 @@ const PayrollPage: React.FC = () => {
   const handleOffboardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStaff || !resignationDate || !leavingDate || !leavingReason) {
-      alert('Please fill out all exit credentials.');
+      toast.warning('Missing details', 'Please fill out all exit credentials.');
       return;
     }
 
@@ -134,10 +138,11 @@ const PayrollPage: React.FC = () => {
         uniformReturned: uniformReturnChecklist
       });
       setIsOffboardingModalOpen(false);
-      alert(`${selectedStaff.fullName} has been successfully offboarded.`);
+      toast.success('Offboarding complete', `${selectedStaff.fullName} has been offboarded.`);
       refresh();
     } catch (err) {
       console.error(err);
+      toast.error('Offboarding failed', 'Could not complete the offboarding. Please try again.');
     }
   };
 

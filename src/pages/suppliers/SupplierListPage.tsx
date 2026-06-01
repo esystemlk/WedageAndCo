@@ -12,6 +12,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar,
 } from 'recharts';
 import { cn } from '../../lib/utils';
+import { useToast } from '../../contexts/ToastContext';
 import { PermissionGate } from '../../components/auth/RouteGuards';
 import { deleteSupplier, Supplier } from '../../services/supplierService';
 import { useSuppliers } from '../../hooks/useSuppliers';
@@ -65,6 +66,7 @@ const Stars: React.FC<{ value: number; size?: 'sm' | 'md' }> = ({ value, size = 
 // ══════════════════════════════════════════════════════════════════════════════
 const SupplierListPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const { suppliers, loading, refresh } = useSuppliers();
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
   const [posLoading, setPosLoading] = useState(true);
@@ -232,8 +234,13 @@ const SupplierListPage: React.FC = () => {
 
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`Delete supplier "${name}"?`)) return;
-    await deleteSupplier(id);
-    refresh();
+    try {
+      await deleteSupplier(id);
+      refresh();
+      toast.success('Supplier deleted', `${name} was removed.`);
+    } catch {
+      toast.error('Delete failed', `Could not delete ${name}.`);
+    }
   };
 
   const isLoading = loading || posLoading;

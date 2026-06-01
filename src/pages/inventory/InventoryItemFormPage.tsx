@@ -20,6 +20,7 @@ import {
   CustomCategory, CustomFuelType
 } from '../../services/configService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
@@ -109,6 +110,7 @@ const labelCls = "text-[10px] font-black text-gray-400 uppercase tracking-widest
 const InventoryItemFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
@@ -254,13 +256,15 @@ const InventoryItemFormPage: React.FC = () => {
       };
       if (id) {
         await updateInventoryItem(id, payload as any);
+        toast.success('Item updated', `${(data as any).name || 'Item'} was saved.`);
       } else {
         await createInventoryItem(payload as any);
+        toast.success('Item created', `${(data as any).name || 'Item'} was added to inventory.`);
       }
       navigate('/inventory');
     } catch (err) {
       console.error(err);
-      alert('Failed to save item');
+      toast.error('Save failed', 'Could not save the inventory item. Please try again.');
     } finally {
       setLoading(false);
     }

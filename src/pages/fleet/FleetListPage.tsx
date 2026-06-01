@@ -13,6 +13,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { useToast } from '../../contexts/ToastContext';
 import { PermissionGate } from '../../components/auth/RouteGuards';
 import { deleteVehicle } from '../../services/fleetService';
 import { useFleet } from '../../hooks/useFleet';
@@ -24,6 +25,7 @@ const FleetListPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'maintenance' | 'unavailable'>('all');
   const navigate = useNavigate();
+  const toast = useToast();
 
   const filteredVehicles = vehicles.filter(v => {
     const matchesSearch = v.plateNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -47,8 +49,10 @@ const FleetListPage: React.FC = () => {
       try {
         await deleteVehicle(id);
         refresh();
+        toast.success('Vehicle removed', `${plate} was removed from the fleet.`);
       } catch (err) {
         console.error(err);
+        toast.error('Delete failed', `Could not remove ${plate}.`);
       }
     }
   };

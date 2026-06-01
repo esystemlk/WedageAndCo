@@ -14,6 +14,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { useToast } from '../../contexts/ToastContext';
 import { PermissionGate } from '../../components/auth/RouteGuards';
 import { deleteStaffMember, updateStaffMember } from '../../services/staffService';
 
@@ -23,6 +24,7 @@ const StaffListPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<'All' | 'Driver' | 'Helper' | 'Cleaner' | 'Office Staff' | 'Garage'>('All');
   const [activeTab, setActiveTab] = useState<'registry' | 'dossier'>('registry');
   const navigate = useNavigate();
+  const toast = useToast();
 
   const dossierStaff = staff.filter(member => {
     if (!member.active) return false;
@@ -44,8 +46,13 @@ const StaffListPage: React.FC = () => {
 
   const handleDelete = async (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to remove ${name} from records?`)) {
-      await deleteStaffMember(id);
-      refresh();
+      try {
+        await deleteStaffMember(id);
+        refresh();
+        toast.success('Staff removed', `${name} was removed from the directory.`);
+      } catch {
+        toast.error('Delete failed', `Could not remove ${name}.`);
+      }
     }
   };
 

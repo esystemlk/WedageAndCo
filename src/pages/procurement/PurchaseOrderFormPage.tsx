@@ -30,6 +30,7 @@ import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import SearchableSelect from '../../components/shared/SearchableSelect';
 import { cn } from '../../lib/utils';
+import { useToast } from '../../contexts/ToastContext';
 
 const poSchema = z.object({
    date: z.string().min(1, 'Date is required'),
@@ -59,6 +60,7 @@ type POFormData = z.infer<typeof poSchema>;
 
 const PurchaseOrderFormPage: React.FC = () => {
    const navigate = useNavigate();
+   const toast = useToast();
    const { user } = useAuth();
    const { suppliers, refresh: refreshSuppliers } = useSuppliers();
    const { vehicles } = useFleet();
@@ -133,10 +135,11 @@ const PurchaseOrderFormPage: React.FC = () => {
             grandTotal,
          } as any);
 
+         toast.success('Purchase Order issued', `PO for ${supplier?.name || 'supplier'} was created.`);
          navigate('/purchase-orders');
       } catch (err) {
          console.error(err);
-         alert('Failed to issue Purchase Order');
+         toast.error('Failed to issue PO', 'Could not create the purchase order. Please try again.');
       } finally {
          setLoading(false);
       }

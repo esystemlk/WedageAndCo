@@ -12,6 +12,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, LineChart, Line,
 } from 'recharts';
 import { cn } from '../../lib/utils';
+import { useToast } from '../../contexts/ToastContext';
 import { PermissionGate } from '../../components/auth/RouteGuards';
 import { deleteCustomer, Customer } from '../../services/customerService';
 import { useCustomers } from '../../hooks/useCustomers';
@@ -108,6 +109,7 @@ const SH: React.FC<{ title: string; action?: string; actionUrl?: string }> = ({ 
 // ══════════════════════════════════════════════════════════════════════════════
 const CustomerListPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const { customers, loading: custLoading, refresh } = useCustomers();
   const { invoices, loading: invLoading } = useInvoices();
 
@@ -261,7 +263,13 @@ const CustomerListPage: React.FC = () => {
 
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`Delete client "${name}"?`)) return;
-    try { await deleteCustomer(id); refresh(); } catch (e) { console.error(e); }
+    try {
+      await deleteCustomer(id); refresh();
+      toast.success('Customer deleted', `${name} was removed.`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Delete failed', `Could not delete ${name}.`);
+    }
   };
 
   const totalRevAllTime = Object.values(customerMetrics).reduce((s,m) => s+m.revenue, 0);

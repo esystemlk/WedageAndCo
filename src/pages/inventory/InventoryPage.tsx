@@ -23,6 +23,7 @@ import {
   getOilTransactions, deleteOilTransaction, OilTransaction
 } from '../../services/oilStockService';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import { useToast } from '../../contexts/ToastContext';
 
 // ─── Category icons ────────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -128,6 +129,7 @@ const FUEL_PILL: Record<string, string> = {
 // ══════════════════════════════════════════════════════════════════════════════
 const InventoryPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
 
   // Main tab
   const [mainTab, setMainTab] = useState<MainTab>('stock');
@@ -186,18 +188,21 @@ const InventoryPage: React.FC = () => {
     if (!window.confirm('Delete this inventory item? This cannot be undone.')) return;
     await deleteInventoryItem(id);
     setItems(prev => prev.filter(i => i.id !== id));
+    toast.success('Item deleted', 'The inventory item was removed.');
   };
 
   const handleDeleteFuel = async (id: string) => {
     if (!window.confirm('Delete this fuel issue record?')) return;
     await deleteFuelTransaction(id);
     setFuelTx(prev => prev.filter(t => t.id !== id));
+    toast.success('Fuel issue deleted', 'The fuel issue record was removed.');
   };
 
   const handleDeleteOil = async (id: string) => {
     if (!window.confirm('Delete this oil issue record?')) return;
     await deleteOilTransaction(id);
     setOilTx(prev => prev.filter(t => t.id !== id));
+    toast.success('Oil issue deleted', 'The oil/lubricant issue record was removed.');
   };
 
   // ── Distinct warehouse locations for the filter ─────────────────────────────

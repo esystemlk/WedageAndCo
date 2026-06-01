@@ -16,6 +16,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { useToast } from '../../contexts/ToastContext';
 import { getSupplier, createSupplier, updateSupplier } from '../../services/supplierService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -45,6 +46,7 @@ type SupplierFormData = z.infer<typeof supplierSchema>;
 const SupplierFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
   
@@ -117,13 +119,15 @@ const SupplierFormPage: React.FC = () => {
       setLoading(true);
       if (id) {
         await updateSupplier(id, data);
+        toast.success('Supplier updated', `${(data as any).name || 'Supplier'} was saved.`);
       } else {
         await createSupplier(data);
+        toast.success('Supplier created', `${(data as any).name || 'Supplier'} was added.`);
       }
       navigate('/suppliers');
     } catch (err) {
       console.error(err);
-      alert('Failed to save supplier');
+      toast.error('Save failed', 'Could not save the supplier. Please try again.');
     } finally {
       setLoading(false);
     }

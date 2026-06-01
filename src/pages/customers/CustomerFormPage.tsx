@@ -19,6 +19,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { useToast } from '../../contexts/ToastContext';
 import { getCustomer, createCustomer, updateCustomer } from '../../services/customerService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -60,6 +61,7 @@ type CustomerFormData = z.infer<typeof customerSchema>;
 const CustomerFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
   const [formError, setFormError] = useState<string | null>(null);
@@ -118,8 +120,10 @@ const CustomerFormPage: React.FC = () => {
       setLoading(true);
       if (id) {
         await updateCustomer(id, data);
+        toast.success('Customer updated', `${(data as any).name || 'Customer'} was saved.`);
       } else {
         await createCustomer(data);
+        toast.success('Customer created', `${(data as any).name || 'Customer'} was added.`);
       }
       navigate('/customers');
     } catch (err: any) {

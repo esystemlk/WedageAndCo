@@ -21,6 +21,7 @@ import {
 import { exportCSV, exportPDF, printTable, monthName } from '../../utils/mealExports';
 import { PermissionGate } from '../../components/auth/RouteGuards';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import { useToast } from '../../contexts/ToastContext';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -280,6 +281,7 @@ const RegisterTab: React.FC<{
   onSaved: () => Promise<void>;
   onToggleEnrol: (m: StaffMember, v: boolean) => Promise<void>;
 }> = ({ activeStaff, settings, todayMeals, onSaved, onToggleEnrol }) => {
+  const toast = useToast();
   const [date, setDate] = useState(todayISO());
   const [search, setSearch] = useState('');
   const [dept, setDept] = useState('all');
@@ -321,8 +323,13 @@ const RegisterTab: React.FC<{
     const entries = visible.filter(s => s.usesMeals).map(s => ({
       employeeId: s.id!, employeeName: s.fullName, department: s.department || '—', date, ...getSel(s.id!),
     }));
-    await bulkUpsertMeals(date, entries, settings);
-    await onSaved();
+    try {
+      await bulkUpsertMeals(date, entries, settings);
+      await onSaved();
+      toast.success('Meal register saved', `${entries.length} employee${entries.length === 1 ? '' : 's'} recorded for ${date}.`);
+    } catch {
+      toast.error('Save failed', 'Could not save the meal register. Please try again.');
+    }
     setSaving(false);
   };
 
@@ -410,6 +417,7 @@ const RegisterTab: React.FC<{
 
 // ── Monthly Summary ──────────────────────────────────────────────────────────
 const MonthlyTab: React.FC<{ resolver: (id: string) => { name: string; department: string } | undefined }> = ({ resolver }) => {
+  const toast = useToast();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -448,7 +456,7 @@ const MonthlyTab: React.FC<{ resolver: (id: string) => { name: string; departmen
             onPDF={() => exportPDF({ title: 'Monthly Meal Summary', subtitle: sub, headers, rows: exportRows(), filename: `Meal_Summary_${sub}`, footerTotals: ['TOTAL', '', totals.days, totals.meals, totals.cost] })}
             onPrint={() => printTable('Monthly Meal Summary', sub, headers, exportRows())} />
           <PermissionGate permission="edit_staff">
-            <button onClick={async () => { setGen(true); await generateMonthlyDeductions(year, month, resolver); setGen(false); }}
+            <button onClick={async () => { setGen(true); const r = await generateMonthlyDeductions(year, month, resolver); setGen(false); toast.success('Deductions generated', `${r.length} meal deduction record${r.length === 1 ? '' : 's'} saved for ${monthName(month)} ${year}.`); }}
               className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">
               {gen ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Wallet className="w-3.5 h-3.5" />} Generate Deductions
             </button>
@@ -595,6 +603,7 @@ const ReportTable: React.FC<{ title: string; subtitle: string; headers: string[]
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 const SettingsTab: React.FC<{ settings: MealSettings; onSave: (s: MealSettings) => Promise<void> }> = ({ settings, onSave }) => {
+  const toast = useToast();
   const [draft, setDraft] = useState<MealSettings>(settings);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -604,6 +613,7 @@ const SettingsTab: React.FC<{ settings: MealSettings; onSave: (s: MealSettings) 
 
   const save = async () => {
     setSaving(true); await onSave(draft); setSaving(false); setSaved(true);
+    toast.success('Settings saved', 'Meal prices and deduction method were updated.');
     setTimeout(() => setSaved(false), 2000);
   };
 

@@ -10,6 +10,7 @@ import FileUpload from '../../components/shared/FileUpload';
 import { Save, User, Phone, Mail, FileCheck, ShieldCheck, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { useToast } from '../../contexts/ToastContext';
 
 const staffSchema = z.object({
   fullName: z.string().min(2, 'Full Name is required'),
@@ -63,6 +64,7 @@ type StaffFormData = z.infer<typeof staffSchema>;
 const StaffFormPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -193,12 +195,15 @@ const StaffFormPage: React.FC = () => {
       };
       if (id) {
         await updateStaffMember(id, processedData as any);
+        toast.success('Staff updated', `${data.fullName}'s profile was saved.`);
       } else {
         await createStaffMember(processedData as any);
+        toast.success('Staff member created', `${data.fullName} was added to the directory.`);
       }
       navigate('/staff');
     } catch (err) {
       console.error(err);
+      toast.error('Save failed', 'Could not save the staff member. Please try again.');
     } finally {
       setLoading(false);
     }
