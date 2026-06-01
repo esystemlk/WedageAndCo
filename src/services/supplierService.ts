@@ -23,10 +23,24 @@ export interface Supplier {
   businessEmails?: string[];
   brNo?: string;
   vatNo?: string;
-  supplyCategories?: string[]; // e.g., mechanical, electrical, etc.
+  supplyCategories?: string[];
   description?: string;
-  // Additional contacts with + button
   additionalContacts?: AdditionalContact[];
+
+  // Extended vendor management fields
+  status?: 'active' | 'pending' | 'blacklisted' | 'inactive';
+  rating?: number;           // 1–5
+  contractStart?: string;    // YYYY-MM-DD
+  contractExpiry?: string;   // YYYY-MM-DD
+  paymentTerms?: string;     // e.g. Net 30
+  creditLimit?: number;      // LKR
+  address?: string;
+  website?: string;
+  taxId?: string;
+  onTimeDeliveryRate?: number; // 0–100
+  notes?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export const getSuppliers = async () => {
