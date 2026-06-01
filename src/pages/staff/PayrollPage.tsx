@@ -295,10 +295,20 @@ const PayrollPage: React.FC = () => {
 
                     {member.uniformProvided && (
                       <div className="pt-2 border-t border-gray-200 text-[10px] space-y-1 text-gray-650">
-                        <p className="flex justify-between"><span className="font-bold">Shirts:</span> 2 Issued</p>
-                        <p className="flex justify-between"><span className="font-bold">Trousers:</span> 2 Issued</p>
-                        <p className="flex justify-between"><span className="font-bold">Boots:</span> 1 Pair Issued</p>
-                        <p className="flex justify-between"><span className="font-bold">Cap:</span> 1 Issued</p>
+                        {(['shirts', 'trousers', 'boots', 'cap'] as const).map(part => {
+                          const returned = member.uniformReturned?.[part];
+                          return (
+                            <p key={part} className="flex justify-between items-center capitalize">
+                              <span className="font-bold">{part}:</span>
+                              <span className={cn(
+                                'px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wide',
+                                returned ? 'bg-gray-100 text-gray-500' : 'bg-emerald-50 text-emerald-600',
+                              )}>
+                                {returned ? 'Returned' : 'Issued'}
+                              </span>
+                            </p>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -421,9 +431,25 @@ const PayrollPage: React.FC = () => {
                         <td className="px-8 py-5 font-mono">{(member as any).leavingDate}</td>
                         <td className="px-8 py-5 italic text-gray-500">"{(member as any).leavingReason}"</td>
                         <td className="px-8 py-5">
-                          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                            All Returned
-                          </span>
+                          {(() => {
+                            if (!member.uniformProvided) {
+                              return <span className="px-2.5 py-1 bg-gray-50 text-gray-400 border border-gray-150 rounded-lg text-[9px] font-black uppercase tracking-widest">No Uniform</span>;
+                            }
+                            const ret = (member as any).uniformReturned || {};
+                            const parts = ['shirts', 'trousers', 'boots', 'cap'];
+                            const returned = parts.filter(p => ret[p]).length;
+                            const all = returned === parts.length;
+                            return (
+                              <span className={cn(
+                                'px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border',
+                                all ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                  : returned > 0 ? 'bg-amber-50 text-amber-600 border-amber-100'
+                                  : 'bg-rose-50 text-rose-600 border-rose-100',
+                              )}>
+                                {all ? 'All Returned' : returned > 0 ? `${returned}/${parts.length} Returned` : 'Pending Return'}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-8 py-5 text-right">
                           {(member as any).resignationLetterUrl ? (

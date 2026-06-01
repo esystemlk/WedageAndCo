@@ -46,6 +46,7 @@ export interface StaffMember {
   };
 
   // New fields
+  dateOfBirth?: string; // YYYY-MM-DD (optional, powers birthday reminders)
   bloodType?: string;
   emergencyContacts?: {
     name: string;
