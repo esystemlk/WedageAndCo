@@ -1,11 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Package, Plus, Search, Fuel, Droplets, Filter, Zap, Battery,
-  FileText, AlertTriangle, TrendingDown, CheckCircle, Edit,
-  Trash2, RefreshCw, Archive, Gauge, User, Calendar, ChevronRight
+  FileText, AlertTriangle, TrendingDown, TrendingUp, CheckCircle, Edit,
+  Trash2, RefreshCw, Archive, Gauge, User, Calendar, ChevronRight,
+  Download, Clock, ChevronDown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, RadialBarChart, RadialBar,
+} from 'recharts';
 import { cn } from '../../lib/utils';
 import {
   getInventoryItems, deleteInventoryItem,
@@ -34,7 +39,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 const STATUS_CONFIG: Record<StockStatus, { label: string; color: string }> = {
-  'available':    { label: 'Available',     color: 'bg-emerald-100 text-emerald-700' },
+  'available':    { label: 'In Stock',      color: 'bg-emerald-100 text-emerald-700' },
   'low-stock':    { label: 'Low Stock',     color: 'bg-amber-100 text-amber-700' },
   'out-of-stock': { label: 'Out of Stock',  color: 'bg-red-100 text-red-700' },
   'reserved':     { label: 'Reserved',      color: 'bg-blue-100 text-blue-700' },
@@ -52,6 +57,33 @@ const STOCK_CATEGORY_TABS = [
   { key: 'electrical', label: 'Electrical'  },
   { key: 'stationery', label: 'Stationery'  },
 ];
+
+// Category groups for the donut (parts-new/used merge into "Parts", battery merge)
+const CATEGORY_GROUPS: { key: string; label: string; match: (c: string) => boolean; color: string }[] = [
+  { key: 'fuel',       label: 'Fuel',       match: c => c === 'fuel',                                  color: '#F59E0B' },
+  { key: 'lubricants', label: 'Lubricants', match: c => c === 'lubricants',                            color: '#06B6D4' },
+  { key: 'filters',    label: 'Filters',    match: c => c === 'filters',                               color: '#6366F1' },
+  { key: 'parts',      label: 'Parts',      match: c => c === 'parts-new' || c === 'parts-used',       color: '#10B981' },
+  { key: 'battery',    label: 'Battery',    match: c => c === 'battery-new' || c === 'battery-used',   color: '#8B5CF6' },
+  { key: 'electrical', label: 'Electrical', match: c => c === 'electrical',                            color: '#EF4444' },
+  { key: 'stationery', label: 'Stationery', match: c => c === 'stationery',                            color: '#F97316' },
+  { key: 'other',      label: 'Other',      match: c => c === 'other',                                 color: '#94A3B8' },
+];
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function daysUntil(dateStr?: string): number {
+  if (!dateStr) return Infinity;
+  const d = new Date(dateStr); d.setHours(0,0,0,0);
+  const t = new Date(); t.setHours(0,0,0,0);
+  return Math.round((d.getTime() - t.getTime()) / 86400000);
+}
+
+function fmtLKR(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000)     return `${(v / 1_000).toFixed(0)}K`;
+  return v.toLocaleString();
+}
 
 // ─── Main section tabs ─────────────────────────────────────────────────────
 type MainTab = 'stock' | 'fuel' | 'oil';
@@ -105,6 +137,8 @@ const InventoryPage: React.FC = () => {
   const [stockLoading, setStockLoading] = useState(true);
   const [categoryTab, setCategoryTab] = useState('all');
   const [stockSearch, setStockSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [locationFilter, setLocationFilter] = useState('all');
 
   // Fuel state
   const [fuelTx, setFuelTx] = useState<FuelTransaction[]>([]);
@@ -166,6 +200,12 @@ const InventoryPage: React.FC = () => {
     setOilTx(prev => prev.filter(t => t.id !== id));
   };
 
+  // ── Distinct warehouse locations for the filter ─────────────────────────────
+  const locations = useMemo(
+    () => Array.from(new Set(items.map(i => i.warehouseLocation).filter(Boolean))) as string[],
+    [items]
+  );
+
   // ── Filtered data ──────────────────────────────────────────────────────────
   const filteredStock = items.filter(item => {
     const tabMatch = categoryTab === 'all'
@@ -177,7 +217,9 @@ const InventoryPage: React.FC = () => {
       || item.sku.toLowerCase().includes(stockSearch.toLowerCase())
       || (item.subCategory || '').toLowerCase().includes(stockSearch.toLowerCase())
       || (item.brand || '').toLowerCase().includes(stockSearch.toLowerCase());
-    return tabMatch && searchMatch;
+    const statusMatch   = statusFilter === 'all'   || item.stockStatus === statusFilter;
+    const locationMatch = locationFilter === 'all' || item.warehouseLocation === locationFilter;
+    return tabMatch && searchMatch && statusMatch && locationMatch;
   });
 
   const filteredFuel = fuelTx.filter(t =>
@@ -196,16 +238,88 @@ const InventoryPage: React.FC = () => {
   );
 
   // ── Stats ──────────────────────────────────────────────────────────────────
-  const stats = {
-    total:      items.length,
-    lowStock:   items.filter(i => i.stockStatus === 'low-stock').length,
-    outOfStock: items.filter(i => i.stockStatus === 'out-of-stock').length,
-    totalValue: items.reduce((s, i) => s + ((i.currentStock || 0) * (i.purchaseCost || 0)), 0),
-  };
+  const stats = useMemo(() => {
+    const totalValue = items.reduce((s, i) => s + ((i.currentStock || 0) * (i.purchaseCost || 0)), 0);
+    const expiringSoon = items.filter(i => {
+      const d = daysUntil(i.expiryDate);
+      return d >= 0 && d <= 30;
+    }).length;
+    const totalIssued = items.reduce((s, i) => s + (i.issueRate || 0), 0);
+    const avgStock    = items.reduce((s, i) => s + (i.currentStock || 0), 0) / (items.length || 1);
+    const stockTurns  = avgStock > 0 ? totalIssued / avgStock : 0;
+    return {
+      total:      items.length,
+      lowStock:   items.filter(i => i.stockStatus === 'low-stock').length,
+      outOfStock: items.filter(i => i.stockStatus === 'out-of-stock').length,
+      expiringSoon,
+      totalValue,
+      stockTurns,
+    };
+  }, [items]);
 
-  const alertItems = items.filter(i =>
-    i.stockStatus === 'low-stock' || i.stockStatus === 'out-of-stock'
+  // ── Category breakdown (donut) ──────────────────────────────────────────────
+  const categoryBreakdown = useMemo(() => {
+    return CATEGORY_GROUPS.map(g => ({
+      ...g,
+      value: items.filter(i => g.match(i.category as string)).length,
+    })).filter(g => g.value > 0);
+  }, [items]);
+
+  // ── Stock value trend (cumulative value by purchase month, last 6) ──────────
+  const valueTrend = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const ref = new Date(now.getFullYear(), now.getMonth() - (5 - i) + 1, 0); // end of that month
+      const value = items.reduce((s, it) => {
+        const dp = it.datePurchased ? new Date(it.datePurchased) : null;
+        if (dp && dp <= ref) return s + ((it.currentStock || 0) * (it.purchaseCost || 0));
+        return s;
+      }, 0);
+      return { month: MONTHS_SHORT[ref.getMonth()], value };
+    });
+  }, [items]);
+
+  // ── Inventory health (available vs at-risk vs critical) ─────────────────────
+  const health = useMemo(() => {
+    const total    = items.length || 1;
+    const healthy  = items.filter(i => i.stockStatus === 'available').length;
+    const atRisk   = items.filter(i => i.stockStatus === 'low-stock' || i.stockStatus === 'reserved').length;
+    const critical = items.filter(i => i.stockStatus === 'out-of-stock' || i.stockStatus === 'damaged' || i.stockStatus === 'expired').length;
+    return {
+      pct: Math.round((healthy / total) * 100),
+      healthy, atRisk, critical,
+      healthyPct:  Math.round((healthy / total) * 100),
+      atRiskPct:   Math.round((atRisk / total) * 100),
+      criticalPct: Math.round((critical / total) * 100),
+    };
+  }, [items]);
+
+  // ── Recent alerts (low / out of stock / expiring) ───────────────────────────
+  const alerts = useMemo(() => {
+    const list: { id: string; title: string; sub: string; tone: 'amber' | 'red' }[] = [];
+    items.forEach(i => {
+      if (i.stockStatus === 'out-of-stock') {
+        list.push({ id: i.id!, title: `Out of stock: ${i.name}`, sub: 'Out of stock', tone: 'red' });
+      } else if (i.stockStatus === 'low-stock') {
+        list.push({ id: i.id!, title: `Low stock: ${i.name}`, sub: `${i.currentStock} ${i.unitType} left`, tone: 'amber' });
+      }
+      const d = daysUntil(i.expiryDate);
+      if (d >= 0 && d <= 30) {
+        list.push({ id: i.id!, title: `Expiring soon: ${i.name}`, sub: `Expires in ${d} day${d === 1 ? '' : 's'}`, tone: 'amber' });
+      }
+    });
+    return list.slice(0, 6);
+  }, [items]);
+
+  // Small local helpers
+  const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+    <div className={cn("bg-white border border-gray-100 rounded-2xl shadow-sm", className)}>{children}</div>
   );
+  const SH: React.FC<{ title: string }> = ({ title }) => (
+    <h3 className="text-sm font-black text-gray-900">{title}</h3>
+  );
+
+  const healthData = [{ name: 'health', value: health.pct, fill: '#10B981' }];
 
   // ══════════════════════════════════════════════════════════════════════════
   return (
@@ -215,8 +329,8 @@ const InventoryPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Inventory</h1>
-          <p className="text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">
-            Stock · Fuel Issues · Oil &amp; Lubricant Issues
+          <p className="text-sm text-gray-400 font-bold mt-0.5">
+            Manage your stock, track inventory levels, and monitor item performance.
           </p>
         </div>
 
@@ -279,75 +393,201 @@ const InventoryPage: React.FC = () => {
             exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}
             className="space-y-6"
           >
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {stockLoading ? (
+              <div className="flex justify-center py-20"><LoadingSpinner /></div>
+            ) : (
+            <>
+            {/* ── Row 1: KPI cards ──────────────────────────────────────────── */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {[
-                { label: 'Total Items',      value: stats.total,       icon: Package,      color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                { label: 'Low Stock',         value: stats.lowStock,    icon: TrendingDown, color: 'text-amber-600',  bg: 'bg-amber-50'  },
-                { label: 'Out of Stock',      value: stats.outOfStock,  icon: AlertTriangle,color: 'text-red-600',    bg: 'bg-red-50'    },
-                {
-                  label: 'Total Value (LKR)',
-                  value: stats.totalValue >= 1_000_000
-                    ? `${(stats.totalValue / 1_000_000).toFixed(1)}M`
-                    : stats.totalValue >= 1_000
-                    ? `${(stats.totalValue / 1_000).toFixed(0)}K`
-                    : stats.totalValue.toLocaleString(),
-                  icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50',
-                },
+                { label: 'Total Items',      value: stats.total.toLocaleString(),       sub: 'Across all categories', icon: Package,       color: 'text-indigo-600',  bg: 'bg-indigo-50'  },
+                { label: 'Low Stock Items',  value: stats.lowStock,                     sub: 'Need reorder',          icon: TrendingDown,  color: 'text-amber-600',   bg: 'bg-amber-50'   },
+                { label: 'Out of Stock',     value: stats.outOfStock,                   sub: 'Unavailable',           icon: AlertTriangle, color: 'text-red-600',     bg: 'bg-red-50'     },
+                { label: 'Expiring Soon',    value: stats.expiringSoon,                 sub: 'Within 30 days',        icon: Clock,         color: 'text-orange-600',  bg: 'bg-orange-50'  },
+                { label: 'Total Value (LKR)',value: `LKR ${fmtLKR(stats.totalValue)}`,  sub: 'Current stock value',   icon: CheckCircle,   color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                { label: 'Stock Turns',      value: `${stats.stockTurns.toFixed(1)}x`,  sub: stats.stockTurns >= 2 ? 'Good performance' : 'This month', icon: TrendingUp, color: 'text-violet-600', bg: 'bg-violet-50' },
               ].map((s, i) => (
-                <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  className="bg-white border border-gray-100 rounded-[1.5rem] p-5 shadow-sm"
+                  className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{s.label}</p>
-                      <p className="text-2xl font-black text-gray-900 mt-1">{s.value}</p>
-                    </div>
+                  <div className="flex items-start justify-between mb-3">
                     <div className={cn("p-2.5 rounded-xl", s.bg)}>
                       <s.icon className={cn("w-4 h-4", s.color)} />
                     </div>
                   </div>
+                  <p className="text-2xl font-black text-gray-900">{s.value}</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-0.5">{s.label}</p>
+                  <p className="text-[10px] text-gray-400 font-bold mt-1">{s.sub}</p>
                 </motion.div>
               ))}
             </div>
 
-            {/* Low stock alerts */}
-            {alertItems.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="bg-amber-50 border border-amber-200 rounded-[1.5rem] p-5"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">
-                    {alertItems.length} Item{alertItems.length > 1 ? 's' : ''} Need Attention
-                  </span>
+            {/* ── Row 2: Category donut | Value trend | Health | Alerts ──────── */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+
+              {/* Inventory by Category */}
+              <Card className="p-5">
+                <SH title="Inventory by Category" />
+                <div className="flex items-center gap-3 mt-4">
+                  <div className="relative flex-shrink-0">
+                    <ResponsiveContainer width={104} height={104}>
+                      <PieChart>
+                        <Pie data={categoryBreakdown.length ? categoryBreakdown : [{ value: 1, color: '#E5E7EB' }]}
+                          cx="50%" cy="50%" innerRadius={30} outerRadius={50} dataKey="value" strokeWidth={0}
+                        >
+                          {categoryBreakdown.map((e, i) => <Cell key={i} fill={e.color} />)}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <p className="text-lg font-black text-gray-900">{stats.total}</p>
+                      <p className="text-[8px] font-black text-gray-400 uppercase">Total</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1 flex-1 max-h-[110px] overflow-y-auto">
+                    {categoryBreakdown.map(c => (
+                      <div key={c.key} className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                          <span className="text-[10px] font-bold text-gray-600 truncate">{c.label}</span>
+                        </div>
+                        <span className="text-[9px] text-gray-400 ml-2">
+                          {stats.total > 0 ? Math.round(c.value / stats.total * 100) : 0}% ({c.value})
+                        </span>
+                      </div>
+                    ))}
+                    {categoryBreakdown.length === 0 && (
+                      <p className="text-[10px] text-gray-400 font-bold">No items yet</p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {alertItems.map(item => (
-                    <button key={item.id} onClick={() => navigate(`/inventory/${item.id}/edit`)}
-                      className={cn(
-                        "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide hover:opacity-80 transition-opacity",
-                        item.stockStatus === 'out-of-stock' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-                      )}
+              </Card>
+
+              {/* Stock Value Trend */}
+              <Card className="p-5">
+                <SH title="Stock Value Overview" />
+                <div className="mt-4 h-[120px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={valueTrend} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="valGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                      <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#94A3B8', fontWeight: 700 }} />
+                      <YAxis tick={{ fontSize: 9, fill: '#94A3B8' }} tickFormatter={(v: number) => fmtLKR(v)} />
+                      <RTooltip
+                        contentStyle={{ fontSize: 11, borderRadius: 10, border: '1px solid #E2E8F0' }}
+                        formatter={(v: number) => [`LKR ${fmtLKR(v)}`, 'Value']}
+                      />
+                      <Area type="monotone" dataKey="value" stroke="#6366F1" strokeWidth={2} fill="url(#valGrad)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="w-3 h-0.5 bg-indigo-500 rounded-full" />
+                  <span className="text-[9px] font-bold text-gray-400">Stock Value (LKR)</span>
+                </div>
+              </Card>
+
+              {/* Inventory Health */}
+              <Card className="p-5">
+                <SH title="Inventory Health" />
+                <div className="flex flex-col items-center mt-2">
+                  <div className="relative">
+                    <ResponsiveContainer width={130} height={110}>
+                      <RadialBarChart cx="50%" cy="100%" innerRadius={48} outerRadius={70}
+                        startAngle={180} endAngle={0} data={healthData} barSize={14}
+                      >
+                        <RadialBar background={{ fill: '#F1F5F9' }} dataKey="value" cornerRadius={8} />
+                      </RadialBarChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
+                      <p className="text-2xl font-black text-gray-900">{health.pct}%</p>
+                      <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Healthy</p>
+                    </div>
+                  </div>
+                  <div className="w-full space-y-1 mt-2">
+                    {[
+                      { label: 'Healthy',  pct: health.healthyPct,  n: health.healthy,  color: 'text-emerald-600', dot: 'bg-emerald-500' },
+                      { label: 'At Risk',  pct: health.atRiskPct,   n: health.atRisk,   color: 'text-amber-600',   dot: 'bg-amber-400'   },
+                      { label: 'Critical', pct: health.criticalPct, n: health.critical, color: 'text-red-600',     dot: 'bg-red-500'     },
+                    ].map(r => (
+                      <div key={r.label} className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn("w-2 h-2 rounded-full", r.dot)} />
+                          <span className="text-[10px] font-bold text-gray-600">{r.label}</span>
+                        </div>
+                        <span className={cn("text-[10px] font-black", r.color)}>{r.pct}% ({r.n})</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Recent Alerts */}
+              <Card className="p-5">
+                <SH title="Recent Alerts" />
+                <div className="mt-4 space-y-2 max-h-[180px] overflow-y-auto">
+                  {alerts.length === 0 ? (
+                    <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl">
+                      <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      <p className="text-xs font-bold text-emerald-700">All stock healthy</p>
+                    </div>
+                  ) : alerts.map((a, i) => (
+                    <button key={i} onClick={() => navigate(`/inventory/${a.id}/edit`)}
+                      className={cn("w-full text-left flex items-start gap-2.5 p-2.5 rounded-xl transition-colors",
+                        a.tone === 'red' ? 'bg-red-50 hover:bg-red-100' : 'bg-amber-50 hover:bg-amber-100')}
                     >
-                      {item.name} · {item.currentStock} {item.unitType}
+                      <AlertTriangle className={cn("w-3.5 h-3.5 flex-shrink-0 mt-0.5", a.tone === 'red' ? 'text-red-500' : 'text-amber-500')} />
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-[11px] font-black truncate", a.tone === 'red' ? 'text-red-700' : 'text-amber-700')}>{a.title}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5 truncate">{a.sub}</p>
+                      </div>
                     </button>
                   ))}
                 </div>
-              </motion.div>
-            )}
+              </Card>
+            </div>
 
-            {/* Stock table */}
+            {/* ── Row 3: Filters + table ────────────────────────────────────── */}
             <div className="bg-white border border-gray-100 rounded-[2rem] shadow-xl shadow-gray-100/50 overflow-hidden">
               <div className="p-6 border-b border-gray-100 space-y-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text" value={stockSearch} onChange={e => setStockSearch(e.target.value)}
-                    placeholder="Search by name, SKU, brand..."
-                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none text-sm font-bold text-gray-900 placeholder:text-gray-400"
-                  />
+                <div className="flex flex-col lg:flex-row gap-3">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text" value={stockSearch} onChange={e => setStockSearch(e.target.value)}
+                      placeholder="Search by name, SKU, brand, part number..."
+                      className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none text-sm font-bold text-gray-900 placeholder:text-gray-400"
+                    />
+                  </div>
+                  {/* Status filter */}
+                  <div className="relative">
+                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                      className="appearance-none pl-4 pr-9 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[11px] font-black uppercase tracking-widest text-gray-600 outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                    >
+                      <option value="all">All Status</option>
+                      {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                  </div>
+                  {/* Location filter */}
+                  <div className="relative">
+                    <select value={locationFilter} onChange={e => setLocationFilter(e.target.value)}
+                      className="appearance-none pl-4 pr-9 py-3 bg-gray-50 border border-gray-200 rounded-xl text-[11px] font-black uppercase tracking-widest text-gray-600 outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+                    >
+                      <option value="all">All Locations</option>
+                      {locations.map(l => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                  </div>
+                  <button className="flex items-center gap-2 px-4 py-3 border border-gray-200 text-gray-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-colors">
+                    <Download className="w-3.5 h-3.5" /> Export
+                  </button>
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {STOCK_CATEGORY_TABS.map(tab => (
@@ -365,9 +605,7 @@ const InventoryPage: React.FC = () => {
                 </div>
               </div>
 
-              {stockLoading ? (
-                <div className="flex justify-center py-20"><LoadingSpinner /></div>
-              ) : filteredStock.length === 0 ? (
+              {filteredStock.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4">
                   <Package className="w-12 h-12 text-gray-200" />
                   <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No items found</p>
@@ -382,8 +620,8 @@ const InventoryPage: React.FC = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-100">
-                        {['SKU', 'Item', 'Category', 'Current Stock', 'Min Level', 'Cost (LKR)', 'Location', 'Status', ''].map(h => (
-                          <th key={h} className="text-left px-5 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{h}</th>
+                        {['Item Name', 'SKU / Part No.', 'Category', 'Brand', 'Unit', 'Stock', 'Status', 'Unit Cost (LKR)', 'Total Value (LKR)', 'Location', ''].map(h => (
+                          <th key={h} className="text-left px-5 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -396,59 +634,40 @@ const InventoryPage: React.FC = () => {
                             className="hover:bg-gray-50/50 transition-colors group"
                           >
                             <td className="px-5 py-4">
+                              <div className="flex items-center gap-2.5">
+                                <span className="p-2 rounded-lg bg-gray-50 text-gray-400">{CATEGORY_ICONS[item.category] || <Package className="w-4 h-4" />}</span>
+                                <div>
+                                  <p className="font-bold text-sm text-gray-900">{item.name}</p>
+                                  {item.subCategory && <p className="text-[10px] text-gray-400 font-bold">{item.subCategory}</p>}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
                               <span className="font-mono text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
                                 {item.sku}
                               </span>
                             </td>
                             <td className="px-5 py-4">
-                              <div>
-                                <p className="font-bold text-sm text-gray-900">{item.name}</p>
-                                {item.brand && <p className="text-[10px] text-gray-400 font-bold uppercase">{item.brand}</p>}
-                              </div>
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold text-gray-600 bg-gray-100">
+                                {CATEGORY_LABELS[item.category] || item.category}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-[11px] font-bold text-gray-600">
+                              {item.brand || '—'}
+                            </td>
+                            <td className="px-5 py-4 text-[11px] font-bold text-gray-500">
+                              {item.unitType}
                             </td>
                             <td className="px-5 py-4">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-gray-400">{CATEGORY_ICONS[item.category]}</span>
-                                <div>
-                                  <p className="text-[10px] font-bold text-gray-600">{CATEGORY_LABELS[item.category] || item.category}</p>
-                                  {item.subCategory && <p className="text-[9px] text-gray-400">{item.subCategory}</p>}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-5 py-4">
-                              <div>
-                                <span className={cn(
-                                  "text-sm font-black",
-                                  item.currentStock <= 0 ? 'text-red-600'
-                                  : item.currentStock <= (item.minStockLevel || 0) ? 'text-amber-600'
-                                  : 'text-gray-900'
-                                )}>
-                                  {item.currentStock}
-                                </span>
-                                <span className="text-[10px] text-gray-400 ml-1">{item.unitType}</span>
-                                {item.maxStockLevel > 0 && (
-                                  <div className="mt-1 w-16 bg-gray-100 rounded-full h-1.5">
-                                    <div
-                                      className={cn("h-1.5 rounded-full transition-all",
-                                        item.currentStock <= 0 ? 'bg-red-500'
-                                        : item.currentStock <= item.minStockLevel ? 'bg-amber-500'
-                                        : 'bg-emerald-500'
-                                      )}
-                                      style={{ width: `${Math.min(100, ((item.currentStock || 0) / (item.maxStockLevel || 1)) * 100)}%` }}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-5 py-4 text-sm text-gray-500 font-bold">
-                              {item.minStockLevel} <span className="text-[10px] text-gray-400">{item.unitType}</span>
-                            </td>
-                            <td className="px-5 py-4 text-sm font-bold text-gray-700">
-                              {item.purchaseCost > 0 ? item.purchaseCost.toLocaleString() : '—'}
-                            </td>
-                            <td className="px-5 py-4 text-[10px] text-gray-500 font-bold">
-                              {item.warehouseLocation || '—'}
-                              {item.binRackNumber && <span className="text-gray-400"> · {item.binRackNumber}</span>}
+                              <span className={cn(
+                                "text-sm font-black",
+                                item.currentStock <= 0 ? 'text-red-600'
+                                : item.currentStock <= (item.minStockLevel || 0) ? 'text-amber-600'
+                                : 'text-gray-900'
+                              )}>
+                                {item.currentStock}
+                              </span>
+                              <span className="text-[10px] text-gray-400 ml-1">{item.unitType}</span>
                             </td>
                             <td className="px-5 py-4">
                               <span className={cn(
@@ -457,6 +676,16 @@ const InventoryPage: React.FC = () => {
                               )}>
                                 {STATUS_CONFIG[item.stockStatus]?.label || item.stockStatus}
                               </span>
+                            </td>
+                            <td className="px-5 py-4 text-sm font-bold text-gray-700">
+                              {item.purchaseCost > 0 ? item.purchaseCost.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'}
+                            </td>
+                            <td className="px-5 py-4 text-sm font-black text-gray-900">
+                              {((item.currentStock || 0) * (item.purchaseCost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-5 py-4 text-[10px] text-gray-500 font-bold">
+                              {item.warehouseLocation || '—'}
+                              {item.binRackNumber && <span className="text-gray-400"> · {item.binRackNumber}</span>}
                             </td>
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -480,6 +709,8 @@ const InventoryPage: React.FC = () => {
                 </div>
               )}
             </div>
+            </>
+            )}
           </motion.div>
         )}
 
