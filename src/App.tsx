@@ -57,6 +57,8 @@ import InventoryItemFormPage from './pages/inventory/InventoryItemFormPage';
 import FuelIssueFormPage from './pages/inventory/FuelIssueFormPage';
 import OilIssueFormPage from './pages/inventory/OilIssueFormPage';
 import SessionReportPage from './pages/SessionReportPage';
+import VehicleBookingPage from './pages/fleet/VehicleBookingPage';
+import VehicleBookingFormPage from './pages/fleet/VehicleBookingFormPage';
 
 function App() {
   return (
@@ -107,9 +109,11 @@ function App() {
                 {/* Module: Assets & Logistics */}
               <Route path="/fleet" element={<FleetListPage />} />
               <Route path="/fleet/new" element={<VehicleFormPage />} />
+              <Route path="/fleet/analytics" element={<AdvancedFleetDashboard />} />
+              <Route path="/fleet/bookings" element={<VehicleBookingPage />} />
+              <Route path="/fleet/bookings/new" element={<VehicleBookingFormPage />} />
               <Route path="/fleet/:id" element={<VehicleDetailPage />} />
               <Route path="/fleet/:id/edit" element={<VehicleFormPage />} />
-              <Route path="/fleet/analytics" element={<AdvancedFleetDashboard />} />
                 
                 {/* Module: Operations Management */}
                 <Route path="/calendar" element={<CalendarPage />} />

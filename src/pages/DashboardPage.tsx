@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { LayoutDashboard, Users, Users2, Package, Truck, UserSquare2, ShieldCheck, Wrench, ClipboardList, Plus } from 'lucide-react';
+import AlertsWidget from '../components/shared/AlertsWidget';
 import { useAuth } from '../contexts/AuthContext';
 import { useLogs } from '../hooks/useLogs';
 import { useFleet } from '../hooks/useFleet';
@@ -78,6 +79,11 @@ const DashboardPage: React.FC = () => {
             </div>
           </motion.div>
         ))}
+      </div>
+
+      {/* Alerts Widget */}
+      <div className="mb-10">
+        <AlertsWidget />
       </div>
 
       <div className="flex items-center justify-between mb-8 px-1">

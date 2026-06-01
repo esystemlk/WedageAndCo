@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Bell, X, Check, Trash2, MessageSquare, Truck, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { Bell, X, Check, Trash2, MessageSquare, AlertCircle, CheckCircle, Info, ChevronRight, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications, Notification, NotificationType } from '../../contexts/NotificationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -50,7 +51,8 @@ const NotificationItem: React.FC<{
   notification: Notification;
   onMarkRead: (id: string) => void;
   onRemove: (id: string) => void;
-}> = ({ notification, onMarkRead, onRemove }) => {
+  onNavigate: (url: string) => void;
+}> = ({ notification, onMarkRead, onRemove, onNavigate }) => {
   const colors = getNotificationColor(notification.type);
   const Icon = getNotificationIcon(notification.type);
 
@@ -78,22 +80,28 @@ const NotificationItem: React.FC<{
               {formatTime(notification.timestamp)}
             </span>
           </div>
-          <div className="flex items-center gap-2 mt-3">
-            {!notification.read && (
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            {notification.actionUrl && (
               <button
-                onClick={() => onMarkRead(notification.id)}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                onClick={() => { onMarkRead(notification.id); onNavigate(notification.actionUrl!); }}
+                className={cn(
+                  "text-xs font-bold flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-colors",
+                  colors.border, colors.text, "hover:bg-white"
+                )}
               >
-                <Check className="w-3 h-3" />
-                Mark read
+                {notification.actionLabel || 'View'}
+                <ChevronRight className="w-3 h-3" />
               </button>
             )}
-            <button
-              onClick={() => onRemove(notification.id)}
-              className="text-xs font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1"
-            >
-              <Trash2 className="w-3 h-3" />
-              Remove
+            {!notification.read && (
+              <button onClick={() => onMarkRead(notification.id)}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Mark read
+              </button>
+            )}
+            <button onClick={() => onRemove(notification.id)}
+              className="text-xs font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1">
+              <Trash2 className="w-3 h-3" /> Remove
             </button>
           </div>
         </div>
@@ -104,7 +112,8 @@ const NotificationItem: React.FC<{
 
 const NotificationBell: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAll } = useNotifications();
+  const navigate = useNavigate();
+  const { notifications, unreadCount, alertsLoading, markAsRead, markAllAsRead, removeNotification, clearAll, refreshAlerts } = useNotifications();
 
   const toggleDropdown = () => setIsOpen(!isOpen);
 
@@ -140,14 +149,21 @@ const NotificationBell: React.FC = () => {
                   <h3 className="font-black text-gray-900">Notifications</h3>
                   <p className="text-xs text-gray-500 font-bold">{unreadCount} unread</p>
                 </div>
-                {unreadCount > 0 && (
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={markAllAsRead}
-                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                    onClick={() => refreshAlerts()}
+                    disabled={alertsLoading}
+                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Refresh alerts"
                   >
-                    Mark all read
+                    <RefreshCw className={cn("w-3.5 h-3.5 text-gray-400", alertsLoading && "animate-spin")} />
                   </button>
-                )}
+                  {unreadCount > 0 && (
+                    <button onClick={markAllAsRead} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">
+                      Mark all read
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="max-h-[400px] overflow-y-auto">
@@ -164,6 +180,7 @@ const NotificationBell: React.FC = () => {
                         notification={notification}
                         onMarkRead={markAsRead}
                         onRemove={removeNotification}
+                        onNavigate={url => { setIsOpen(false); navigate(url); }}
                       />
                     ))}
                   </AnimatePresence>

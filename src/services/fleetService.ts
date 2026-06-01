@@ -88,6 +88,24 @@ export interface Vehicle {
   };
 
   weightCapacity?: number;
+  vehicleSize?: string;
+
+  // Document expiry dates
+  vehicleLicenseUrl?: string;
+  vehicleLicenseExpiry?: string;
+  insuranceUrl?: string;
+  insuranceExpiry?: string;
+  emissionTestExpiry?: string;
+
+  // Preventive maintenance
+  nextServiceDate?: string;
+  nextServiceKm?: number;
+  currentOdometerKm?: number;
+  lastServiceDate?: string;
+  lastServiceKm?: number;
+  serviceIntervalKm?: number;   // e.g. every 5000 km
+  serviceIntervalDays?: number; // e.g. every 90 days
+  serviceNotes?: string;
 
   // Owner details (when rented)
   ownerDetails?: VehicleOwnerDetails;

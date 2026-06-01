@@ -27,6 +27,7 @@ import {
   BookOpen,
   ClipboardSignature,
   Receipt,
+  CalendarCheck,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -83,6 +84,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     { name: 'Daily Updates',       path: '/daily-updates',     icon: LayoutDashboard,   permission: 'view_logs' },
     { name: 'Documents',           path: '/documents',         icon: Folder,            permission: 'view_logs' },
     { name: 'Fleet',               path: '/fleet',             icon: Truck,             permission: 'view_fleet' },
+    { name: 'Vehicle Bookings',    path: '/fleet/bookings',    icon: CalendarCheck,     permission: 'view_fleet' },
     { name: 'Log Sheets',          path: '/logs',              icon: ScrollText,        permission: 'view_logs' },
     { name: 'Security Book',       path: '/security',          icon: ShieldCheck,       permission: 'view_logs' },
     { name: 'Garage',              path: '/garage',            icon: Wrench,            permission: 'view_garage' },
