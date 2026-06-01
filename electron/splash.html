@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data:;" />
+<title>Wedage &amp; Co.</title>
+<style>
+  :root {
+    --indigo: #6366f1;
+    --indigo-light: #818cf8;
+    --violet: #8b5cf6;
+    --cyan: #22d3ee;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0b0f1f;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    user-select: none;
+    cursor: default;
+  }
+
+  /* Whole splash is draggable (frameless window) */
+  body { -webkit-app-region: drag; }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(99,102,241,0.28), transparent 60%),
+      radial-gradient(900px 500px at 110% 120%, rgba(139,92,246,0.22), transparent 60%),
+      radial-gradient(800px 500px at -10% 110%, rgba(34,211,238,0.16), transparent 60%),
+      linear-gradient(160deg, #0b0f1f 0%, #0d1226 50%, #0b0f1f 100%);
+    overflow: hidden;
+  }
+
+  /* Animated aurora sweep */
+  .aurora {
+    position: absolute;
+    inset: -40%;
+    background: conic-gradient(from 0deg, transparent, rgba(99,102,241,0.12), transparent 35%, rgba(34,211,238,0.10), transparent 70%, rgba(139,92,246,0.12), transparent);
+    filter: blur(40px);
+    animation: spin 18s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Subtle moving grid */
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(129,140,248,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(129,140,248,0.06) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(circle at 50% 45%, black 0%, transparent 72%);
+    animation: drift 20s linear infinite;
+  }
+  @keyframes drift { to { background-position: 44px 44px; } }
+
+  /* Floating particles canvas */
+  #particles { position: absolute; inset: 0; }
+
+  .content {
+    position: relative;
+    z-index: 5;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px 12px;
+    animation: rise 900ms cubic-bezier(.2,.8,.2,1) both;
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Logo with rotating glow ring */
+  .logo-wrap {
+    position: relative;
+    width: 188px;
+    height: 188px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 40px;
+  }
+  .ring {
+    position: absolute;
+    border-radius: 50%;
+    inset: 0;
+    background: conic-gradient(from 0deg, var(--indigo), var(--cyan), var(--violet), var(--indigo));
+    filter: blur(2px);
+    animation: spin 4s linear infinite;
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  }
+  .ring.r2 {
+    inset: -14px;
+    opacity: .5;
+    animation-duration: 7s;
+    animation-direction: reverse;
+  }
+  .halo {
+    position: absolute;
+    inset: -24px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,0.45), transparent 65%);
+    filter: blur(14px);
+    animation: pulse 2.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1);   opacity: .55; }
+    50%      { transform: scale(1.12); opacity: .9; }
+  }
+  .logo {
+    width: 138px;
+    height: 138px;
+    border-radius: 34px;
+    object-fit: cover;
+    box-shadow: 0 12px 40px rgba(8,10,25,0.6), inset 0 0 0 1px rgba(255,255,255,0.08);
+    background: #fff;
+    animation: float 4s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+  }
+
+  .title {
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: .5px;
+    color: #fff;
+    text-align: center;
+  }
+  .title .amp { color: var(--indigo-light); }
+  .subtitle {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: #8a92b2;
+  }
+
+  /* Progress bar */
+  .bar {
+    margin-top: 46px;
+    width: 400px;
+    height: 6px;
+    border-radius: 99px;
+    background: rgba(255,255,255,0.07);
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+  }
+  .bar__fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--indigo), var(--cyan), var(--violet));
+    background-size: 200% 100%;
+    box-shadow: 0 0 16px rgba(99,102,241,0.7);
+    animation: shimmer 1.6s linear infinite;
+    transition: width .35s ease;
+  }
+  @keyframes shimmer { to { background-position: 200% 0; } }
+
+  .status {
+    margin-top: 18px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: #6b7396;
+    text-transform: uppercase;
+    height: 16px;
+  }
+
+  /* Developer credit */
+  .credit {
+    position: relative;
+    z-index: 5;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 30px;
+    animation: rise 1200ms 200ms cubic-bezier(.2,.8,.2,1) both;
+  }
+  .credit__label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #59617f;
+    text-transform: uppercase;
+  }
+  .credit__name {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 7px;
+    background: linear-gradient(90deg, #818cf8, #22d3ee, #a78bfa, #818cf8);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: sheen 4s linear infinite;
+  }
+  @keyframes sheen { to { background-position: 200% center; } }
+  .credit__dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 10px var(--cyan);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+  .version {
+    position: absolute;
+    top: 16px; right: 18px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    color: #4a5273;
+    z-index: 5;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="aurora"></div>
+    <div class="grid"></div>
+    <canvas id="particles"></canvas>
+
+    <div class="version" id="version">v1.0.0</div>
+
+    <div class="content">
+      <div class="logo-wrap">
+        <div class="halo"></div>
+        <div class="ring"></div>
+        <div class="ring r2"></div>
+        <img class="logo" src="./assets/logo.png" alt="Wedage &amp; Co." />
+      </div>
+      <div class="title">WEDAGE <span class="amp">&amp;</span> CO.</div>
+      <div class="subtitle">CRM &amp; Fleet Management</div>
+
+      <div class="bar"><div class="bar__fill" id="fill"></div></div>
+      <div class="status" id="status">Initializing…</div>
+    </div>
+
+    <div class="credit">
+      <div class="credit__label">Developed by</div>
+      <div class="credit__name">ESYSTEMLK</div>
+      <div class="credit__dot"></div>
+    </div>
+  </div>
+
+<script>
+  // ── Animated progress with staged status text ───────────────────────────────
+  const fill = document.getElementById('fill');
+  const status = document.getElementById('status');
+  // Paced to span ~6 seconds (each [percent, label, dwell-ms]).
+  const stages = [
+    [10, 'Initializing…',            850],
+    [24, 'Connecting to Firebase…',  950],
+    [40, 'Authenticating session…',  900],
+    [56, 'Loading workspace…',       950],
+    [72, 'Syncing modules…',         900],
+    [86, 'Preparing dashboard…',     850],
+    [95, 'Almost there…',            700],
+  ];
+  let i = 0;
+  function step() {
+    if (i < stages.length) {
+      const [pct, text, dwell] = stages[i++];
+      fill.style.width = pct + '%';
+      status.textContent = text;
+      setTimeout(step, dwell);
+    }
+  }
+  step();
+
+  // The main process tells us when the real app finished loading.
+  if (window.splash && window.splash.onReady) {
+    window.splash.onReady(() => {
+      fill.style.width = '100%';
+      status.textContent = 'Ready';
+    });
+  }
+  if (window.splash && window.splash.getVersion) {
+    window.splash.getVersion().then(v => {
+      if (v) document.getElementById('version').textContent = 'v' + v;
+    }).catch(() => {});
+  }
+
+  // ── Particle field ──────────────────────────────────────────────────────────
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+  let w, h, particles;
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    const count = Math.min(70, Math.floor((w * h) / 14000));
+    particles = Array.from({ length: count }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: Math.random() * 1.8 + 0.4,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      a: Math.random() * 0.5 + 0.2,
+    }));
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > w) p.vx *= -1;
+      if (p.y < 0 || p.y > h) p.vy *= -1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(129,140,248,' + p.a + ')';
+      ctx.fill();
+    }
+    // Link nearby particles
+    for (let a = 0; a < particles.length; a++) {
+      for (let b = a + 1; b < particles.length; b++) {
+        const dx = particles[a].x - particles[b].x;
+        const dy = particles[a].y - particles[b].y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 110) {
+          ctx.beginPath();
+          ctx.moveTo(particles[a].x, particles[a].y);
+          ctx.lineTo(particles[b].x, particles[b].y);
+          ctx.strokeStyle = 'rgba(99,102,241,' + (0.12 * (1 - dist / 110)) + ')';
+          ctx.lineWidth = 0.6;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+</script>
+</body>
+</html>

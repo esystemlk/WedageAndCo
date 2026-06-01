@@ -36,6 +36,9 @@
     "files": [
       "main.cjs",
       "preload.cjs",
+      "splash.html",
+      "splash-preload.cjs",
+      "assets/**/*",
       "lib/**/*",
       "package.json"
     ],

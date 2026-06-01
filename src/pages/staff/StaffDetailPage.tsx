@@ -25,6 +25,7 @@ import { getStaffMember, StaffMember } from '../../services/staffService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { cn } from '../../lib/utils';
+import StaffMealPanel from '../meals/StaffMealPanel';
 
 const StaffDetailPage: React.FC = () => {
   const { id } = useParams();
@@ -274,6 +275,9 @@ const StaffDetailPage: React.FC = () => {
                  </div>
               </div>
            </section>
+
+           {/* Meal Program (enrolment + history) */}
+           <StaffMealPanel member={member} onChange={setMember} />
 
            {/* If Resigned / Inactive Exit Details */}
            {!member.active && (member as any).resignationDate && (

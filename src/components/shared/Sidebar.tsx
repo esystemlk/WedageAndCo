@@ -28,6 +28,7 @@ import {
   ClipboardSignature,
   Receipt,
   CalendarCheck,
+  Utensils,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -69,6 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     { name: 'Attendance Board',    path: '/staff/attendance',  icon: UserCheck,         permission: 'view_staff' },
     { name: 'Holiday Requests',    path: '/payroll/leaves',    icon: CalendarIcon,      permission: 'view_staff' },
     { name: 'Payroll',             path: '/payroll',           icon: ClipboardList,     permission: 'view_staff' },
+    { name: 'Meal Management',     path: '/meals',             icon: Utensils,          permission: 'view_staff' },
     { name: 'Exit Registry',       path: '/payroll',           icon: UserMinus,         permission: 'view_staff' },
 
     // ── Procurement ────────────────────────────────────────────────────────

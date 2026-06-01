@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { ToastProvider } from './contexts/ToastContext';
 import { ProtectedRoute, RoleRoute } from './components/auth/RouteGuards';
 import AppShell from './components/shared/AppShell';
 
@@ -16,6 +17,7 @@ import StaffDetailPage from './pages/staff/StaffDetailPage';
 import AttendancePage from './pages/staff/AttendancePage';
 import PayrollPage from './pages/staff/PayrollPage';
 import LeaveRequestsPage from './pages/staff/LeaveRequestsPage';
+import MealManagementPage from './pages/meals/MealManagementPage';
 import CustomerListPage from './pages/customers/CustomerListPage';
 import CustomerFormPage from './pages/customers/CustomerFormPage';
 import CustomerDetailPage from './pages/customers/CustomerDetailPage';
@@ -65,6 +67,7 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
+          <ToastProvider>
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
@@ -102,6 +105,7 @@ function App() {
                 <Route path="/staff/attendance" element={<AttendancePage />} />
                 <Route path="/payroll" element={<PayrollPage />} />
                 <Route path="/payroll/leaves" element={<LeaveRequestsPage />} />
+                <Route path="/meals" element={<MealManagementPage />} />
                 <Route path="/staff/new" element={<StaffFormPage />} />
                 <Route path="/staff/:id" element={<StaffDetailPage />} />
                 <Route path="/staff/:id/edit" element={<StaffFormPage />} />
@@ -171,6 +175,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </BrowserRouter>
+          </ToastProvider>
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>

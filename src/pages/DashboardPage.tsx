@@ -6,7 +6,8 @@ import {
   Plus, FileText, CalendarCheck, RefreshCw, ChevronRight,
   ShieldAlert, Package, Clock, MapPin, Zap, BarChart3,
   CheckCircle2, XCircle, Circle, ArrowUpRight, ArrowDownRight,
-  User, CalendarDays, Settings
+  User, CalendarDays, Settings, Download, Monitor, X, Shield,
+  HardDrive, Cpu, CheckCheck
 } from 'lucide-react';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
@@ -153,6 +154,143 @@ const QA: React.FC<{ icon: React.ReactNode; label: string; to: string; color: st
   );
 };
 
+// ── Download Desktop App Modal ────────────────────────────────────────────────
+const DOWNLOAD_URL =
+  'https://firebasestorage.googleapis.com/v0/b/wedageandco-2.firebasestorage.app/o/Wedage%20%26%20Co.%20Desktop%20Setup%201.0.0.exe?alt=media';
+
+const DownloadModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
+  const [downloading, setDownloading] = useState(false);
+
+  if (!open) return null;
+
+  const handleDownload = () => {
+    setDownloading(true);
+    const a = document.createElement('a');
+    a.href = DOWNLOAD_URL;
+    a.download = 'Wedage & Co. Desktop Setup 1.0.0.exe';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => setDownloading(false), 3000);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backdropFilter: 'blur(8px)', background: 'rgba(15,15,35,0.55)' }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: 24 }}
+        transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+        onClick={e => e.stopPropagation()}
+        className="relative w-full max-w-md rounded-3xl overflow-hidden shadow-2xl"
+        style={{
+          background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%)',
+          border: '1px solid rgba(255,255,255,0.12)',
+        }}
+      >
+        {/* Decorative glow blobs */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-20"
+          style={{ background: 'radial-gradient(circle, #a5b4fc, transparent)' }} />
+        <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full opacity-15"
+          style={{ background: 'radial-gradient(circle, #818cf8, transparent)' }} />
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 p-1.5 rounded-full text-indigo-200 hover:text-white hover:bg-white/10 transition-all"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="relative p-7">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-6">
+            <div className="flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)' }}
+            >
+              <Monitor className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-white leading-tight">Wedage &amp; Co.</h2>
+              <p className="text-indigo-200 text-xs font-bold">Desktop Application v1.0.0</p>
+            </div>
+          </div>
+
+          {/* Description */}
+          <p className="text-indigo-100 text-sm font-medium leading-relaxed mb-6">
+            Install the full-featured desktop version for a faster, native experience with
+            offline support and enhanced performance.
+          </p>
+
+          {/* System Requirements */}
+          <div className="rounded-2xl p-4 mb-5 space-y-2.5"
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)' }}
+          >
+            <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-3">System Requirements</p>
+            {[
+              { icon: <Monitor className="w-3.5 h-3.5" />, label: 'OS', value: 'Windows 10 / 11 (64-bit)' },
+              { icon: <Cpu className="w-3.5 h-3.5" />,     label: 'RAM', value: '4 GB minimum' },
+              { icon: <HardDrive className="w-3.5 h-3.5" />, label: 'Storage', value: '200 MB free space' },
+              { icon: <Shield className="w-3.5 h-3.5" />,  label: 'Access', value: 'Administrator rights required' },
+            ].map(req => (
+              <div key={req.label} className="flex items-center gap-3">
+                <span className="text-indigo-300">{req.icon}</span>
+                <span className="text-[11px] font-black text-indigo-200 w-16 flex-shrink-0">{req.label}</span>
+                <span className="text-[11px] text-indigo-100">{req.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* File info */}
+          <div className="flex items-center gap-3 mb-6">
+            <CheckCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <p className="text-[11px] text-indigo-200">
+              Digitally signed installer — safe to install
+            </p>
+          </div>
+
+          {/* Download button */}
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="w-full flex items-center justify-center gap-3 py-3.5 px-6 rounded-2xl font-black text-sm transition-all active:scale-95"
+            style={{
+              background: downloading
+                ? 'rgba(255,255,255,0.15)'
+                : 'linear-gradient(135deg, #6ee7b7 0%, #3b82f6 100%)',
+              color: downloading ? '#a5b4fc' : '#1e1b4b',
+              boxShadow: downloading ? 'none' : '0 4px 24px rgba(59,130,246,0.35)',
+            }}
+          >
+            {downloading ? (
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Starting Download…
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" />
+                Download Desktop App
+              </>
+            )}
+          </button>
+
+          <p className="text-center text-[10px] text-indigo-300 mt-3 font-medium">
+            File: Wedage &amp; Co. Desktop Setup 1.0.0.exe
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -168,6 +306,7 @@ const DashboardPage: React.FC = () => {
   const [fuelTx, setFuelTx] = useState<FuelTransaction[]>([]);
   const [alerts, setAlerts] = useState<SystemAlert[]>([]);
   const [dataReady, setDataReady] = useState(false);
+  const [showDownload, setShowDownload] = useState(false);
 
   useEffect(() => {
     Promise.all([getFuelTransactions(), getSystemAlerts()])
@@ -310,16 +449,36 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
 
+      {/* ── Download Modal ───────────────────────────────────────────────── */}
+      <DownloadModal open={showDownload} onClose={() => setShowDownload(false)} />
+
       {/* ── Page title ─────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-black text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-400 font-bold mt-0.5">
             Real-time overview of your fleet operations and performance.
           </p>
         </div>
-        <div className="text-xs text-gray-400 font-bold hidden sm:block">
-          {new Date().toLocaleDateString('en-LK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        <div className="flex items-center gap-3">
+          {/* Download Desktop App button */}
+          <motion.button
+            onClick={() => setShowDownload(true)}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-xs text-white shadow-lg transition-all"
+            style={{
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              boxShadow: '0 4px 18px rgba(99,102,241,0.35)',
+            }}
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Download Desktop App</span>
+            <span className="sm:hidden">Desktop App</span>
+          </motion.button>
+          <div className="text-xs text-gray-400 font-bold hidden md:block">
+            {new Date().toLocaleDateString('en-LK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
         </div>
       </div>
 

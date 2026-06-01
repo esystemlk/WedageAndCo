@@ -30,6 +30,9 @@ export interface StaffMember {
   position?: string;
   uniformProvided?: boolean;
 
+  // Meal program enrolment (Meal Management module)
+  usesMeals?: boolean;
+
   // Offboarding / Exit Registry
   resignationDate?: string;
   leavingDate?: string;

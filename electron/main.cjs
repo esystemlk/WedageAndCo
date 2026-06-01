@@ -30,9 +30,13 @@ const PRODUCTION_URL = process.env.DESKTOP_URL || 'https://wedageandco.vercel.ap
 const LOAD_LOCAL = process.env.DESKTOP_LOAD_LOCAL === 'true';
 
 let mainWindow = null;
+let splashWindow = null;
 let tray = null;
 let staticServer = null;
 let isQuitting = false;
+
+// Minimum time the splash stays visible so the animation doesn't just flash.
+const SPLASH_MIN_MS = 6000;
 
 // Resolve the built web app: packaged → resources/web, otherwise → ../dist.
 function resolveWebDir() {
@@ -90,8 +94,37 @@ async function loadWithFallback(url) {
   }
 }
 
+// Frameless animated splash shown while the web app loads. Pure local HTML —
+// it never touches the web app and is desktop-only.
+function createSplash() {
+  splashWindow = new BrowserWindow({
+    width: 820,
+    height: 560,
+    frame: false,
+    resizable: false,
+    movable: true,
+    center: true,
+    show: false,
+    transparent: false,
+    backgroundColor: '#0b0f1f',
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    icon: resolveIcon(),
+    webPreferences: {
+      preload: path.join(__dirname, 'splash-preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  splashWindow.once('ready-to-show', () => splashWindow && splashWindow.show());
+  splashWindow.on('closed', () => { splashWindow = null; });
+}
+
 async function createWindow() {
   const icon = resolveIcon();
+  const splashStart = Date.now();
 
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -101,16 +134,13 @@ async function createWindow() {
     show: false,
     backgroundColor: '#0f172a',
     icon,
-    // Custom/native title bar with min/max/close controls, without injecting
-    // any markup into the web app. On Windows/Linux this draws the system
-    // window controls over a frameless window; on macOS it uses inset traffic
-    // lights. The web app's DOM is untouched.
-    titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#4f46e5',
-      symbolColor: '#ffffff',
-      height: 32,
-    },
+    // Standard native OS title bar with real minimize / maximize / close
+    // buttons. It sits ABOVE the web content (not overlaid), so it never
+    // collides with the web app's own top-right header icons, and the web
+    // app's DOM stays completely untouched. Window controls are also exposed
+    // to the renderer via IPC (window.desktop.window.*) for optional use.
+    frame: true,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -122,7 +152,22 @@ async function createWindow() {
   const url = await resolveAppUrl();
   await loadWithFallback(url);
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  // Hand off from splash → main once the real app is ready, honouring a
+  // minimum splash duration so the loading animation is seen.
+  mainWindow.once('ready-to-show', () => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.webContents.send('splash:ready');
+    }
+    const elapsed = Date.now() - splashStart;
+    const wait = Math.max(0, SPLASH_MIN_MS - elapsed);
+    setTimeout(() => {
+      if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }, wait);
+  });
 
   // Keep the renderer informed about maximize state (for a custom title bar UI).
   const emitMax = () => mainWindow?.webContents.send('win:maximize-change', mainWindow.isMaximized());
@@ -239,6 +284,7 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
+    createSplash();
     createWindow();
     createTray();
 

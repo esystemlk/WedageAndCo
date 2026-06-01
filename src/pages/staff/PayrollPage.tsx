@@ -27,12 +27,53 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { PermissionGate } from '../../components/auth/RouteGuards';
+import { getMonthlySummary, getMealSettings, MealSettings } from '../../services/mealService';
+import { generatePayslip } from '../../utils/generatePayslip';
 
 const PayrollPage: React.FC = () => {
   const { staff, loading, refresh } = useStaff();
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [isOffboardingModalOpen, setIsOffboardingModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'Registry' | 'Uniforms' | 'Offboarding'>('Registry');
+
+  // ── Meal deduction integration ─────────────────────────────────────────────
+  const [mealSettings, setMealSettings] = useState<MealSettings | null>(null);
+  const [mealCosts, setMealCosts] = useState<Record<string, { totalCost: number; mealDays: number }>>({});
+  const now = new Date();
+  const payMonth = now.getMonth() + 1;
+  const payYear = now.getFullYear();
+
+  React.useEffect(() => {
+    (async () => {
+      const s = await getMealSettings();
+      setMealSettings(s);
+      const rows = await getMonthlySummary(payYear, payMonth, (id) => {
+        const m = staff.find(x => x.id === id);
+        return m ? { name: m.fullName, department: m.department || '—' } : undefined;
+      });
+      const map: Record<string, { totalCost: number; mealDays: number }> = {};
+      rows.forEach(r => { map[r.employeeId] = { totalCost: r.totalCost, mealDays: r.mealDays }; });
+      setMealCosts(map);
+    })();
+  }, [staff.length]);
+
+  const mealDeductionFor = (member: StaffMember): number => {
+    if (!mealSettings || mealSettings.deductionMethod === 'none') return 0;
+    if (!member.usesMeals) return 0;
+    return mealCosts[member.id!]?.totalCost || 0;
+  };
+
+  const handleGeneratePayslip = (member: StaffMember) => {
+    const meal = mealDeductionFor(member);
+    generatePayslip({
+      staff: member,
+      month: payMonth,
+      year: payYear,
+      basicSalary: member.basicSalary || 0,
+      deductions: meal > 0 ? [{ label: `Meal Deduction (${mealCosts[member.id!]?.mealDays || 0} days)`, amount: meal }] : [],
+      generatedBy: 'Wedage & Co. Payroll',
+    });
+  };
 
   // Offboarding form states
   const [resignationDate, setResignationDate] = useState('');
@@ -144,8 +185,9 @@ const PayrollPage: React.FC = () => {
                     <th className="px-8 py-5 font-bold">Personnel & ID</th>
                     <th className="px-8 py-5 font-bold">Position</th>
                     <th className="px-8 py-5 font-bold">EPF / ETF No.</th>
-                    <th className="px-8 py-5 font-bold">CV Reference</th>
-                    <th className="px-8 py-5 font-bold text-right">Status</th>
+                    <th className="px-8 py-5 font-bold">Meal Deduction</th>
+                    <th className="px-8 py-5 font-bold">Net (Est.)</th>
+                    <th className="px-8 py-5 font-bold text-right">Payslip</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 font-medium text-xs">
@@ -180,24 +222,30 @@ const PayrollPage: React.FC = () => {
                           ) : 'Not Calibrated'}
                         </td>
                         <td className="px-8 py-5">
-                          {member.cvUrl ? (
-                            <a
-                              href={member.cvUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-colors text-[10px] font-black uppercase text-indigo-600"
-                            >
-                              <FileCheck className="w-3.5 h-3.5" />
-                              View CV
-                            </a>
-                          ) : (
-                            <span className="text-[10px] text-gray-300 italic uppercase">No CV Uploaded</span>
-                          )}
+                          {(() => {
+                            const meal = mealDeductionFor(member);
+                            return meal > 0 ? (
+                              <div>
+                                <p className="font-black text-rose-600">- Rs. {meal.toLocaleString()}</p>
+                                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{mealCosts[member.id!]?.mealDays || 0} meal days</p>
+                              </div>
+                            ) : member.usesMeals ? (
+                              <span className="text-[9px] text-gray-300 italic uppercase">No meals this month</span>
+                            ) : (
+                              <span className="text-[9px] text-gray-300 italic uppercase">Not enrolled</span>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-8 py-5 font-mono font-black text-gray-900">
+                          Rs. {Math.max(0, basic - empEpf - mealDeductionFor(member)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </td>
                         <td className="px-8 py-5 text-right">
-                          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                            Operational
-                          </span>
+                          <button
+                            onClick={() => handleGeneratePayslip(member)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 transition-colors rounded-xl text-[10px] font-black uppercase tracking-widest"
+                          >
+                            <Download className="w-3.5 h-3.5" /> Payslip
+                          </button>
                         </td>
                       </tr>
                     );
