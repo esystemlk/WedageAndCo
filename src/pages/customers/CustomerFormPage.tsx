@@ -2,18 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { 
-  Building2, 
-  Phone, 
-  Tag, 
+import {
+  Building2,
+  Phone,
+  Tag,
   Calendar,
-  Save, 
+  Save,
   Globe,
   Briefcase,
   Wallet,
   Plus,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -61,8 +62,9 @@ const CustomerFormPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<CustomerFormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { errors, isSubmitted } } = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
       name: '',
@@ -111,6 +113,7 @@ const CustomerFormPage: React.FC = () => {
   }, [id, setValue]);
 
   const onSubmit = async (data: CustomerFormData) => {
+    setFormError(null);
     try {
       setLoading(true);
       if (id) {
@@ -119,9 +122,14 @@ const CustomerFormPage: React.FC = () => {
         await createCustomer(data);
       }
       navigate('/customers');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to save customer');
+      setFormError(
+        err?.message?.includes('Missing or insufficient permissions')
+          ? 'Permission denied. You may not have access to save customers.'
+          : err?.message || 'Failed to save customer. Please check your connection and try again.'
+      );
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -147,6 +155,29 @@ const CustomerFormPage: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 relative z-10">
+
+          {/* Save error banner */}
+          {formError && (
+            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-black text-red-700">Save Failed</p>
+                <p className="text-xs text-red-600 mt-0.5">{formError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Validation summary */}
+          {isSubmitted && Object.keys(errors).length > 0 && (
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+              <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-black text-amber-700">Please fix the errors below before saving</p>
+                <p className="text-xs text-amber-600 mt-0.5">Required fields are highlighted in red.</p>
+              </div>
+            </div>
+          )}
+
           {/* Company Identity */}
           <section className="space-y-8">
             <div className="flex items-center gap-4">
@@ -229,10 +260,15 @@ const CustomerFormPage: React.FC = () => {
                     placeholder="PV-123456"
                     className={cn(
                       "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
-                      errors.brNo && "border-red-500/50"
+                      errors.brNo && "border-red-500"
                     )}
                   />
                 </div>
+                {errors.brNo && (
+                  <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 px-1">
+                    <AlertTriangle className="w-3 h-3" /> {errors.brNo.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -259,16 +295,21 @@ const CustomerFormPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
                <div className="md:col-span-2 space-y-3">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">HQ Official Address & Contact</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">HQ Official Address &amp; Contact</label>
                 <textarea
                   {...register('officialContact')}
                   rows={2}
                   placeholder="Official Address, Phone, Email..."
                   className={cn(
                     "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400 resize-none",
-                    errors.officialContact && "border-red-500/50"
+                    errors.officialContact && "border-red-500"
                   )}
                 />
+                {errors.officialContact && (
+                  <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 px-1">
+                    <AlertTriangle className="w-3 h-3" /> {errors.officialContact.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-6">
@@ -401,9 +442,17 @@ const CustomerFormPage: React.FC = () => {
                   <input
                     {...register('agreementEnd')}
                     type="date"
-                    className="w-full pl-12 pr-4 py-4 bg-rose-50 border border-rose-100 rounded-2xl focus:ring-1 focus:ring-rose-500/50 outline-none transition-all font-bold text-gray-900"
+                    className={cn(
+                      "w-full pl-12 pr-4 py-4 bg-rose-50 border rounded-2xl focus:ring-1 focus:ring-rose-500/50 outline-none transition-all font-bold text-gray-900",
+                      errors.agreementEnd ? "border-red-500" : "border-rose-100"
+                    )}
                   />
                 </div>
+                {errors.agreementEnd && (
+                  <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 px-1">
+                    <AlertTriangle className="w-3 h-3" /> {errors.agreementEnd.message}
+                  </p>
+                )}
               </div>
             </div>
           </section>

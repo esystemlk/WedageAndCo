@@ -178,6 +178,7 @@ const VehicleFormPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Custom fuel types from Firestore
   const [customFuelTypes, setCustomFuelTypes] = useState<CustomFuelType[]>([]);
@@ -185,7 +186,7 @@ const VehicleFormPage: React.FC = () => {
   const [newFuelName, setNewFuelName] = useState('');
   const [savingFuel, setSavingFuel] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<VehicleFormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { errors, isSubmitted } } = useForm<VehicleFormData>({
     resolver: zodResolver(vehicleSchema) as any,
     defaultValues: {
       type: 'dry-truck',
@@ -278,8 +279,14 @@ const VehicleFormPage: React.FC = () => {
   };
 
   const onSubmit = async (data: VehicleFormData) => {
+    setFormError(null);
     try {
       setLoading(true);
+
+      // Strip ownerDetails entirely when vehicle is company-owned — avoids saving empty owner data
+      if (data.ownership === 'owned') {
+        delete (data as any).ownerDetails;
+      }
 
       if (data.dimensions?.internal) {
         const { length, width, height } = data.dimensions.internal;
@@ -294,9 +301,14 @@ const VehicleFormPage: React.FC = () => {
         await createVehicle(data as any);
       }
       navigate('/fleet');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to save vehicle');
+      setFormError(
+        err?.message?.includes('Missing or insufficient permissions')
+          ? 'Permission denied. You may not have access to save vehicles.'
+          : err?.message || 'Failed to save vehicle. Please check your connection and try again.'
+      );
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -322,6 +334,28 @@ const VehicleFormPage: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 relative z-10">
+
+          {/* ── Save error banner ─────────────────────────────────────────── */}
+          {formError && (
+            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-black text-red-700">Save Failed</p>
+                <p className="text-xs text-red-600 mt-0.5">{formError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Validation summary (shown after first submit attempt) ─────── */}
+          {isSubmitted && Object.keys(errors).length > 0 && (
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+              <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-black text-amber-700">Please fix the errors below before saving</p>
+                <p className="text-xs text-amber-600 mt-0.5">Required fields are highlighted in red. Scroll down to find and fix them.</p>
+              </div>
+            </div>
+          )}
 
           {/* Primary Identification */}
           <div className="space-y-6">
@@ -383,6 +417,7 @@ const VehicleFormPage: React.FC = () => {
                   className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 appearance-none cursor-pointer"
                 >
                   <option value="">Select size...</option>
+                  <option value="N/A">N/A — Fill later</option>
                   {vehicleSizes.map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
@@ -487,28 +522,69 @@ const VehicleFormPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Make */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Make / Manufacturer</label>
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Make / Manufacturer</label>
+                  <button type="button" onClick={() => setValue('make', 'N/A')}
+                    className="text-[9px] font-black text-gray-300 hover:text-amber-500 border border-dashed border-gray-200 hover:border-amber-300 px-1.5 py-0.5 rounded transition-colors uppercase tracking-widest">
+                    N/A
+                  </button>
+                </div>
                 <input {...register('make')} placeholder="e.g. TATA" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" />
               </div>
+
+              {/* Model */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Model Series</label>
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Model Series</label>
+                  <button type="button" onClick={() => setValue('model', 'N/A')}
+                    className="text-[9px] font-black text-gray-300 hover:text-amber-500 border border-dashed border-gray-200 hover:border-amber-300 px-1.5 py-0.5 rounded transition-colors uppercase tracking-widest">
+                    N/A
+                  </button>
+                </div>
                 <input {...register('model')} placeholder="e.g. Prima 4028.S" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" />
               </div>
+
+              {/* Chassis */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Chassis Serial</label>
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Chassis Serial</label>
+                  <button type="button" onClick={() => setValue('chassisNo', 'N/A')}
+                    className="text-[9px] font-black text-gray-300 hover:text-amber-500 border border-dashed border-gray-200 hover:border-amber-300 px-1.5 py-0.5 rounded transition-colors uppercase tracking-widest">
+                    N/A
+                  </button>
+                </div>
                 <input {...register('chassisNo')} placeholder="M-123456789" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" />
               </div>
+
+              {/* Engine */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Engine Code</label>
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Engine Code</label>
+                  <button type="button" onClick={() => setValue('engineNo', 'N/A')}
+                    className="text-[9px] font-black text-gray-300 hover:text-amber-500 border border-dashed border-gray-200 hover:border-amber-300 px-1.5 py-0.5 rounded transition-colors uppercase tracking-widest">
+                    N/A
+                  </button>
+                </div>
                 <input {...register('engineNo')} placeholder="E-987654321" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" />
               </div>
+
+              {/* Date of Manufacture */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Date of Manufacture</label>
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Date of Manufacture</label>
+                  <span className="text-[9px] text-gray-300 italic">optional</span>
+                </div>
                 <input {...register('dateOfManufacture')} type="date" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
               </div>
+
+              {/* Date of Registration */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Date of Registration</label>
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Date of Registration</label>
+                  <span className="text-[9px] text-gray-300 italic">optional</span>
+                </div>
                 <input {...register('dateOfRegistration')} type="date" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
               </div>
               <div className="space-y-2">
@@ -718,6 +794,11 @@ const VehicleFormPage: React.FC = () => {
                   >+ New</button>
                 ) : null}
               </div>
+              {errors.fuelType && (
+                <p className="text-[10px] font-bold text-red-500 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> {errors.fuelType.message}
+                </p>
+              )}
               {addingFuel && (
                 <div className="flex gap-2 mt-2">
                   <input
@@ -825,11 +906,18 @@ const VehicleFormPage: React.FC = () => {
 
                 {/* 3. Owner Name */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner Name</label>
+                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner Name <span className="text-red-400">*</span></label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 w-4 h-4" />
-                    <input {...register('ownerDetails.ownerName')} placeholder="Full Name" className="w-full pl-10 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                    <input {...register('ownerDetails.ownerName')} placeholder="Full Name"
+                      className={cn("w-full pl-10 pr-4 py-4 bg-white border rounded-xl outline-none font-bold text-gray-900",
+                        errors.ownerDetails?.ownerName ? "border-red-400" : "border-emerald-100")} />
                   </div>
+                  {errors.ownerDetails?.ownerName && (
+                    <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 px-1">
+                      <AlertTriangle className="w-3 h-3" /> {errors.ownerDetails.ownerName.message || 'Owner name is required'}
+                    </p>
+                  )}
                 </div>
 
                 {/* 4. Business Name (conditional) */}
@@ -845,20 +933,34 @@ const VehicleFormPage: React.FC = () => {
 
                 {/* 5. Owner Address */}
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner Address</label>
+                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner Address <span className="text-red-400">*</span></label>
                   <div className="relative">
                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 w-4 h-4" />
-                    <input {...register('ownerDetails.ownerAddress')} placeholder="Registered Address" className="w-full pl-10 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                    <input {...register('ownerDetails.ownerAddress')} placeholder="Registered Address"
+                      className={cn("w-full pl-10 pr-4 py-4 bg-white border rounded-xl outline-none font-bold text-gray-900",
+                        errors.ownerDetails?.ownerAddress ? "border-red-400" : "border-emerald-100")} />
                   </div>
+                  {errors.ownerDetails?.ownerAddress && (
+                    <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 px-1">
+                      <AlertTriangle className="w-3 h-3" /> {errors.ownerDetails.ownerAddress.message || 'Address is required'}
+                    </p>
+                  )}
                 </div>
 
                 {/* 6. Owner NIC */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner NIC</label>
+                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner NIC <span className="text-red-400">*</span></label>
                   <div className="relative">
                     <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 w-4 h-4" />
-                    <input {...register('ownerDetails.ownerNicBr')} placeholder="National Identity Card No" className="w-full pl-10 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                    <input {...register('ownerDetails.ownerNicBr')} placeholder="National Identity Card No"
+                      className={cn("w-full pl-10 pr-4 py-4 bg-white border rounded-xl outline-none font-bold text-gray-900",
+                        errors.ownerDetails?.ownerNicBr ? "border-red-400" : "border-emerald-100")} />
                   </div>
+                  {errors.ownerDetails?.ownerNicBr && (
+                    <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 px-1">
+                      <AlertTriangle className="w-3 h-3" /> {errors.ownerDetails.ownerNicBr.message || 'NIC is required'}
+                    </p>
+                  )}
                 </div>
 
                 {/* BR Number (conditional) */}
@@ -902,19 +1004,40 @@ const VehicleFormPage: React.FC = () => {
 
                 {/* Agreement Dates */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Agreement Start</label>
-                  <input {...register('ownerDetails.agreementStart')} type="date" className="w-full px-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Agreement Start <span className="text-red-400">*</span></label>
+                  <input {...register('ownerDetails.agreementStart')} type="date"
+                    className={cn("w-full px-4 py-4 bg-white border rounded-xl outline-none font-bold text-gray-900",
+                      errors.ownerDetails?.agreementStart ? "border-red-400" : "border-emerald-100")} />
+                  {errors.ownerDetails?.agreementStart && (
+                    <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 px-1">
+                      <AlertTriangle className="w-3 h-3" /> Agreement start date is required
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Agreement End</label>
-                  <input {...register('ownerDetails.agreementEnd')} type="date" className="w-full px-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Agreement End <span className="text-red-400">*</span></label>
+                  <input {...register('ownerDetails.agreementEnd')} type="date"
+                    className={cn("w-full px-4 py-4 bg-white border rounded-xl outline-none font-bold text-gray-900",
+                      errors.ownerDetails?.agreementEnd ? "border-red-400" : "border-emerald-100")} />
+                  {errors.ownerDetails?.agreementEnd && (
+                    <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 px-1">
+                      <AlertTriangle className="w-3 h-3" /> Agreement end date is required
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner Payment Rate</label>
+                  <label className="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest px-1">Owner Payment Rate <span className="text-red-400">*</span></label>
                   <div className="relative">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-black text-[10px]">LKR</div>
-                    <input {...register('ownerDetails.paymentRate', { valueAsNumber: true })} type="number" placeholder="0.00" className="w-full pl-12 pr-4 py-4 bg-white border border-emerald-100 rounded-xl outline-none font-bold text-gray-900" />
+                    <input {...register('ownerDetails.paymentRate', { valueAsNumber: true })} type="number" placeholder="0.00"
+                      className={cn("w-full pl-12 pr-4 py-4 bg-white border rounded-xl outline-none font-bold text-gray-900",
+                        errors.ownerDetails?.paymentRate ? "border-red-400" : "border-emerald-100")} />
                   </div>
+                  {errors.ownerDetails?.paymentRate && (
+                    <p className="text-[10px] font-bold text-red-500 flex items-center gap-1 px-1">
+                      <AlertTriangle className="w-3 h-3" /> Payment rate is required
+                    </p>
+                  )}
                 </div>
 
                 {/* Bank Details — split */}
