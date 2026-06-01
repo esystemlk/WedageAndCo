@@ -1,0 +1,9 @@
+node_modules/
+release/
+dist/
+*.log
+
+# Keep packaged-app build resources (icons) tracked even though the repo-root
+# .gitignore excludes any "build/" directory.
+!build/
+!build/**
