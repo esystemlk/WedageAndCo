@@ -63,7 +63,7 @@ const DailyVehicleUpdatePage: React.FC = () => {
       }
     });
 
-    let message = `*☀️ WEDAGE & CO. - DAILY OPERATIONS SUMMARY*\n`;
+    let message = `*☀️ WEDAGE & COMPANY - DAILY OPERATIONS SUMMARY*\n`;
     message += `*Date:* ${selectedDate}\n\n`;
     message += `*📊 FLEET STATUS MATRIX*\n`;
     message += `• On Trip: *${statuses['On Trip']}*\n`;

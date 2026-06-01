@@ -118,10 +118,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-black tracking-tight text-[var(--text-main)] leading-tight uppercase italic truncate">
-            Wedage &amp; Co.
+            Wedage &amp; Company
           </h1>
           <p className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest leading-none opacity-60">
-            Company PVT LTD
+            (PVT) LTD
           </p>
         </div>
         <button onClick={onClose} className="md:hidden p-2 hover:bg-gray-100 rounded-lg">

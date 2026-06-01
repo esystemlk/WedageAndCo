@@ -52,7 +52,7 @@ const InstallPrompt: React.FC = () => {
             <Download className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-black text-gray-900">Install Wedage & Co.</p>
+            <p className="text-sm font-black text-gray-900">Install Wedage & Company</p>
             <p className="text-[11px] text-gray-500 font-medium mt-0.5">Add the app to your device for faster access and offline use.</p>
             <div className="flex items-center gap-2 mt-3">
               <button onClick={install}

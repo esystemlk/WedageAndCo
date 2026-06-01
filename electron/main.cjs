@@ -202,9 +202,9 @@ function createTray() {
   const icon = resolveIcon();
   if (!icon) return; // tray needs an image; skip gracefully if none found
   tray = new Tray(icon.resize({ width: 16, height: 16 }));
-  tray.setToolTip('Wedage & Co. Desktop');
+  tray.setToolTip('Wedage & Company Desktop');
   const menu = Menu.buildFromTemplate([
-    { label: 'Open Wedage & Co.', click: () => { mainWindow ? (mainWindow.show(), mainWindow.focus()) : createWindow(); } },
+    { label: 'Open Wedage & Company', click: () => { mainWindow ? (mainWindow.show(), mainWindow.focus()) : createWindow(); } },
     { type: 'separator' },
     { label: 'Quit', click: () => { isQuitting = true; app.quit(); } },
   ]);

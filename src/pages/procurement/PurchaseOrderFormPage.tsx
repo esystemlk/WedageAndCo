@@ -75,7 +75,7 @@ const PurchaseOrderFormPage: React.FC = () => {
          date: new Date().toISOString().split('T')[0],
          items: [{ description: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 }],
          status: 'Draft',
-         deliveryAddress: 'Main Warehouse, Wedage & Co.',
+         deliveryAddress: 'Main Warehouse, Wedage & Company',
          paymentTerms: 'Net 30',
          taxAmount: 0,
          managerApproved: false,

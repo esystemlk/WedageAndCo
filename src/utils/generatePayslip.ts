@@ -48,7 +48,7 @@ export function generatePayslip(data: PayslipData): void {
     otHours = 0,
     otRate  = 0,
     advanceDeduction = 0,
-    generatedBy = 'Wedage & Co.',
+    generatedBy = 'Wedage & Company',
   } = data;
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -65,7 +65,7 @@ export function generatePayslip(data: PayslipData): void {
   doc.setTextColor(...WHITE);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('WEDAGE & CO. PVT LTD', ML, 11);
+  doc.text('WEDAGE & COMPANY (PVT) LTD', ML, 11);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);

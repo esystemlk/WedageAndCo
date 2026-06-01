@@ -50,7 +50,7 @@ export function exportPDF(opts: {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text('WEDAGE & CO. PVT LTD', ML, 10);
+  doc.text('WEDAGE & COMPANY (PVT) LTD', ML, 10);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.text(title, ML, 17);

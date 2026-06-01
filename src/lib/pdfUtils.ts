@@ -23,7 +23,7 @@ export const generateInvoicePDF = (invoice: Invoice, customer: Customer | null) 
   doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(24);
-  doc.text('WEDAGE & CO.', 20, 25);
+  doc.text('WEDAGE & COMPANY', 20, 25);
   
   doc.setFontSize(10);
   doc.setTextColor(100, 116, 139);
@@ -162,7 +162,7 @@ export const generateInvoicePDF = (invoice: Invoice, customer: Customer | null) 
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
-    doc.text('Wedage & Co. Logistics - System Generated Document', 105, 285, { align: 'center' });
+    doc.text('Wedage & Company Logistics - System Generated Document', 105, 285, { align: 'center' });
   }
 
   doc.save(`Invoice_${invoice.invoiceNo}.pdf`);

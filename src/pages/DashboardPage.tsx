@@ -215,7 +215,7 @@ const DownloadModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open,
               <Monitor className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white leading-tight">Wedage &amp; Co.</h2>
+              <h2 className="text-lg font-black text-white leading-tight">Wedage &amp; Company</h2>
               <p className="text-indigo-200 text-xs font-bold">Desktop Application v1.0.0</p>
             </div>
           </div>

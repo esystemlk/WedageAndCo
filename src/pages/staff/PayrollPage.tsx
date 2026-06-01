@@ -73,7 +73,7 @@ const PayrollPage: React.FC = () => {
       year: payYear,
       basicSalary: member.basicSalary || 0,
       deductions: meal > 0 ? [{ label: `Meal Deduction (${mealCosts[member.id!]?.mealDays || 0} days)`, amount: meal }] : [],
-      generatedBy: 'Wedage & Co. Payroll',
+      generatedBy: 'Wedage & Company Payroll',
     });
     toast.success('Payslip generated', `${member.fullName}'s payslip PDF was downloaded.`);
   };

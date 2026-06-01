@@ -34,7 +34,7 @@ const PendingApprovalPage: React.FC = () => {
         <div className="space-y-4 text-gray-500 text-sm leading-relaxed mb-10">
           <p>
             Hello, <span className="text-gray-900 font-bold">{user?.displayName || 'Operator'}</span>. 
-            Your request to join the Wedage & Co. Fleet System has been received.
+            Your request to join the Wedage & Company Fleet System has been received.
           </p>
           <p className="bg-gray-50 p-4 rounded-2xl border border-gray-100 italic font-medium">
             "Security is our priority. An administrator must verify your credentials and assign an operational role before you can proceed."

@@ -148,7 +148,7 @@ const SessionReportPage: React.FC = () => {
           <div className="space-y-3">
             <p className="text-white/30 text-[10px] font-black uppercase tracking-[0.4em]">Development Session</p>
             <h1 className="text-white font-black text-3xl xl:text-4xl">Session Report</h1>
-            <p className="text-white/50 text-sm font-bold">Wedage & Co. Fleet Management System</p>
+            <p className="text-white/50 text-sm font-bold">Wedage & Company Fleet Management System</p>
 
             {/* Stats chips */}
             <div className="flex flex-wrap gap-3 pt-2">

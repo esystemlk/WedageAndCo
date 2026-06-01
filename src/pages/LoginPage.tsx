@@ -112,7 +112,7 @@ const LoginPage: React.FC = () => {
             <img src="/logo.png.JPEG" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div>
-            <p className="text-white font-black text-xl uppercase italic tracking-tight leading-none">Wedage & Co.</p>
+            <p className="text-white font-black text-xl uppercase italic tracking-tight leading-none">Wedage & Company</p>
             <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.35em] mt-1">Fleet Management System</p>
           </div>
         </motion.div>
@@ -170,7 +170,7 @@ const LoginPage: React.FC = () => {
             <div className="w-10 h-10 bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm">
               <img src="/logo.png.JPEG" alt="Logo" className="w-full h-full object-contain" />
             </div>
-            <p className="text-[var(--text-main)] font-black text-base uppercase italic">Wedage & Co.</p>
+            <p className="text-[var(--text-main)] font-black text-base uppercase italic">Wedage & Company</p>
           </div>
 
           {/* Heading */}
