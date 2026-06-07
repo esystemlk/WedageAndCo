@@ -38,6 +38,45 @@ export interface MealSettings {
   updatedAt?: any;
 }
 
+/** A per-meal-type price table (LKR). */
+export type MealPrices = Record<MealType, number>;
+
+export type MealLocationType = 'office' | 'rest-point' | 'partner' | 'other';
+
+/**
+ * A place where staff receive meals. The main office is the default location;
+ * rest points / partner kitchens used by drivers on trips have their own prices
+ * and (optionally) their own supplier.
+ */
+export interface MealLocation {
+  id?: string;
+  name: string;
+  type: MealLocationType;
+  address?: string;
+  prices: MealPrices;          // per-location cost overrides
+  supplierId?: string;         // meal supplier providing food here
+  supplierName?: string;
+  isDefault?: boolean;         // the main office / fallback location
+  isActive: boolean;
+  notes?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+/** A vendor we buy meals from. */
+export interface MealSupplier {
+  id?: string;
+  name: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  isActive: boolean;
+  notes?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
 export interface EmployeeMeal {
   id?: string;            // `${employeeId}_${date}`
   employeeId: string;
@@ -48,6 +87,8 @@ export interface EmployeeMeal {
   lunch: boolean;
   dinner: boolean;
   tea: boolean;
+  locationId?: string;    // where the meals were taken
+  locationName?: string;
   dailyTotal: number;
   createdAt?: any;
   updatedAt?: any;
@@ -70,6 +111,8 @@ const SETTINGS_COLLECTION = 'meal_settings';
 const SETTINGS_DOC = 'config';
 const MEALS_COLLECTION = 'employee_meals';
 const SUMMARY_COLLECTION = 'meal_monthly_summary';
+const LOCATIONS_COLLECTION = 'meal_locations';
+const SUPPLIERS_COLLECTION = 'meal_suppliers';
 
 export const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'tea'];
 
@@ -86,16 +129,37 @@ export const mealDocId = (employeeId: string, date: string) => `${employeeId}_${
 export const summaryDocId = (employeeId: string, year: number, month: number) =>
   `${employeeId}_${year}_${String(month).padStart(2, '0')}`;
 
-/** Compute the cost of a day's selected meals using the current settings. */
+export const defaultPricesFromSettings = (s: MealSettings): MealPrices => ({
+  breakfast: s.breakfast.cost, lunch: s.lunch.cost, dinner: s.dinner.cost, tea: s.tea.cost,
+});
+
+/**
+ * Resolve the effective price table: a location's per-meal prices override the
+ * global default, but the global active flags still decide which meals count.
+ */
+export function resolvePrices(settings: MealSettings, location?: MealLocation | null): MealPrices {
+  const base = defaultPricesFromSettings(settings);
+  if (!location) return base;
+  return {
+    breakfast: location.prices?.breakfast ?? base.breakfast,
+    lunch:     location.prices?.lunch ?? base.lunch,
+    dinner:    location.prices?.dinner ?? base.dinner,
+    tea:       location.prices?.tea ?? base.tea,
+  };
+}
+
+/** Compute the cost of a day's selected meals using settings + optional location. */
 export function computeDailyTotal(
   meals: Pick<EmployeeMeal, 'breakfast' | 'lunch' | 'dinner' | 'tea'>,
   settings: MealSettings,
+  location?: MealLocation | null,
 ): number {
+  const p = resolvePrices(settings, location);
   let total = 0;
-  if (meals.breakfast && settings.breakfast.isActive) total += settings.breakfast.cost;
-  if (meals.lunch && settings.lunch.isActive)         total += settings.lunch.cost;
-  if (meals.dinner && settings.dinner.isActive)       total += settings.dinner.cost;
-  if (meals.tea && settings.tea.isActive)             total += settings.tea.cost;
+  if (meals.breakfast && settings.breakfast.isActive) total += p.breakfast;
+  if (meals.lunch && settings.lunch.isActive)         total += p.lunch;
+  if (meals.dinner && settings.dinner.isActive)       total += p.dinner;
+  if (meals.tea && settings.tea.isActive)             total += p.tea;
   return total;
 }
 
@@ -185,15 +249,21 @@ export const getEmployeeMeals = async (
 export const upsertEmployeeMeal = async (
   entry: Omit<EmployeeMeal, 'id' | 'dailyTotal' | 'createdAt' | 'updatedAt'>,
   settings: MealSettings,
+  location?: MealLocation | null,
 ): Promise<EmployeeMeal> => {
   const id = mealDocId(entry.employeeId, entry.date);
-  const dailyTotal = computeDailyTotal(entry, settings);
-  const payload: EmployeeMeal = { ...entry, id, dailyTotal, updatedAt: Timestamp.now() };
+  const dailyTotal = computeDailyTotal(entry, settings, location);
+  const payload: EmployeeMeal = {
+    ...entry, id, dailyTotal,
+    locationId: location?.id ?? entry.locationId,
+    locationName: location?.name ?? entry.locationName,
+    updatedAt: Timestamp.now(),
+  };
   try {
     await setDoc(doc(db, MEALS_COLLECTION, id), { ...payload, createdAt: Timestamp.now() }, { merge: true });
     await recordChange(
       OperationType.UPDATE, MEALS_COLLECTION, id,
-      `Meal entry ${entry.employeeName || entry.employeeId} on ${entry.date} = LKR ${dailyTotal}`,
+      `Meal entry ${entry.employeeName || entry.employeeId} on ${entry.date} @ ${payload.locationName || 'default'} = LKR ${dailyTotal}`,
     );
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, MEALS_COLLECTION);
@@ -201,14 +271,19 @@ export const upsertEmployeeMeal = async (
   return payload;
 };
 
-/** Save many meal entries for one date in a single pass (bulk register). */
+/**
+ * Save many meal entries for one date in a single pass (bulk register).
+ * Each entry may carry its own `locationId`; prices resolve per location.
+ */
 export const bulkUpsertMeals = async (
   date: string,
   entries: Omit<EmployeeMeal, 'id' | 'dailyTotal' | 'createdAt' | 'updatedAt'>[],
   settings: MealSettings,
+  locations: MealLocation[] = [],
 ): Promise<void> => {
+  const locMap = new Map(locations.map(l => [l.id, l]));
   try {
-    await Promise.all(entries.map(e => upsertEmployeeMeal(e, settings)));
+    await Promise.all(entries.map(e => upsertEmployeeMeal(e, settings, e.locationId ? locMap.get(e.locationId) : null)));
     await recordChange(
       OperationType.UPDATE, MEALS_COLLECTION, date,
       `Bulk meal register saved for ${date} (${entries.length} employees)`,
@@ -308,4 +383,113 @@ export const generateMonthlyDeductions = async (
     handleFirestoreError(error, OperationType.CREATE, SUMMARY_COLLECTION);
   }
   return rows;
+};
+
+export interface LocationSummaryRow {
+  locationId: string;
+  locationName: string;
+  type: string;
+  supplierName: string;
+  mealDays: number;
+  totalMeals: number;
+  totalCost: number;
+}
+
+/** Aggregate a month's meal spend grouped by the location it was served at. */
+export const getLocationSummary = async (
+  year: number, month: number, locations: MealLocation[] = [],
+): Promise<LocationSummaryRow[]> => {
+  const { start, end } = monthDateRange(year, month);
+  const meals = await getMealsInRange(start, end);
+  const locMap = new Map(locations.map(l => [l.id, l]));
+  const map = new Map<string, LocationSummaryRow>();
+  for (const m of meals) {
+    const key = m.locationId || 'default';
+    if (!map.has(key)) {
+      const loc = m.locationId ? locMap.get(m.locationId) : undefined;
+      map.set(key, {
+        locationId: key,
+        locationName: m.locationName || loc?.name || 'Default / Office',
+        type: loc?.type || 'office',
+        supplierName: loc?.supplierName || '—',
+        mealDays: 0, totalMeals: 0, totalCost: 0,
+      });
+    }
+    const row = map.get(key)!;
+    const dayMeals = (m.breakfast ? 1 : 0) + (m.lunch ? 1 : 0) + (m.dinner ? 1 : 0) + (m.tea ? 1 : 0);
+    if (dayMeals > 0) row.mealDays += 1;
+    row.totalMeals += dayMeals;
+    row.totalCost += m.dailyTotal || 0;
+  }
+  return Array.from(map.values()).sort((a, b) => b.totalCost - a.totalCost);
+};
+
+// ── Meal Locations CRUD ──────────────────────────────────────────────────────
+export const getMealLocations = async (): Promise<MealLocation[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, LOCATIONS_COLLECTION), orderBy('name', 'asc')));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as MealLocation));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, LOCATIONS_COLLECTION);
+    return [];
+  }
+};
+
+export const saveMealLocation = async (location: MealLocation): Promise<string | undefined> => {
+  try {
+    const ref = location.id ? doc(db, LOCATIONS_COLLECTION, location.id) : doc(collection(db, LOCATIONS_COLLECTION));
+    // Only one default location: clear others when this one is set default.
+    if (location.isDefault) {
+      const existing = await getMealLocations();
+      await Promise.all(existing.filter(l => l.isDefault && l.id !== ref.id)
+        .map(l => setDoc(doc(db, LOCATIONS_COLLECTION, l.id!), { isDefault: false }, { merge: true })));
+    }
+    const { id, ...data } = location;
+    await setDoc(ref, { ...data, updatedAt: Timestamp.now(), ...(location.id ? {} : { createdAt: Timestamp.now() }) }, { merge: true });
+    await recordChange(location.id ? OperationType.UPDATE : OperationType.CREATE, LOCATIONS_COLLECTION, ref.id, `Saved meal location: ${location.name}`);
+    return ref.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, LOCATIONS_COLLECTION);
+  }
+};
+
+export const deleteMealLocation = async (id: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, LOCATIONS_COLLECTION, id));
+    await recordChange(OperationType.DELETE, LOCATIONS_COLLECTION, id, 'Deleted meal location');
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, LOCATIONS_COLLECTION);
+  }
+};
+
+// ── Meal Suppliers CRUD ──────────────────────────────────────────────────────
+export const getMealSuppliers = async (): Promise<MealSupplier[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, SUPPLIERS_COLLECTION), orderBy('name', 'asc')));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as MealSupplier));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, SUPPLIERS_COLLECTION);
+    return [];
+  }
+};
+
+export const saveMealSupplier = async (supplier: MealSupplier): Promise<string | undefined> => {
+  try {
+    const ref = supplier.id ? doc(db, SUPPLIERS_COLLECTION, supplier.id) : doc(collection(db, SUPPLIERS_COLLECTION));
+    const { id, ...data } = supplier;
+    await setDoc(ref, { ...data, updatedAt: Timestamp.now(), ...(supplier.id ? {} : { createdAt: Timestamp.now() }) }, { merge: true });
+    await recordChange(supplier.id ? OperationType.UPDATE : OperationType.CREATE, SUPPLIERS_COLLECTION, ref.id, `Saved meal supplier: ${supplier.name}`);
+    return ref.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, SUPPLIERS_COLLECTION);
+  }
+};
+
+export const deleteMealSupplier = async (id: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, SUPPLIERS_COLLECTION, id));
+    await recordChange(OperationType.DELETE, SUPPLIERS_COLLECTION, id, 'Deleted meal supplier');
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, SUPPLIERS_COLLECTION);
+  }
 };

@@ -69,9 +69,9 @@ const StaffMealPanel: React.FC<{ member: StaffMember; onChange?: (m: StaffMember
   };
 
   const exportRows = () => filtered.map(h => [
-    h.date, h.breakfast ? 'Yes' : '-', h.lunch ? 'Yes' : '-', h.dinner ? 'Yes' : '-', h.tea ? 'Yes' : '-', h.dailyTotal,
+    h.date, h.locationName || 'Office', h.breakfast ? 'Yes' : '-', h.lunch ? 'Yes' : '-', h.dinner ? 'Yes' : '-', h.tea ? 'Yes' : '-', h.dailyTotal,
   ]);
-  const headers = ['Date', 'Breakfast', 'Lunch', 'Dinner', 'Tea', 'Cost (LKR)'];
+  const headers = ['Date', 'Location', 'Breakfast', 'Lunch', 'Dinner', 'Tea', 'Cost (LKR)'];
   const sub = `${member.fullName} · ${monthName(now.getMonth() + 1)} ${now.getFullYear()}`;
 
   return (
@@ -149,19 +149,20 @@ const StaffMealPanel: React.FC<{ member: StaffMember; onChange?: (m: StaffMember
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-100">
-                    {['Date', ...MEAL_TYPES.map(t => settings?.[t].label || t), 'Cost'].map(h => (
+                    {['Date', 'Location', ...MEAL_TYPES.map(t => settings?.[t].label || t), 'Cost'].map(h => (
                       <th key={h} className="text-left px-4 py-2.5 text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {loading ? (
-                    <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">Loading…</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">Loading…</td></tr>
                   ) : filtered.length === 0 ? (
-                    <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">No meal records</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">No meal records</td></tr>
                   ) : filtered.map(h => (
                     <tr key={h.id} className="hover:bg-gray-50/50">
                       <td className="px-4 py-2.5 text-xs font-bold text-gray-700">{h.date}</td>
+                      <td className="px-4 py-2.5 text-[11px] font-bold text-gray-500">{h.locationName || 'Office'}</td>
                       {MEAL_TYPES.map(t => (
                         <td key={t} className="px-4 py-2.5">
                           {(h as any)[t]

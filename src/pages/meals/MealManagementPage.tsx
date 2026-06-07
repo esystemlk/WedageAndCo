@@ -4,6 +4,7 @@ import {
   Utensils, Users, UserCheck, CalendarDays, Wallet, Search, Save,
   Settings as SettingsIcon, Coffee, Sun, Moon, Soup, ChevronDown,
   Download, FileText, Printer, RefreshCw, Power, TrendingUp, BarChart3,
+  MapPin, Building2, Store, Plus, Edit, Trash2, X,
 } from 'lucide-react';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
@@ -14,9 +15,12 @@ import { useStaff } from '../../hooks/useStaff';
 import { updateStaffMember, StaffMember } from '../../services/staffService';
 import {
   getMealSettings, saveMealSettings, getMealsByDate, getMealsInRange,
-  getMonthlySummary, generateMonthlyDeductions, upsertEmployeeMeal, bulkUpsertMeals,
-  computeDailyTotal, monthDateRange,
+  getMonthlySummary, generateMonthlyDeductions, bulkUpsertMeals,
+  computeDailyTotal, monthDateRange, defaultPricesFromSettings,
+  getMealLocations, saveMealLocation, deleteMealLocation,
+  getMealSuppliers, saveMealSupplier, deleteMealSupplier, getLocationSummary,
   MealSettings, EmployeeMeal, MealType, MEAL_TYPES, MealDeductionMethod, MonthlySummaryRow,
+  MealLocation, MealSupplier, MealLocationType, LocationSummaryRow,
 } from '../../services/mealService';
 import { exportCSV, exportPDF, printTable, monthName } from '../../utils/mealExports';
 import { PermissionGate } from '../../components/auth/RouteGuards';
@@ -46,14 +50,23 @@ const MEAL_COLOR: Record<MealType, string> = {
   breakfast: '#6366F1', lunch: '#F59E0B', dinner: '#8B5CF6', tea: '#10B981',
 };
 
-type Tab = 'overview' | 'register' | 'monthly' | 'reports' | 'settings';
+type Tab = 'overview' | 'register' | 'monthly' | 'locations' | 'suppliers' | 'reports' | 'settings';
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'overview', label: 'Overview', icon: <BarChart3 className="w-4 h-4" /> },
   { key: 'register', label: "Today's Register", icon: <CalendarDays className="w-4 h-4" /> },
   { key: 'monthly', label: 'Monthly Summary', icon: <TrendingUp className="w-4 h-4" /> },
+  { key: 'locations', label: 'Locations', icon: <MapPin className="w-4 h-4" /> },
+  { key: 'suppliers', label: 'Suppliers', icon: <Store className="w-4 h-4" /> },
   { key: 'reports', label: 'Reports', icon: <FileText className="w-4 h-4" /> },
   { key: 'settings', label: 'Settings', icon: <SettingsIcon className="w-4 h-4" /> },
 ];
+
+const LOC_TYPE_META: Record<MealLocationType, { label: string; icon: React.ReactNode; color: string }> = {
+  'office':     { label: 'Office',      icon: <Building2 className="w-3.5 h-3.5" />, color: '#6366F1' },
+  'rest-point': { label: 'Rest Point',  icon: <MapPin className="w-3.5 h-3.5" />,    color: '#F59E0B' },
+  'partner':    { label: 'Partner',     icon: <Store className="w-3.5 h-3.5" />,     color: '#10B981' },
+  'other':      { label: 'Other',       icon: <MapPin className="w-3.5 h-3.5" />,    color: '#94A3B8' },
+};
 
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
   <div className={cn('bg-white border border-gray-100 rounded-2xl shadow-sm', className)}>{children}</div>
@@ -67,7 +80,12 @@ const MealManagementPage: React.FC = () => {
   const [settings, setSettings] = useState<MealSettings | null>(null);
   const [todayMeals, setTodayMeals] = useState<EmployeeMeal[]>([]);
   const [monthMeals, setMonthMeals] = useState<EmployeeMeal[]>([]);
+  const [locations, setLocations] = useState<MealLocation[]>([]);
+  const [suppliers, setSuppliers] = useState<MealSupplier[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const reloadLocations = async () => setLocations(await getMealLocations());
+  const reloadSuppliers = async () => setSuppliers(await getMealSuppliers());
 
   const now = new Date();
   const activeStaff = useMemo(() => staff.filter(s => s.active), [staff]);
@@ -83,6 +101,8 @@ const MealManagementPage: React.FC = () => {
       setTodayMeals(today);
       const { start, end } = monthDateRange(now.getFullYear(), now.getMonth() + 1);
       setMonthMeals(await getMealsInRange(start, end));
+      setLocations(await getMealLocations());
+      setSuppliers(await getMealSuppliers());
       setLoading(false);
     })();
   }, []);
@@ -162,15 +182,21 @@ const MealManagementPage: React.FC = () => {
               settings={settings} monthLabel={`${monthName(now.getMonth() + 1)} ${now.getFullYear()}`} />
           )}
           {tab === 'register' && (
-            <RegisterTab activeStaff={activeStaff} settings={settings} todayMeals={todayMeals}
+            <RegisterTab activeStaff={activeStaff} settings={settings} todayMeals={todayMeals} locations={locations}
               onSaved={async () => setTodayMeals(await getMealsByDate(todayISO()))}
               onToggleEnrol={async (m, v) => { await updateStaffMember(m.id!, { usesMeals: v }); refreshStaff(); }} />
           )}
           {tab === 'monthly' && (
             <MonthlyTab resolver={resolver} />
           )}
+          {tab === 'locations' && (
+            <LocationsTab locations={locations} suppliers={suppliers} settings={settings} reload={reloadLocations} />
+          )}
+          {tab === 'suppliers' && (
+            <SuppliersTab suppliers={suppliers} locations={locations} reload={reloadSuppliers} />
+          )}
           {tab === 'reports' && (
-            <ReportsTab staff={activeStaff} resolver={resolver} />
+            <ReportsTab staff={activeStaff} resolver={resolver} locations={locations} />
           )}
           {tab === 'settings' && (
             <SettingsTab settings={settings} onSave={async (s) => { await saveMealSettings(s); setSettings(s); }} />
@@ -278,26 +304,37 @@ const RegisterTab: React.FC<{
   activeStaff: StaffMember[];
   settings: MealSettings;
   todayMeals: EmployeeMeal[];
+  locations: MealLocation[];
   onSaved: () => Promise<void>;
   onToggleEnrol: (m: StaffMember, v: boolean) => Promise<void>;
-}> = ({ activeStaff, settings, todayMeals, onSaved, onToggleEnrol }) => {
+}> = ({ activeStaff, settings, todayMeals, locations, onSaved, onToggleEnrol }) => {
   const toast = useToast();
+  const activeLocations = useMemo(() => locations.filter(l => l.isActive), [locations]);
+  const defaultLoc = useMemo(() => activeLocations.find(l => l.isDefault) || activeLocations[0], [activeLocations]);
+
   const [date, setDate] = useState(todayISO());
   const [search, setSearch] = useState('');
   const [dept, setDept] = useState('all');
   const [type, setType] = useState('all');
   const [saving, setSaving] = useState(false);
+  const [defLocId, setDefLocId] = useState<string>('');         // register-wide default location
   const [rows, setRows] = useState<Record<string, Pick<EmployeeMeal, 'breakfast' | 'lunch' | 'dinner' | 'tea'>>>({});
-  const [dateMeals, setDateMeals] = useState<EmployeeMeal[]>(todayMeals);
+  const [rowLoc, setRowLoc] = useState<Record<string, string>>({}); // per-employee location override
+
+  useEffect(() => { if (!defLocId && defaultLoc?.id) setDefLocId(defaultLoc.id); }, [defaultLoc]);
 
   // hydrate selections from saved meals for the chosen date
   useEffect(() => {
     (async () => {
       const meals = date === todayISO() ? todayMeals : await getMealsByDate(date);
-      setDateMeals(meals);
       const init: typeof rows = {};
-      meals.forEach(m => { init[m.employeeId] = { breakfast: m.breakfast, lunch: m.lunch, dinner: m.dinner, tea: m.tea }; });
+      const locInit: Record<string, string> = {};
+      meals.forEach(m => {
+        init[m.employeeId] = { breakfast: m.breakfast, lunch: m.lunch, dinner: m.dinner, tea: m.tea };
+        if (m.locationId) locInit[m.employeeId] = m.locationId;
+      });
       setRows(init);
+      setRowLoc(locInit);
     })();
   }, [date, todayMeals]);
 
@@ -312,19 +349,24 @@ const RegisterTab: React.FC<{
   });
 
   const getSel = (id: string) => rows[id] || { breakfast: false, lunch: false, dinner: false, tea: false };
-  const toggle = (id: string, meal: MealType) => {
-    setRows(prev => ({ ...prev, [id]: { ...getSel(id), [meal]: !getSel(id)[meal] } }));
-  };
-  const rowTotal = (id: string) => computeDailyTotal(getSel(id), settings);
+  const toggle = (id: string, meal: MealType) => setRows(prev => ({ ...prev, [id]: { ...getSel(id), [meal]: !getSel(id)[meal] } }));
+  const effLocId = (id: string) => rowLoc[id] || defLocId;
+  const locObj = (id: string) => activeLocations.find(l => l.id === effLocId(id)) || null;
+  const rowTotal = (id: string) => computeDailyTotal(getSel(id), settings, locObj(id));
   const grandTotal = visible.filter(s => s.usesMeals).reduce((a, s) => a + rowTotal(s.id!), 0);
 
   const save = async () => {
     setSaving(true);
-    const entries = visible.filter(s => s.usesMeals).map(s => ({
-      employeeId: s.id!, employeeName: s.fullName, department: s.department || '—', date, ...getSel(s.id!),
-    }));
+    const entries = visible.filter(s => s.usesMeals).map(s => {
+      const lid = effLocId(s.id!);
+      const loc = activeLocations.find(l => l.id === lid);
+      return {
+        employeeId: s.id!, employeeName: s.fullName, department: s.department || '—', date, ...getSel(s.id!),
+        locationId: lid || undefined, locationName: loc?.name,
+      };
+    });
     try {
-      await bulkUpsertMeals(date, entries, settings);
+      await bulkUpsertMeals(date, entries, settings, activeLocations);
       await onSaved();
       toast.success('Meal register saved', `${entries.length} employee${entries.length === 1 ? '' : 's'} recorded for ${date}.`);
     } catch {
@@ -332,6 +374,8 @@ const RegisterTab: React.FC<{
     }
     setSaving(false);
   };
+
+  const locOptions: [string, string][] = [['', 'Default / Office'], ...activeLocations.map(l => [l.id!, l.name] as [string, string])];
 
   return (
     <Card className="overflow-hidden">
@@ -354,11 +398,21 @@ const RegisterTab: React.FC<{
         </PermissionGate>
       </div>
 
+      {/* default location banner */}
+      <div className="px-5 py-3 bg-indigo-50/40 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
+        <span className="flex items-center gap-1.5 text-[10px] font-black text-indigo-600 uppercase tracking-widest"><MapPin className="w-3.5 h-3.5" /> Default Meal Location</span>
+        <Dropdown value={defLocId} onChange={setDefLocId} options={locOptions} />
+        <span className="text-[11px] font-bold text-gray-400">
+          Applies to all rows · override per employee in the Location column.
+          {activeLocations.length === 0 && ' (No locations configured — using office default prices.)'}
+        </span>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100">
-              {['Employee', 'Enrolled', ...MEAL_TYPES.map(t => settings[t].label), 'Daily Total'].map(h => (
+              {['Employee', 'Enrolled', 'Location', ...MEAL_TYPES.map(t => settings[t].label), 'Daily Total'].map(h => (
                 <th key={h} className="text-left px-5 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">{h}</th>
               ))}
             </tr>
@@ -388,6 +442,14 @@ const RegisterTab: React.FC<{
                       </button>
                     </PermissionGate>
                   </td>
+                  <td className="px-5 py-3">
+                    {on && activeLocations.length > 0 ? (
+                      <select value={effLocId(s.id!)} onChange={e => setRowLoc(prev => ({ ...prev, [s.id!]: e.target.value }))}
+                        className="appearance-none px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-[10px] font-bold text-gray-600 outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer max-w-[140px]">
+                        {locOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </select>
+                    ) : <span className="text-[10px] text-gray-300 font-bold">—</span>}
+                  </td>
                   {MEAL_TYPES.map(t => (
                     <td key={t} className="px-5 py-3">
                       <input type="checkbox" disabled={!on || !settings[t].isActive}
@@ -400,12 +462,12 @@ const RegisterTab: React.FC<{
               );
             })}
             {visible.length === 0 && (
-              <tr><td colSpan={7} className="px-5 py-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">No employees match the filters</td></tr>
+              <tr><td colSpan={8} className="px-5 py-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">No employees match the filters</td></tr>
             )}
           </tbody>
           <tfoot>
             <tr className="border-t border-gray-100 bg-gray-50/50">
-              <td colSpan={6} className="px-5 py-3 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Register Total</td>
+              <td colSpan={7} className="px-5 py-3 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Register Total</td>
               <td className="px-5 py-3 text-sm font-black text-indigo-600">{fmt(grandTotal)}</td>
             </tr>
           </tfoot>
@@ -511,14 +573,20 @@ const MonthlyTab: React.FC<{ resolver: (id: string) => { name: string; departmen
 };
 
 // ── Reports ──────────────────────────────────────────────────────────────────
-const ReportsTab: React.FC<{ staff: StaffMember[]; resolver: (id: string) => { name: string; department: string } | undefined }> = ({ resolver }) => {
+const ReportsTab: React.FC<{ staff: StaffMember[]; resolver: (id: string) => { name: string; department: string } | undefined; locations: MealLocation[] }> = ({ resolver, locations }) => {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [rows, setRows] = useState<MonthlySummaryRow[]>([]);
+  const [locRows, setLocRows] = useState<LocationSummaryRow[]>([]);
   const [busy, setBusy] = useState(true);
 
-  useEffect(() => { (async () => { setBusy(true); setRows(await getMonthlySummary(year, month, resolver)); setBusy(false); })(); }, [year, month]);
+  useEffect(() => { (async () => {
+    setBusy(true);
+    setRows(await getMonthlySummary(year, month, resolver));
+    setLocRows(await getLocationSummary(year, month, locations));
+    setBusy(false);
+  })(); }, [year, month, locations]);
 
   const sub = `${monthName(month)} ${year}`;
   // department aggregation
@@ -567,6 +635,11 @@ const ReportsTab: React.FC<{ staff: StaffMember[]; resolver: (id: string) => { n
           <ReportTable title="Department Meal Report" subtitle={sub}
             headers={['Department', 'Total Meals', 'Total Cost (LKR)']}
             rows={byDept.map(d => [d.dept, d.meals, d.cost])} />
+
+          {/* Location Meal Report */}
+          <ReportTable title="Location Meal Report" subtitle={sub}
+            headers={['Location', 'Supplier', 'Meal Days', 'Total Meals', 'Total Cost (LKR)']}
+            rows={locRows.map(l => [l.locationName, l.supplierName, l.mealDays, l.totalMeals, l.totalCost])} />
         </>
       )}
     </div>
@@ -683,6 +756,267 @@ const SettingsTab: React.FC<{ settings: MealSettings; onSave: (s: MealSettings) 
     </div>
   );
 };
+
+// ── Locations Tab ────────────────────────────────────────────────────────────
+const emptyLocation = (prices: MealPricesT): MealLocation => ({
+  name: '', type: 'rest-point', address: '', prices: { ...prices }, supplierId: '', supplierName: '', isDefault: false, isActive: true, notes: '',
+});
+type MealPricesT = Record<MealType, number>;
+
+const LocationsTab: React.FC<{ locations: MealLocation[]; suppliers: MealSupplier[]; settings: MealSettings; reload: () => Promise<void> }> = ({ locations, suppliers, settings, reload }) => {
+  const toast = useToast();
+  const [editing, setEditing] = useState<MealLocation | null>(null);
+
+  const openNew = () => setEditing(emptyLocation(defaultPricesFromSettings(settings)));
+  const save = async () => {
+    if (!editing) return;
+    if (!editing.name.trim()) { toast.warning('Name required', 'Enter a location name.'); return; }
+    const sup = suppliers.find(s => s.id === editing.supplierId);
+    await saveMealLocation({ ...editing, supplierName: sup?.name || '' });
+    await reload();
+    toast.success('Location saved', `${editing.name} was saved.`);
+    setEditing(null);
+  };
+  const remove = async (l: MealLocation) => {
+    if (!window.confirm(`Delete location "${l.name}"?`)) return;
+    await deleteMealLocation(l.id!); await reload(); toast.success('Location deleted', `${l.name} was removed.`);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-black text-gray-900">Meal Locations</h3>
+          <p className="text-[11px] font-bold text-gray-400">Places where staff receive meals — each with its own prices and supplier.</p>
+        </div>
+        <PermissionGate permission="edit_staff">
+          <button onClick={openNew} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20">
+            <Plus className="w-3.5 h-3.5" /> Add Location
+          </button>
+        </PermissionGate>
+      </div>
+
+      {locations.length === 0 ? (
+        <Card className="p-12 text-center">
+          <MapPin className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+          <p className="text-sm font-bold text-gray-400">No meal locations yet. The office default prices apply until you add one.</p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {locations.map(l => {
+            const meta = LOC_TYPE_META[l.type];
+            return (
+              <Card key={l.id} className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-2.5 rounded-xl" style={{ background: `${meta.color}1a`, color: meta.color }}>{meta.icon}</span>
+                    <div>
+                      <p className="text-sm font-black text-gray-900 flex items-center gap-1.5">{l.name}
+                        {l.isDefault && <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black bg-indigo-100 text-indigo-600 uppercase">Default</span>}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{meta.label}{!l.isActive && ' · Inactive'}</p>
+                    </div>
+                  </div>
+                  <PermissionGate permission="edit_staff">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setEditing(l)} className="p-1.5 text-gray-400 hover:text-indigo-600"><Edit className="w-4 h-4" /></button>
+                      <button onClick={() => remove(l)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </PermissionGate>
+                </div>
+                {l.address && <p className="text-[11px] text-gray-500 font-medium mb-3 flex items-center gap-1"><MapPin className="w-3 h-3 text-gray-300" /> {l.address}</p>}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {MEAL_TYPES.map(t => (
+                    <div key={t} className="flex items-center justify-between px-2.5 py-1.5 bg-gray-50 rounded-lg">
+                      <span className="text-[10px] font-bold text-gray-500">{settings[t].label}</span>
+                      <span className="text-[11px] font-black text-gray-900">{fmt(l.prices?.[t] ?? settings[t].cost)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500"><Store className="w-3.5 h-3.5 text-gray-300" /> {l.supplierName || 'No supplier set'}</div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Editor modal */}
+      <AnimatePresence>
+        {editing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditing(null)} className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[88vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white">
+                <h3 className="text-sm font-black text-gray-900">{editing.id ? 'Edit Location' : 'New Meal Location'}</h3>
+                <button onClick={() => setEditing(null)} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-5 space-y-4">
+                <Field label="Location Name">
+                  <input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="e.g. Kandy Rest Point"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-1 focus:ring-indigo-500/50" />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Type">
+                    <select value={editing.type} onChange={e => setEditing({ ...editing, type: e.target.value as MealLocationType })}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:ring-1 focus:ring-indigo-500/50">
+                      {(Object.keys(LOC_TYPE_META) as MealLocationType[]).map(t => <option key={t} value={t}>{LOC_TYPE_META[t].label}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Supplier">
+                    <select value={editing.supplierId} onChange={e => setEditing({ ...editing, supplierId: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:ring-1 focus:ring-indigo-500/50">
+                      <option value="">No supplier</option>
+                      {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </Field>
+                </div>
+                <Field label="Address (optional)">
+                  <input value={editing.address} onChange={e => setEditing({ ...editing, address: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-1 focus:ring-indigo-500/50" />
+                </Field>
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Meal Prices at this location (LKR)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {MEAL_TYPES.map(t => (
+                      <div key={t} className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-gray-500 w-20">{settings[t].label}</span>
+                        <input type="number" min={0} value={editing.prices?.[t] ?? 0}
+                          onChange={e => setEditing({ ...editing, prices: { ...editing.prices, [t]: Number(e.target.value) } })}
+                          className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-1 focus:ring-indigo-500/50" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!editing.isDefault} onChange={e => setEditing({ ...editing, isDefault: e.target.checked })} className="w-4 h-4 rounded text-indigo-600" />
+                    <span className="text-[11px] font-bold text-gray-600">Default location</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={editing.isActive} onChange={e => setEditing({ ...editing, isActive: e.target.checked })} className="w-4 h-4 rounded text-emerald-600" />
+                    <span className="text-[11px] font-bold text-gray-600">Active</span>
+                  </label>
+                </div>
+              </div>
+              <div className="flex gap-3 p-5 border-t border-gray-100 sticky bottom-0 bg-white">
+                <button onClick={() => setEditing(null)} className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50">Cancel</button>
+                <button onClick={save} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Save Location</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ── Suppliers Tab ────────────────────────────────────────────────────────────
+const emptySupplier = (): MealSupplier => ({ name: '', contactPerson: '', phone: '', email: '', address: '', isActive: true, notes: '' });
+
+const SuppliersTab: React.FC<{ suppliers: MealSupplier[]; locations: MealLocation[]; reload: () => Promise<void> }> = ({ suppliers, locations, reload }) => {
+  const toast = useToast();
+  const [editing, setEditing] = useState<MealSupplier | null>(null);
+  const locCount = (sid?: string) => locations.filter(l => l.supplierId === sid).length;
+
+  const save = async () => {
+    if (!editing) return;
+    if (!editing.name.trim()) { toast.warning('Name required', 'Enter a supplier name.'); return; }
+    await saveMealSupplier(editing); await reload(); toast.success('Supplier saved', `${editing.name} was saved.`); setEditing(null);
+  };
+  const remove = async (s: MealSupplier) => {
+    if (!window.confirm(`Delete supplier "${s.name}"?`)) return;
+    await deleteMealSupplier(s.id!); await reload(); toast.success('Supplier deleted', `${s.name} was removed.`);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-black text-gray-900">Meal Suppliers</h3>
+          <p className="text-[11px] font-bold text-gray-400">Vendors that provide meals to your staff at each location.</p>
+        </div>
+        <PermissionGate permission="edit_staff">
+          <button onClick={() => setEditing(emptySupplier())} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20">
+            <Plus className="w-3.5 h-3.5" /> Add Supplier
+          </button>
+        </PermissionGate>
+      </div>
+
+      {suppliers.length === 0 ? (
+        <Card className="p-12 text-center">
+          <Store className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+          <p className="text-sm font-bold text-gray-400">No meal suppliers yet.</p>
+        </Card>
+      ) : (
+        <Card className="overflow-hidden">
+          <table className="w-full">
+            <thead><tr className="border-b border-gray-100">
+              {['Supplier', 'Contact', 'Phone', 'Locations', 'Status', ''].map(h => <th key={h} className="text-left px-5 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{h}</th>)}
+            </tr></thead>
+            <tbody className="divide-y divide-gray-50">
+              {suppliers.map(s => (
+                <tr key={s.id} className="hover:bg-gray-50/50">
+                  <td className="px-5 py-3"><div className="flex items-center gap-2.5"><span className="p-2 rounded-lg bg-emerald-50 text-emerald-600"><Store className="w-4 h-4" /></span><span className="font-bold text-sm text-gray-900">{s.name}</span></div></td>
+                  <td className="px-5 py-3 text-[11px] font-bold text-gray-600">{s.contactPerson || '—'}</td>
+                  <td className="px-5 py-3 text-[11px] font-bold text-gray-600">{s.phone || '—'}</td>
+                  <td className="px-5 py-3 text-[11px] font-bold text-gray-600">{locCount(s.id)} linked</td>
+                  <td className="px-5 py-3"><span className={cn('px-2.5 py-1 rounded-full text-[10px] font-black uppercase', s.isActive ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400')}>{s.isActive ? 'Active' : 'Inactive'}</span></td>
+                  <td className="px-5 py-3 text-right">
+                    <PermissionGate permission="edit_staff">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => setEditing(s)} className="p-1.5 text-gray-400 hover:text-indigo-600"><Edit className="w-4 h-4" /></button>
+                        <button onClick={() => remove(s)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </PermissionGate>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      <AnimatePresence>
+        {editing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditing(null)} className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
+              <div className="flex items-center justify-between p-5 border-b border-gray-100">
+                <h3 className="text-sm font-black text-gray-900">{editing.id ? 'Edit Supplier' : 'New Meal Supplier'}</h3>
+                <button onClick={() => setEditing(null)} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-5 space-y-4">
+                <Field label="Supplier Name"><input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} placeholder="e.g. Highway Kitchen (Pvt) Ltd" className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-1 focus:ring-indigo-500/50" /></Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Contact Person"><input value={editing.contactPerson} onChange={e => setEditing({ ...editing, contactPerson: e.target.value })} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-1 focus:ring-indigo-500/50" /></Field>
+                  <Field label="Phone"><input value={editing.phone} onChange={e => setEditing({ ...editing, phone: e.target.value })} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-1 focus:ring-indigo-500/50" /></Field>
+                </div>
+                <Field label="Email"><input value={editing.email} onChange={e => setEditing({ ...editing, email: e.target.value })} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-1 focus:ring-indigo-500/50" /></Field>
+                <Field label="Address"><input value={editing.address} onChange={e => setEditing({ ...editing, address: e.target.value })} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-1 focus:ring-indigo-500/50" /></Field>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editing.isActive} onChange={e => setEditing({ ...editing, isActive: e.target.checked })} className="w-4 h-4 rounded text-emerald-600" />
+                  <span className="text-[11px] font-bold text-gray-600">Active</span>
+                </label>
+              </div>
+              <div className="flex gap-3 p-5 border-t border-gray-100">
+                <button onClick={() => setEditing(null)} className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50">Cancel</button>
+                <button onClick={save} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Save Supplier</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div>
+    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{label}</label>
+    {children}
+  </div>
+);
 
 // ── shared small UI ──────────────────────────────────────────────────────────
 const Dropdown: React.FC<{ value: string; onChange: (v: string) => void; options: [string, string][] }> = ({ value, onChange, options }) => (
