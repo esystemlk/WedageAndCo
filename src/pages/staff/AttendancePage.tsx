@@ -48,7 +48,15 @@ const AttendancePage: React.FC = () => {
   });
 
   const handleMarkAttendance = (staffId: string, status: AttendanceStatus) => {
-    setAttendanceRecords(prev => ({ ...prev, [staffId]: status }));
+    setAttendanceRecords(prev => {
+      // Clicking the already-marked status again clears it (unmark)
+      if (prev[staffId] === status) {
+        const next = { ...prev };
+        delete next[staffId];
+        return next;
+      }
+      return { ...prev, [staffId]: status };
+    });
   };
 
   const handleSaveAttendance = async () => {
@@ -198,24 +206,24 @@ const AttendancePage: React.FC = () => {
                       </td>
                       <td className="px-8 py-5 text-right">
                         <div className="flex items-center justify-end space-x-2 opacity-100 transition-all">
-                          <button 
+                          <button
                             onClick={() => handleMarkAttendance(member.id!, 'Present')}
                             className={cn("p-2 rounded-lg transition-colors border", currentStatus === 'Present' ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : 'text-gray-400 hover:text-emerald-600 border-transparent hover:bg-emerald-50')}
-                            title="Mark Present"
+                            title={currentStatus === 'Present' ? 'Click again to unmark' : 'Mark Present'}
                           >
                             <CheckCircle2 className="w-5 h-5" />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleMarkAttendance(member.id!, 'Half-Day')}
                             className={cn("p-2 rounded-lg transition-colors border", currentStatus === 'Half-Day' ? 'bg-amber-100 border-amber-300 text-amber-700' : 'text-gray-400 hover:text-amber-600 border-transparent hover:bg-amber-50')}
-                            title="Mark Half-Day"
+                            title={currentStatus === 'Half-Day' ? 'Click again to unmark' : 'Mark Half-Day'}
                           >
                             <Clock className="w-5 h-5" />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleMarkAttendance(member.id!, 'Absent')}
                             className={cn("p-2 rounded-lg transition-colors border", currentStatus === 'Absent' ? 'bg-red-100 border-red-300 text-red-700' : 'text-gray-400 hover:text-red-600 border-transparent hover:bg-red-50')}
-                            title="Mark Absent"
+                            title={currentStatus === 'Absent' ? 'Click again to unmark' : 'Mark Absent'}
                           >
                             <XCircle className="w-5 h-5" />
                           </button>
