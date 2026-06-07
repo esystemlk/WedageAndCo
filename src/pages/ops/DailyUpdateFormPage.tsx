@@ -26,6 +26,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import SearchableSelect from '../../components/shared/SearchableSelect';
+import FleetStatusBoard from '../../components/shared/FleetStatusBoard';
 import { cn } from '../../lib/utils';
 
 const dailyUpdateSchema = z.object({
@@ -160,7 +161,7 @@ const DailyUpdateFormPage: React.FC = () => {
    };
 
    return (
-      <div className="max-w-4xl mx-auto pb-20">
+      <div className="max-w-7xl mx-auto pb-20">
          <div className="flex items-center gap-4 mb-2">
             <button
                onClick={() => navigate('/daily-updates')}
@@ -174,7 +175,8 @@ const DailyUpdateFormPage: React.FC = () => {
             />
          </div>
 
-         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 xl:col-span-2">
             <motion.div
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
@@ -399,6 +401,14 @@ const DailyUpdateFormPage: React.FC = () => {
                </div>
             </motion.div>
          </form>
+
+         {/* Fleet Status Board — see which vehicles are still pending and bulk-park them */}
+         <div className="xl:col-span-1">
+            <div className="sticky top-4">
+               <FleetStatusBoard date={watch('date')} />
+            </div>
+         </div>
+         </div>
 
          <AnimatePresence>
            {quickAdd && (
