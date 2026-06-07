@@ -72,6 +72,34 @@ export const createDailyUpdate = async (data: Omit<DailyVehicleUpdate, 'id' | 'c
   }
 };
 
+// Bulk-create daily updates (used to place many not-updated vehicles as Yard Parking at once)
+export const createDailyUpdatesBulk = async (
+  updates: Omit<DailyVehicleUpdate, 'id' | 'createdAt' | 'entryTime'>[]
+) => {
+  try {
+    const now = Timestamp.now();
+    const ids: string[] = [];
+    for (const data of updates) {
+      const docRef = await addDoc(collection(db, COLLECTION), {
+        ...data,
+        entryTime: now,
+        createdAt: now
+      });
+      ids.push(docRef.id);
+    }
+    await recordChange(
+      OperationType.CREATE,
+      COLLECTION,
+      ids[0] || 'bulk',
+      `Bulk-logged ${updates.length} vehicle(s) as ${updates[0]?.status || 'status'}`
+    );
+    return ids;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, COLLECTION);
+    return [];
+  }
+};
+
 export const deleteDailyUpdate = async (id: string) => {
   try {
     await deleteDoc(doc(db, COLLECTION, id));
