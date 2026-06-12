@@ -1,20 +1,22 @@
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  updateDoc, 
-  query, 
+import {
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  query,
   orderBy,
-  getDoc
+  getDoc,
+  deleteField
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { UserRole } from '../config/roles';
+import { UserRole, Permission } from '../config/roles';
 
 export interface UserProfile {
   id: string;
   email: string;
   displayName: string;
   role: UserRole;
+  permissions?: Permission[];   // per-user override; when absent, role defaults apply
   createdAt?: any;
   lastLogin?: any;
 }
@@ -32,6 +34,18 @@ export const updateUserRole = async (userId: string, role: UserRole) => {
   const userRef = doc(db, 'users', userId);
   await updateDoc(userRef, {
     role,
+    updatedAt: new Date().toISOString()
+  });
+};
+
+/**
+ * Set a per-user permission override. Pass `null` to remove the override and
+ * fall back to the user's role defaults.
+ */
+export const updateUserPermissions = async (userId: string, permissions: Permission[] | null) => {
+  const userRef = doc(db, 'users', userId);
+  await updateDoc(userRef, {
+    permissions: permissions === null ? deleteField() : permissions,
     updatedAt: new Date().toISOString()
   });
 };

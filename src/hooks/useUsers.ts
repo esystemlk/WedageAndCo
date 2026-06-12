@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { UserProfile, getAllUsers, updateUserRole } from '../services/userService';
-import { UserRole } from '../config/roles';
+import { UserProfile, getAllUsers, updateUserRole, updateUserPermissions } from '../services/userService';
+import { UserRole, Permission } from '../config/roles';
 
 export const useUsers = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -34,5 +34,19 @@ export const useUsers = () => {
     }
   };
 
-  return { users, loading, error, refresh: fetchUsers, changeRole };
+  const changePermissions = async (userId: string, permissions: Permission[] | null) => {
+    try {
+      await updateUserPermissions(userId, permissions);
+      setUsers(prev => prev.map(u => {
+        if (u.id !== userId) return u;
+        if (permissions === null) { const { permissions: _omit, ...rest } = u; return rest as UserProfile; }
+        return { ...u, permissions };
+      }));
+    } catch (err) {
+      console.error('Failed to update permissions:', err);
+      throw err;
+    }
+  };
+
+  return { users, loading, error, refresh: fetchUsers, changeRole, changePermissions };
 };

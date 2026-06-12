@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useUsers } from '../../hooks/useUsers';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserRole, ROLE_PERMISSIONS, Permission } from '../../config/roles';
+import { UserRole, ROLE_PERMISSIONS, Permission, getEffectivePermissions } from '../../config/roles';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -69,7 +69,7 @@ const ROLE_DETAILS: Record<UserRole, { label: string; description: string; color
 };
 
 const UserListPage: React.FC = () => {
-  const { users, loading, changeRole } = useUsers();
+  const { users, loading, changeRole, changePermissions } = useUsers();
   const { user: currentUser, role: currentRole, can } = useAuth();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -117,6 +117,46 @@ const UserListPage: React.FC = () => {
     } catch (err) {
       console.error(err);
       alert('Operational failure: Unable to sync role changes.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // Canonical ordering of every permission shown in the matrix
+  const ORDERED_PERMS = PERMISSION_GROUPS.flatMap(g => g.perms);
+
+  // An admin may edit a member's permissions unless that member is a DEVELOPER
+  // and the current user is not — same guard as role changes.
+  const canEditPerms = (target: { role: UserRole }) =>
+    can('manage_users') && !(target.role === UserRole.DEVELOPER && currentRole !== UserRole.DEVELOPER);
+
+  const togglePermission = async (u: typeof users[number], perm: Permission) => {
+    const current = getEffectivePermissions(u.role, (u as any).permissions);
+    const has = current.includes(perm);
+    const nextSet = has ? current.filter(p => p !== perm) : [...current, perm];
+    const ordered = ORDERED_PERMS.filter(p => nextSet.includes(p));
+    try {
+      setUpdatingId(u.id);
+      await changePermissions(u.id, ordered);
+      setSuccessMsg(`Permissions updated for ${u.displayName || u.email}.`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err) {
+      console.error(err);
+      alert('Operational failure: Unable to sync permission changes.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const resetPermissions = async (u: typeof users[number]) => {
+    try {
+      setUpdatingId(u.id);
+      await changePermissions(u.id, null);
+      setSuccessMsg(`Permissions reset to role default for ${u.displayName || u.email}.`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err) {
+      console.error(err);
+      alert('Operational failure: Unable to reset permissions.');
     } finally {
       setUpdatingId(null);
     }
@@ -266,7 +306,7 @@ const UserListPage: React.FC = () => {
                                       : "bg-white border-gray-150 text-gray-500 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50/30"
                                   )}
                                 >
-                                  <span>{ROLE_PERMISSIONS[u.role]?.length || 0} Permissions</span>
+                                  <span>{getEffectivePermissions(u.role, (u as any).permissions).length} Permissions</span>
                                   <ChevronDown className={cn("w-3 h-3 transition-transform duration-200", isExpanded && "rotate-180")} />
                                 </button>
                               </td>
@@ -315,19 +355,44 @@ const UserListPage: React.FC = () => {
                                     transition={{ duration: 0.25 }}
                                     className="py-8 px-6 space-y-6 overflow-hidden"
                                   >
-                                    <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                                    {(() => {
+                                      const effective = getEffectivePermissions(u.role, (u as any).permissions);
+                                      const isOverridden = Array.isArray((u as any).permissions);
+                                      const editable = canEditPerms(u);
+                                      return (
+                                    <div className="flex items-center justify-between border-b border-gray-100 pb-3 gap-3 flex-wrap">
                                       <div>
                                         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">
                                           System Authorization Matrix
                                         </h4>
                                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                          Role Permissions Map for "{details.label}"
+                                          {editable
+                                            ? 'Toggle individual permissions for this member'
+                                            : `Role Permissions Map for "${details.label}"`}
                                         </p>
                                       </div>
-                                      <span className="text-[9px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg border border-indigo-100">
-                                        {ROLE_PERMISSIONS[u.role]?.length || 0} / {allPermissions.length} Active Handles
-                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        {isOverridden && (
+                                          <span className="text-[9px] font-black uppercase tracking-widest bg-amber-50 text-amber-700 px-3 py-1 rounded-lg border border-amber-100">
+                                            Custom Access
+                                          </span>
+                                        )}
+                                        {isOverridden && editable && (
+                                          <button
+                                            onClick={() => resetPermissions(u)}
+                                            disabled={updatingId === u.id}
+                                            className="text-[9px] font-black uppercase tracking-widest bg-white text-gray-500 hover:text-indigo-600 hover:border-indigo-100 px-3 py-1 rounded-lg border border-gray-150 transition-all disabled:opacity-40"
+                                          >
+                                            Reset to Role
+                                          </button>
+                                        )}
+                                        <span className="text-[9px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg border border-indigo-100">
+                                          {effective.length} / {ORDERED_PERMS.length} Active Handles
+                                        </span>
+                                      </div>
                                     </div>
+                                      );
+                                    })()}
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                                       {PERMISSION_GROUPS.map((group) => {
@@ -339,10 +404,12 @@ const UserListPage: React.FC = () => {
                                             
                                             <div className="space-y-2">
                                               {group.perms.map((p) => {
-                                                const hasAccess = ROLE_PERMISSIONS[u.role]?.includes(p);
+                                                const effective = getEffectivePermissions(u.role, (u as any).permissions);
+                                                const hasAccess = effective.includes(p);
+                                                const editable = canEditPerms(u);
                                                 return (
-                                                  <div 
-                                                    key={p} 
+                                                  <div
+                                                    key={p}
                                                     className="flex items-center justify-between gap-3 text-[10px] font-bold tracking-tight py-0.5"
                                                   >
                                                     <span className={cn(
@@ -351,19 +418,37 @@ const UserListPage: React.FC = () => {
                                                     )}>
                                                       {p.replace(/_/g, ' ')}
                                                     </span>
-                                                    
-                                                    <div className={cn(
-                                                      "w-4 h-4 rounded-full flex items-center justify-center border",
-                                                      hasAccess 
-                                                        ? "bg-emerald-500 border-transparent text-white" 
-                                                        : "bg-gray-50 border-gray-100 text-gray-300"
-                                                    )}>
-                                                      {hasAccess ? (
-                                                        <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                                      ) : (
-                                                        <X className="w-2 h-2" />
-                                                      )}
-                                                    </div>
+
+                                                    {editable ? (
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => togglePermission(u, p)}
+                                                        disabled={updatingId === u.id}
+                                                        title={hasAccess ? 'Click to revoke' : 'Click to grant'}
+                                                        className={cn(
+                                                          "relative w-9 h-5 rounded-full transition-colors shrink-0 disabled:opacity-50",
+                                                          hasAccess ? "bg-emerald-500" : "bg-gray-200"
+                                                        )}
+                                                      >
+                                                        <span className={cn(
+                                                          "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                                                          hasAccess && "translate-x-4"
+                                                        )} />
+                                                      </button>
+                                                    ) : (
+                                                      <div className={cn(
+                                                        "w-4 h-4 rounded-full flex items-center justify-center border shrink-0",
+                                                        hasAccess
+                                                          ? "bg-emerald-500 border-transparent text-white"
+                                                          : "bg-gray-50 border-gray-100 text-gray-300"
+                                                      )}>
+                                                        {hasAccess ? (
+                                                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                                        ) : (
+                                                          <X className="w-2 h-2" />
+                                                        )}
+                                                      </div>
+                                                    )}
                                                   </div>
                                                 );
                                               })}

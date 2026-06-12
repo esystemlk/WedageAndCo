@@ -74,6 +74,25 @@ export const hasPermission = (userRole: UserRole, permission: Permission): boole
   return ROLE_PERMISSIONS[userRole]?.includes(permission) || false;
 };
 
+/**
+ * Resolve the effective permissions for a user. A per-user `overrides` array, when
+ * present, fully replaces the role defaults — this lets an admin grant partial
+ * access to a person without assigning them a whole role. When `overrides` is
+ * absent (the default for all existing users), the role's permissions apply.
+ */
+export const getEffectivePermissions = (
+  userRole: UserRole,
+  overrides?: Permission[] | null,
+): Permission[] => {
+  return Array.isArray(overrides) ? overrides : (ROLE_PERMISSIONS[userRole] || []);
+};
+
+export const hasEffectivePermission = (
+  userRole: UserRole,
+  permission: Permission,
+  overrides?: Permission[] | null,
+): boolean => getEffectivePermissions(userRole, overrides).includes(permission);
+
 export const meetsMinRole = (userRole: UserRole, minRole: UserRole): boolean => {
   const userIdx = ROLE_HIERARCHY.indexOf(userRole);
   const minIdx = ROLE_HIERARCHY.indexOf(minRole);
