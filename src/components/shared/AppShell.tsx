@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import CommandPalette from './CommandPalette';
@@ -10,6 +10,9 @@ import { Menu } from 'lucide-react';
 const AppShell: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const location = useLocation();
+  // User Management needs the extra width for its permission matrix; let it use a wider canvas.
+  const wideLayout = location.pathname.startsWith('/users');
 
   // Global ⌘K / Ctrl+K to open the command palette.
   const openPalette = useCallback(() => setPaletteOpen(true), []);
@@ -48,7 +51,7 @@ const AppShell: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="max-w-7xl mx-auto"
+            className={wideLayout ? 'max-w-[1800px] mx-auto' : 'max-w-7xl mx-auto'}
           >
             <Outlet />
           </motion.div>
