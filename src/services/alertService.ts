@@ -6,6 +6,7 @@
 
 import { getVehicles } from './fleetService';
 import { getInventoryItems } from './inventoryService';
+import { getSystemConfig, DEFAULT_SYSTEM_CONFIG } from './systemConfigService';
 
 export type AlertSeverity = 'expired' | 'critical' | 'warning' | 'info';
 export type AlertCategory = 'document' | 'maintenance' | 'stock' | 'booking';
@@ -32,10 +33,14 @@ function daysDiff(dateStr: string): number {
   return Math.round((target.getTime() - today.getTime()) / 86_400_000);
 }
 
-function severityFromDays(days: number): AlertSeverity {
-  if (days < 0)  return 'expired';
-  if (days <= 7)  return 'critical';
-  if (days <= 30) return 'warning';
+function severityFromDays(
+  days: number,
+  criticalDays: number = DEFAULT_SYSTEM_CONFIG.alerts.criticalDays,
+  warningDays: number = DEFAULT_SYSTEM_CONFIG.alerts.warningDays,
+): AlertSeverity {
+  if (days < 0)            return 'expired';
+  if (days <= criticalDays) return 'critical';
+  if (days <= warningDays)  return 'warning';
   return 'info';
 }
 
@@ -50,6 +55,12 @@ function docLabel(days: number): string {
 export const getSystemAlerts = async (): Promise<SystemAlert[]> => {
   const alerts: SystemAlert[] = [];
 
+  // Admin-configurable expiry lead times
+  const { criticalDays, warningDays } = (await getSystemConfig()).alerts;
+  const sevForDays = (days: number) => severityFromDays(days, criticalDays, warningDays);
+  // Scan window: at least 60 days, or further out if the warning lead time is longer
+  const scanWindow = Math.max(60, warningDays);
+
   // ── 1. Fleet document expiry ─────────────────────────────────────────────
   try {
     const vehicles = await getVehicles() || [];
@@ -63,8 +74,8 @@ export const getSystemAlerts = async (): Promise<SystemAlert[]> => {
       for (const c of checks) {
         if (!c.field) continue;
         const days = daysDiff(c.field);
-        if (days > 60) continue; // only alert within 60 days (or if expired)
-        const sev = severityFromDays(days);
+        if (days > scanWindow) continue; // only alert within the scan window (or if expired)
+        const sev = sevForDays(days);
         alerts.push({
           id:           `doc-${v.id}-${c.doc}`,
           category:     'document',
@@ -83,7 +94,7 @@ export const getSystemAlerts = async (): Promise<SystemAlert[]> => {
       if (v.nextServiceDate) {
         const days = daysDiff(v.nextServiceDate);
         if (days <= 14) {
-          const sev = severityFromDays(days);
+          const sev = sevForDays(days);
           alerts.push({
             id:           `maint-date-${v.id}`,
             category:     'maintenance',

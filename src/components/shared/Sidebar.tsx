@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { getSystemConfig, CompanyProfile } from '../../services/systemConfigService';
 import { auth } from '../../firebase/config';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -49,6 +50,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const { user, role, can } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const [company, setCompany] = useState<CompanyProfile | null>(null);
+
+  useEffect(() => {
+    getSystemConfig().then(c => setCompany(c.company)).catch(() => {});
+  }, []);
+
+  // Split the company name into a main line + suffix (e.g. "(PVT) LTD")
+  const rawName = company?.name || 'Wedage & Company (PVT) LTD';
+  const suffixMatch = rawName.match(/\(?(PVT|PRIVATE)\)?\s*L(I)?M?I?T?E?D?\.?$/i);
+  const companySuffix = suffixMatch ? suffixMatch[0] : '';
+  const companyMain = companySuffix ? rawName.slice(0, rawName.length - companySuffix.length).trim() : rawName;
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -114,15 +126,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
       {/* Logo */}
       <div className="p-6 flex items-center space-x-3">
         <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm overflow-hidden border border-gray-100">
-          <img src="/logo.png.JPEG" alt="Wedage Logo" className="w-full h-full object-contain" />
+          <img src={company?.logoUrl || '/logo.png.JPEG'} alt="Company Logo" className="w-full h-full object-contain" />
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-black tracking-tight text-[var(--text-main)] leading-tight uppercase italic truncate">
-            Wedage &amp; Company
+            {companyMain}
           </h1>
-          <p className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest leading-none opacity-60">
-            (PVT) LTD
-          </p>
+          {companySuffix && (
+            <p className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest leading-none opacity-60">
+              {companySuffix}
+            </p>
+          )}
         </div>
         <button onClick={onClose} className="md:hidden p-2 hover:bg-gray-100 rounded-lg">
           <X className="w-5 h-5" />

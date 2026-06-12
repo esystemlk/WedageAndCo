@@ -18,16 +18,31 @@ import {
   RefreshCw,
   ShieldAlert
 } from 'lucide-react';
+import { Bell, Building2, Wallet, ImageIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { updateSelf, getUserProfile, UserProfile } from '../services/userService';
+import {
+  updateSelf, getUserProfile, UserProfile,
+  NotificationPrefs, DEFAULT_NOTIFICATION_PREFS, NOTIFICATION_PREFS_KEY,
+} from '../services/userService';
+import {
+  getSystemConfig, saveSystemConfig, SystemConfig, DEFAULT_SYSTEM_CONFIG,
+} from '../services/systemConfigService';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { UserRole } from '../config/roles';
 import { exportDatabase, importDatabase, ImportProgress } from '../services/backupService';
 import PageHeader from '../components/shared/PageHeader';
+import FileUpload from '../components/shared/FileUpload';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+
+const NOTIF_CATEGORIES: { key: keyof NotificationPrefs; label: string; desc: string }[] = [
+  { key: 'document',    label: 'Document Expiry',  desc: 'Licence, insurance & agreement expiry warnings' },
+  { key: 'maintenance', label: 'Maintenance',      desc: 'Service & maintenance reminders' },
+  { key: 'stock',       label: 'Inventory',        desc: 'Low-stock and out-of-stock alerts' },
+  { key: 'booking',     label: 'Bookings',         desc: 'Vehicle booking alerts' },
+];
 
 const SettingsPage: React.FC = () => {
   const { user, role } = useAuth();
@@ -125,6 +140,13 @@ const SettingsPage: React.FC = () => {
 
   // Profile Form
   const [displayName, setDisplayName] = useState('');
+  const [photoURL, setPhotoURL] = useState('');
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
+
+  // System Configuration (admin only)
+  const isAdmin = role === UserRole.DEVELOPER || role === UserRole.SUPER_ADMIN;
+  const [sysConfig, setSysConfig] = useState<SystemConfig>(DEFAULT_SYSTEM_CONFIG);
+  const [savingConfig, setSavingConfig] = useState(false);
 
   // Password Form
   const [currentPassword, setCurrentPassword] = useState('');
@@ -140,12 +162,65 @@ const SettingsPage: React.FC = () => {
         if (data) {
           setProfile(data);
           setDisplayName(data.displayName || '');
+          setPhotoURL(data.photoURL || '');
+          const prefs = { ...DEFAULT_NOTIFICATION_PREFS, ...(data.notificationPrefs || {}) };
+          setNotifPrefs(prefs);
+          // Mirror to localStorage so the NotificationProvider can filter alerts
+          localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefs));
         }
+      }
+      if (isAdmin) {
+        setSysConfig(await getSystemConfig());
       }
       setLoading(false);
     };
     fetchProfile();
-  }, [user]);
+  }, [user, isAdmin]);
+
+  const handleAvatarUpload = async (url: string) => {
+    if (!user) return;
+    setPhotoURL(url);
+    try {
+      await updateSelf(user.uid, { photoURL: url });
+      setProfile(prev => prev ? { ...prev, photoURL: url } : prev);
+      setStatus({ type: 'success', msg: 'Profile photo updated.' });
+      setTimeout(() => setStatus(null), 3000);
+    } catch {
+      setStatus({ type: 'error', msg: 'Failed to update photo.' });
+    }
+  };
+
+  const toggleNotif = async (key: keyof NotificationPrefs) => {
+    if (!user) return;
+    const next = { ...notifPrefs, [key]: !notifPrefs[key] };
+    setNotifPrefs(next);
+    localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(next));
+    try {
+      await updateSelf(user.uid, { notificationPrefs: next });
+    } catch {
+      setStatus({ type: 'error', msg: 'Failed to save notification preference.' });
+    }
+  };
+
+  const handleConfigSave = async () => {
+    setSavingConfig(true);
+    try {
+      await saveSystemConfig(sysConfig);
+      setStatus({ type: 'success', msg: 'System configuration saved.' });
+      setTimeout(() => setStatus(null), 3000);
+    } catch {
+      setStatus({ type: 'error', msg: 'Failed to save system configuration.' });
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const setCompany = (patch: Partial<SystemConfig['company']>) =>
+    setSysConfig(c => ({ ...c, company: { ...c.company, ...patch } }));
+  const setFinancial = (patch: Partial<SystemConfig['financial']>) =>
+    setSysConfig(c => ({ ...c, financial: { ...c.financial, ...patch } }));
+  const setAlerts = (patch: Partial<SystemConfig['alerts']>) =>
+    setSysConfig(c => ({ ...c, alerts: { ...c.alerts, ...patch } }));
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,6 +310,31 @@ const SettingsPage: React.FC = () => {
           </div>
 
           <form onSubmit={handleProfileUpdate} className="bg-white border border-gray-100 p-8 rounded-[2rem] space-y-6 shadow-sm">
+            {/* Avatar */}
+            <div className="flex items-center gap-5">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0 shadow-sm">
+                {photoURL ? (
+                  <img src={photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-black text-indigo-600">
+                    {(displayName || user?.email || '?').charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2 flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5" /> Profile Photo
+                </label>
+                <FileUpload
+                  path={`avatars/${user?.uid || 'unknown'}`}
+                  accept="image/*"
+                  label="Upload photo"
+                  currentUrl={photoURL}
+                  onUploadComplete={handleAvatarUpload}
+                />
+              </div>
+            </div>
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">Email Address</label>
@@ -255,7 +355,7 @@ const SettingsPage: React.FC = () => {
               </div>
             </div>
 
-            <button 
+            <button
               disabled={updating || displayName === profile?.displayName}
               type="submit"
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-[0.2em] py-3.5 rounded-xl transition-all shadow-xl shadow-indigo-100"
@@ -263,6 +363,35 @@ const SettingsPage: React.FC = () => {
               {updating ? 'Updating...' : 'Save Profile'}
             </button>
           </form>
+
+          {/* Notification Preferences */}
+          <div className="flex items-center gap-3 mb-2 mt-10">
+            <div className="p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-amber-600">
+              <Bell className="w-5 h-5" />
+            </div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 opacity-80">Notification Preferences</h2>
+          </div>
+
+          <div className="bg-white border border-gray-100 p-8 rounded-[2rem] space-y-3 shadow-sm">
+            {NOTIF_CATEGORIES.map(c => (
+              <div key={c.key} className="flex items-center justify-between gap-4 py-2">
+                <div>
+                  <p className="text-xs font-black text-gray-900 uppercase tracking-wide">{c.label}</p>
+                  <p className="text-[10px] text-gray-400 font-bold mt-0.5">{c.desc}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleNotif(c.key)}
+                  className={cn('relative w-12 h-6 rounded-full transition-colors shrink-0', notifPrefs[c.key] ? 'bg-emerald-500' : 'bg-gray-300')}
+                >
+                  <span className={cn('absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform', notifPrefs[c.key] && 'translate-x-6')} />
+                </button>
+              </div>
+            ))}
+            <p className="text-[10px] text-gray-400 font-medium pt-2 border-t border-gray-50">
+              Muted categories stop generating new alerts in your notification bell.
+            </p>
+          </div>
         </section>
 
         {/* Security / Password */}
@@ -405,6 +534,98 @@ const SettingsPage: React.FC = () => {
           </form>
         </section>
       </div>
+
+      {/* System Configuration (admin only) */}
+      {isAdmin && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6 pt-10 border-t border-gray-150"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 opacity-80">System Configuration</h2>
+              <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-0.5">Organisation-wide settings · Developer / Super Admin</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Company Profile */}
+            <div className="bg-white border border-gray-100 p-8 rounded-[2rem] shadow-sm space-y-5">
+              <h3 className="text-xs font-black uppercase tracking-widest text-gray-700 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-indigo-500" /> Company Profile
+              </h3>
+
+              {/* Logo */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
+                  <img src={sysConfig.company.logoUrl || '/logo.png.JPEG'} alt="Logo" className="w-full h-full object-contain" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Company Logo</label>
+                  <FileUpload path="branding" accept="image/*" label="Upload logo"
+                    currentUrl={sysConfig.company.logoUrl}
+                    onUploadComplete={(url) => setCompany({ logoUrl: url })} />
+                </div>
+              </div>
+
+              <ConfigField label="Company Name" value={sysConfig.company.name} onChange={v => setCompany({ name: v })} />
+              <ConfigField label="Address" value={sysConfig.company.address || ''} onChange={v => setCompany({ address: v })} />
+              <div className="grid grid-cols-2 gap-3">
+                <ConfigField label="Phone" value={sysConfig.company.phone || ''} onChange={v => setCompany({ phone: v })} />
+                <ConfigField label="Email" value={sysConfig.company.email || ''} onChange={v => setCompany({ email: v })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <ConfigField label="VAT No." value={sysConfig.company.vatNo || ''} onChange={v => setCompany({ vatNo: v })} />
+                <ConfigField label="BR No." value={sysConfig.company.brNo || ''} onChange={v => setCompany({ brNo: v })} />
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {/* Financial Defaults */}
+              <div className="bg-white border border-gray-100 p-8 rounded-[2rem] shadow-sm space-y-5">
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-700 flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-emerald-500" /> Financial Defaults
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <ConfigField label="Currency" value={sysConfig.financial.currency} onChange={v => setFinancial({ currency: v })} />
+                  <ConfigField label="Default Tax / VAT (%)" type="number" value={sysConfig.financial.taxRate} onChange={v => setFinancial({ taxRate: Number(v) })} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <ConfigField label="Invoice Prefix" value={sysConfig.financial.invoicePrefix} onChange={v => setFinancial({ invoicePrefix: v })} />
+                  <ConfigField label="PO Prefix" value={sysConfig.financial.poPrefix} onChange={v => setFinancial({ poPrefix: v })} />
+                  <ConfigField label="GRN Prefix" value={sysConfig.financial.grnPrefix} onChange={v => setFinancial({ grnPrefix: v })} />
+                </div>
+              </div>
+
+              {/* Alert Thresholds */}
+              <div className="bg-white border border-gray-100 p-8 rounded-[2rem] shadow-sm space-y-5">
+                <h3 className="text-xs font-black uppercase tracking-widest text-gray-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-500" /> Expiry Alert Thresholds
+                </h3>
+                <p className="text-[10px] text-gray-400 font-medium -mt-2">Lead time before licence / insurance / service expiry triggers each alert level.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <ConfigField label="Critical (days)" type="number" value={sysConfig.alerts.criticalDays} onChange={v => setAlerts({ criticalDays: Number(v) })} />
+                  <ConfigField label="Warning (days)" type="number" value={sysConfig.alerts.warningDays} onChange={v => setAlerts({ warningDays: Number(v) })} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleConfigSave}
+            disabled={savingConfig}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-[0.25em] px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-100 flex items-center gap-2"
+          >
+            {savingConfig ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            {savingConfig ? 'Saving...' : 'Save System Configuration'}
+          </button>
+        </motion.section>
+      )}
 
       {/* Developer & Superadmin JSON Database Snapshot Utility */}
       {(role === UserRole.DEVELOPER || role === UserRole.SUPER_ADMIN) && (
@@ -573,5 +794,22 @@ const SettingsPage: React.FC = () => {
     </div>
   );
 };
+
+const ConfigField: React.FC<{
+  label: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  type?: 'text' | 'number';
+}> = ({ label, value, onChange, type = 'text' }) => (
+  <div className="space-y-1.5">
+    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">{label}</label>
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full bg-gray-50 border border-gray-100 focus:border-indigo-500/50 focus:bg-white transition-all outline-none px-4 py-3 rounded-xl text-xs font-bold text-gray-900"
+    />
+  </div>
+);
 
 export default SettingsPage;

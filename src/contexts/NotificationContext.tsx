@@ -1,5 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getSystemAlerts, SystemAlert } from '../services/alertService';
+import { NOTIFICATION_PREFS_KEY } from '../services/userService';
+
+// Read the current user's notification preferences (category → on/off) from
+// localStorage. Categories not present default to enabled.
+function getNotificationPrefs(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(NOTIFICATION_PREFS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 
@@ -68,8 +80,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     setAlertsLoading(true);
     try {
       const alerts = await getSystemAlerts();
+      const prefs = getNotificationPrefs();
       const newNotifs: Notification[] = [];
       for (const alert of alerts) {
+        if (prefs[alert.category] === false) continue; // muted by user preference
         if (loadedAlertIds.has(alert.id)) continue; // don't re-add
         loadedAlertIds.add(alert.id);
         newNotifs.push({
