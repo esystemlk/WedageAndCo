@@ -21,6 +21,13 @@ import { recordChange } from './auditService';
 // ── Types ────────────────────────────────────────────────────────────────────
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'tea';
 
+/** Main meals can each be taken at a different location (e.g. a driver on a trip). */
+export type MainMealType = 'breakfast' | 'lunch' | 'dinner';
+export const MAIN_MEALS: MainMealType[] = ['breakfast', 'lunch', 'dinner'];
+
+/** Per-main-meal location override: which place each main meal was taken at. */
+export type MealLocationMap = Partial<Record<MainMealType, string>>;
+
 export type MealDeductionMethod = 'immediate' | 'monthly' | 'none';
 
 export interface MealTypeConfig {
@@ -77,6 +84,40 @@ export interface MealSupplier {
   updatedAt?: any;
 }
 
+/** Why an outside guest was given a meal — for expense reporting. */
+export type GuestMealReason = 'client-visit' | 'interview' | 'external-driver' | 'official' | 'other';
+export const GUEST_MEAL_REASONS: { key: GuestMealReason; label: string }[] = [
+  { key: 'client-visit',   label: 'Client / Customer Visit' },
+  { key: 'interview',      label: 'Interview / Candidate' },
+  { key: 'external-driver',label: 'External Driver' },
+  { key: 'official',       label: 'Official / Auditor' },
+  { key: 'other',          label: 'Other' },
+];
+
+/**
+ * A meal given to someone who is NOT a staff member (a visitor from outside).
+ * Pure company expense — never deducted from anyone's payroll.
+ */
+export interface GuestMeal {
+  id?: string;
+  date: string;            // YYYY-MM-DD
+  guestName: string;
+  company?: string;
+  reason: GuestMealReason;
+  authorizedBy?: string;   // who approved giving the meal
+  locationId?: string;     // priced at this location
+  locationName?: string;
+  breakfast: boolean;
+  lunch: boolean;
+  dinner: boolean;
+  tea: boolean;
+  count: number;           // number of guests served (price multiplier)
+  total: number;           // computed cost
+  notes?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
 export interface EmployeeMeal {
   id?: string;            // `${employeeId}_${date}`
   employeeId: string;
@@ -87,8 +128,10 @@ export interface EmployeeMeal {
   lunch: boolean;
   dinner: boolean;
   tea: boolean;
-  locationId?: string;    // where the meals were taken
+  locationId?: string;    // day-default location (used for tea + any meal without its own override)
   locationName?: string;
+  mealLocations?: MealLocationMap;            // per-main-meal location overrides
+  mealLocationNames?: Partial<Record<MainMealType, string>>; // denormalised names for display/reports
   dailyTotal: number;
   createdAt?: any;
   updatedAt?: any;
@@ -113,6 +156,7 @@ const MEALS_COLLECTION = 'employee_meals';
 const SUMMARY_COLLECTION = 'meal_monthly_summary';
 const LOCATIONS_COLLECTION = 'meal_locations';
 const SUPPLIERS_COLLECTION = 'meal_suppliers';
+const GUEST_MEALS_COLLECTION = 'guest_meals';
 
 export const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'tea'];
 
@@ -148,18 +192,26 @@ export function resolvePrices(settings: MealSettings, location?: MealLocation | 
   };
 }
 
-/** Compute the cost of a day's selected meals using settings + optional location. */
+/**
+ * Compute the cost of a day's selected meals.
+ *
+ * `dayLocation` is the fallback place (also used for tea). Each main meal may
+ * override it via `perMealLocations` — e.g. breakfast at the office, lunch at a
+ * rest-point on a delivery run — and is then priced at that location.
+ */
 export function computeDailyTotal(
   meals: Pick<EmployeeMeal, 'breakfast' | 'lunch' | 'dinner' | 'tea'>,
   settings: MealSettings,
-  location?: MealLocation | null,
+  dayLocation?: MealLocation | null,
+  perMealLocations?: Partial<Record<MainMealType, MealLocation | null>>,
 ): number {
-  const p = resolvePrices(settings, location);
+  const dayPrices = resolvePrices(settings, dayLocation);
   let total = 0;
-  if (meals.breakfast && settings.breakfast.isActive) total += p.breakfast;
-  if (meals.lunch && settings.lunch.isActive)         total += p.lunch;
-  if (meals.dinner && settings.dinner.isActive)       total += p.dinner;
-  if (meals.tea && settings.tea.isActive)             total += p.tea;
+  for (const t of MEAL_TYPES) {
+    if (!meals[t] || !settings[t].isActive) continue;
+    const override = t !== 'tea' ? perMealLocations?.[t as MainMealType] : null;
+    total += override ? resolvePrices(settings, override)[t] : dayPrices[t];
+  }
   return total;
 }
 
@@ -245,18 +297,43 @@ export const getEmployeeMeals = async (
   }
 };
 
+/**
+ * Resolve an entry's day-location + per-main-meal location overrides into the
+ * objects computeDailyTotal needs, and the denormalised names for storage.
+ */
+const resolveEntryLocations = (
+  entry: Pick<EmployeeMeal, 'locationId' | 'mealLocations'>,
+  locMap: Map<string | undefined, MealLocation>,
+) => {
+  const dayLocation = entry.locationId ? locMap.get(entry.locationId) ?? null : null;
+  const perMeal: Partial<Record<MainMealType, MealLocation | null>> = {};
+  const perMealNames: Partial<Record<MainMealType, string>> = {};
+  for (const t of MAIN_MEALS) {
+    const lid = entry.mealLocations?.[t];
+    if (!lid) continue;
+    const loc = locMap.get(lid) ?? null;
+    perMeal[t] = loc;
+    if (loc?.name) perMealNames[t] = loc.name;
+  }
+  return { dayLocation, perMeal, perMealNames };
+};
+
 /** Create or update a single employee meal entry (idempotent by employee+date). */
 export const upsertEmployeeMeal = async (
   entry: Omit<EmployeeMeal, 'id' | 'dailyTotal' | 'createdAt' | 'updatedAt'>,
   settings: MealSettings,
-  location?: MealLocation | null,
+  locations: MealLocation[] = [],
 ): Promise<EmployeeMeal> => {
   const id = mealDocId(entry.employeeId, entry.date);
-  const dailyTotal = computeDailyTotal(entry, settings, location);
+  const locMap = new Map(locations.map(l => [l.id, l]));
+  const { dayLocation, perMeal, perMealNames } = resolveEntryLocations(entry, locMap);
+  const dailyTotal = computeDailyTotal(entry, settings, dayLocation, perMeal);
   const payload: EmployeeMeal = {
     ...entry, id, dailyTotal,
-    locationId: location?.id ?? entry.locationId,
-    locationName: location?.name ?? entry.locationName,
+    locationId: dayLocation?.id ?? entry.locationId,
+    locationName: dayLocation?.name ?? entry.locationName,
+    mealLocations: entry.mealLocations || {},
+    mealLocationNames: perMealNames,
     updatedAt: Timestamp.now(),
   };
   try {
@@ -273,7 +350,7 @@ export const upsertEmployeeMeal = async (
 
 /**
  * Save many meal entries for one date in a single pass (bulk register).
- * Each entry may carry its own `locationId`; prices resolve per location.
+ * Each entry may carry a day `locationId` plus per-main-meal location overrides.
  */
 export const bulkUpsertMeals = async (
   date: string,
@@ -281,9 +358,8 @@ export const bulkUpsertMeals = async (
   settings: MealSettings,
   locations: MealLocation[] = [],
 ): Promise<void> => {
-  const locMap = new Map(locations.map(l => [l.id, l]));
   try {
-    await Promise.all(entries.map(e => upsertEmployeeMeal(e, settings, e.locationId ? locMap.get(e.locationId) : null)));
+    await Promise.all(entries.map(e => upsertEmployeeMeal(e, settings, locations)));
     await recordChange(
       OperationType.UPDATE, MEALS_COLLECTION, date,
       `Bulk meal register saved for ${date} (${entries.length} employees)`,
@@ -395,32 +471,61 @@ export interface LocationSummaryRow {
   totalCost: number;
 }
 
-/** Aggregate a month's meal spend grouped by the location it was served at. */
+/**
+ * Aggregate a month's meal spend grouped by the location each meal was served
+ * at. With per-main-meal locations a single day can span several places, so —
+ * when `settings` is supplied — every meal is attributed to its own location
+ * and priced there. Tea and any meal without an override fall to the day location.
+ */
 export const getLocationSummary = async (
-  year: number, month: number, locations: MealLocation[] = [],
+  year: number, month: number, locations: MealLocation[] = [], settings?: MealSettings,
 ): Promise<LocationSummaryRow[]> => {
   const { start, end } = monthDateRange(year, month);
   const meals = await getMealsInRange(start, end);
   const locMap = new Map(locations.map(l => [l.id, l]));
   const map = new Map<string, LocationSummaryRow>();
-  for (const m of meals) {
-    const key = m.locationId || 'default';
+  const dayKeys = new Map<string, Set<string>>(); // locationKey -> set of `${employee}_${date}`
+
+  const rowFor = (locId?: string) => {
+    const key = locId || 'default';
     if (!map.has(key)) {
-      const loc = m.locationId ? locMap.get(m.locationId) : undefined;
+      const loc = locId ? locMap.get(locId) : undefined;
       map.set(key, {
         locationId: key,
-        locationName: m.locationName || loc?.name || 'Default / Office',
+        locationName: loc?.name || (key === 'default' ? 'Default / Office' : key),
         type: loc?.type || 'office',
         supplierName: loc?.supplierName || '—',
         mealDays: 0, totalMeals: 0, totalCost: 0,
       });
+      dayKeys.set(key, new Set());
     }
-    const row = map.get(key)!;
-    const dayMeals = (m.breakfast ? 1 : 0) + (m.lunch ? 1 : 0) + (m.dinner ? 1 : 0) + (m.tea ? 1 : 0);
-    if (dayMeals > 0) row.mealDays += 1;
-    row.totalMeals += dayMeals;
-    row.totalCost += m.dailyTotal || 0;
+    return key;
+  };
+
+  for (const m of meals) {
+    const dayLoc = m.locationId ? locMap.get(m.locationId) ?? null : null;
+    const dayPrices = settings ? resolvePrices(settings, dayLoc) : null;
+    for (const t of MEAL_TYPES) {
+      if (!m[t]) continue;
+      if (settings && !settings[t].isActive) continue;
+      const overrideId = t !== 'tea' ? m.mealLocations?.[t as MainMealType] : undefined;
+      const locId = overrideId || m.locationId;
+      const key = rowFor(locId);
+      const row = map.get(key)!;
+      row.totalMeals += 1;
+      dayKeys.get(key)!.add(`${m.employeeId}_${m.date}`);
+      if (settings) {
+        const loc = overrideId ? locMap.get(overrideId) ?? null : dayLoc;
+        row.totalCost += overrideId ? resolvePrices(settings, loc)[t] : dayPrices![t];
+      }
+    }
+    // When we have no settings to split costs, fall back to attributing the day total.
+    if (!settings) {
+      const key = rowFor(m.locationId);
+      map.get(key)!.totalCost += m.dailyTotal || 0;
+    }
   }
+  for (const [key, row] of map) row.mealDays = dayKeys.get(key)?.size ?? 0;
   return Array.from(map.values()).sort((a, b) => b.totalCost - a.totalCost);
 };
 
@@ -492,4 +597,84 @@ export const deleteMealSupplier = async (id: string): Promise<void> => {
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, SUPPLIERS_COLLECTION);
   }
+};
+
+// ── Guest (outsider) meals ───────────────────────────────────────────────────
+/** Cost of one guest-meal record: selected meals priced at its location × guests. */
+export const computeGuestTotal = (
+  meal: Pick<GuestMeal, 'breakfast' | 'lunch' | 'dinner' | 'tea' | 'count'>,
+  settings: MealSettings,
+  location?: MealLocation | null,
+): number => computeDailyTotal(meal, settings, location) * Math.max(1, meal.count || 1);
+
+export const getGuestMealsInRange = async (start: string, end: string): Promise<GuestMeal[]> => {
+  try {
+    const q = query(
+      collection(db, GUEST_MEALS_COLLECTION),
+      where('date', '>=', start),
+      where('date', '<=', end),
+      orderBy('date', 'desc'),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as GuestMeal));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, GUEST_MEALS_COLLECTION);
+    return [];
+  }
+};
+
+export const saveGuestMeal = async (
+  meal: GuestMeal, settings: MealSettings, locations: MealLocation[] = [],
+): Promise<string | undefined> => {
+  try {
+    const ref = meal.id ? doc(db, GUEST_MEALS_COLLECTION, meal.id) : doc(collection(db, GUEST_MEALS_COLLECTION));
+    const loc = meal.locationId ? locations.find(l => l.id === meal.locationId) ?? null : null;
+    const total = computeGuestTotal(meal, settings, loc);
+    const { id, ...data } = meal;
+    await setDoc(ref, {
+      ...data,
+      locationName: loc?.name ?? meal.locationName ?? '',
+      total,
+      updatedAt: Timestamp.now(),
+      ...(meal.id ? {} : { createdAt: Timestamp.now() }),
+    }, { merge: true });
+    await recordChange(
+      meal.id ? OperationType.UPDATE : OperationType.CREATE, GUEST_MEALS_COLLECTION, ref.id,
+      `Guest meal for ${meal.guestName || 'guest'} on ${meal.date} = LKR ${total}`,
+    );
+    return ref.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, GUEST_MEALS_COLLECTION);
+  }
+};
+
+export const deleteGuestMeal = async (id: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, GUEST_MEALS_COLLECTION, id));
+    await recordChange(OperationType.DELETE, GUEST_MEALS_COLLECTION, id, 'Deleted guest meal');
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, GUEST_MEALS_COLLECTION);
+  }
+};
+
+export interface GuestSummary {
+  count: number;       // number of guest-meal records
+  guests: number;      // total guests served (sum of count)
+  totalMeals: number;  // individual meals served
+  totalCost: number;
+}
+
+/** Aggregate a month's guest-meal spend (company expense, never payroll). */
+export const getGuestSummary = async (year: number, month: number): Promise<GuestSummary> => {
+  const { start, end } = monthDateRange(year, month);
+  const meals = await getGuestMealsInRange(start, end);
+  return meals.reduce<GuestSummary>((acc, m) => {
+    const guests = Math.max(1, m.count || 1);
+    const perGuestMeals = (m.breakfast ? 1 : 0) + (m.lunch ? 1 : 0) + (m.dinner ? 1 : 0) + (m.tea ? 1 : 0);
+    acc.count += 1;
+    acc.guests += guests;
+    acc.totalMeals += perGuestMeals * guests;
+    acc.totalCost += m.total || 0;
+    return acc;
+  }, { count: 0, guests: 0, totalMeals: 0, totalCost: 0 });
 };
