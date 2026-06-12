@@ -189,22 +189,32 @@ const VehicleDetailPage: React.FC = () => {
                </section>
 
                <section className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-xl">
-                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-[0.2em] mb-8">Capacity & Dimensions</h3>
+                  {(() => {
+                     const dims = vehicle.dimensions?.internal || {};
+                     const unit = (vehicle.dimensions?.unit || 'ft').toUpperCase();
+                     return (
+                  <>
+                  <div className="flex items-center justify-between mb-8">
+                     <h3 className="text-sm font-black text-gray-900 uppercase tracking-[0.2em]">Capacity & Dimensions</h3>
+                     {vehicle.dimensions?.internal?.cbm ? (
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">CBM: {vehicle.dimensions.internal.cbm} m³</span>
+                     ) : null}
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                      <div className="p-6 bg-gray-50 rounded-3xl text-center">
                         <Maximize className="w-5 h-5 text-indigo-600 mx-auto mb-2" />
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Length</p>
-                        <p className="text-xl font-black text-gray-900">{vehicle.length || 0} <span className="text-[10px] text-gray-400">FT</span></p>
+                        <p className="text-xl font-black text-gray-900">{dims.length || 0} <span className="text-[10px] text-gray-400">{unit}</span></p>
                      </div>
                      <div className="p-6 bg-gray-50 rounded-3xl text-center">
                         <Maximize className="w-5 h-5 text-indigo-600 mx-auto mb-2 rotate-90" />
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Width</p>
-                        <p className="text-xl font-black text-gray-900">{vehicle.width || 0} <span className="text-[10px] text-gray-400">FT</span></p>
+                        <p className="text-xl font-black text-gray-900">{dims.width || 0} <span className="text-[10px] text-gray-400">{unit}</span></p>
                      </div>
                      <div className="p-6 bg-gray-50 rounded-3xl text-center">
                         <Maximize className="w-5 h-5 text-indigo-600 mx-auto mb-2" />
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Height</p>
-                        <p className="text-xl font-black text-gray-900">{vehicle.height || 0} <span className="text-[10px] text-gray-400">FT</span></p>
+                        <p className="text-xl font-black text-gray-900">{dims.height || 0} <span className="text-[10px] text-gray-400">{unit}</span></p>
                      </div>
                      <div className="p-6 bg-indigo-600 rounded-3xl text-center text-white shadow-lg shadow-indigo-100">
                         <Weight className="w-5 h-5 text-indigo-200 mx-auto mb-2" />
@@ -212,6 +222,9 @@ const VehicleDetailPage: React.FC = () => {
                         <p className="text-xl font-black">{vehicle.weightCapacity || 0} <span className="text-[10px] text-indigo-200">TONS</span></p>
                      </div>
                   </div>
+                  </>
+                     );
+                  })()}
                </section>
             </div>
 

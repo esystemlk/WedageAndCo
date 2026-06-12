@@ -24,7 +24,8 @@ import {
   Plus,
   X,
   Check,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -54,6 +55,7 @@ const vehicleSchema = z.object({
   weightCapacity: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
 
   dimensions: z.object({
+    unit: z.enum(['ft', 'cm', 'm']).optional(),
     internal: z.object({
       length: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
       width: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
@@ -179,6 +181,8 @@ const VehicleFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
   const [formError, setFormError] = useState<string | null>(null);
+  // Manufacture date can be a full date or just a year (some vehicles only know the year)
+  const [manufactureMode, setManufactureMode] = useState<'date' | 'year'>('year');
 
   // Custom fuel types from Firestore
   const [customFuelTypes, setCustomFuelTypes] = useState<CustomFuelType[]>([]);
@@ -193,11 +197,17 @@ const VehicleFormPage: React.FC = () => {
       fuelType: 'diesel',
       status: 'active',
       ownership: 'owned',
-      vehicleImages: []
+      vehicleImages: [],
+      dimensions: { unit: 'ft' }
     }
   });
 
   const selectedType = watch('type');
+  // measurement unit for all dimension fields (ft / cm / m)
+  const dimUnit = watch('dimensions.unit') || 'ft';
+  const unitLabel = dimUnit.toUpperCase();
+  // factor to convert the chosen unit into metres (for CBM)
+  const unitToMetre = dimUnit === 'm' ? 1 : dimUnit === 'cm' ? 0.01 : 0.3048;
   const selectedFuel = watch('fuelType');
   const selectedStatus = watch('status');
   const selectedOwnership = watch('ownership');
@@ -216,6 +226,10 @@ const VehicleFormPage: React.FC = () => {
                 setValue(key as any, (data as any)[key]);
               }
             });
+
+            // Detect whether the saved manufacture value is a full date or just a year
+            const dom = (data as any).dateOfManufacture as string | undefined;
+            setManufactureMode(dom && dom.includes('-') ? 'date' : 'year');
 
             // Backward compat: old flat tyres → front/rear split
             const oldTyres = (data as any).tyres;
@@ -291,7 +305,9 @@ const VehicleFormPage: React.FC = () => {
       if (data.dimensions?.internal) {
         const { length, width, height } = data.dimensions.internal;
         if (length && width && height) {
-          data.dimensions.internal.cbm = Number(((length * width * height) / 35.315).toFixed(2));
+          // CBM is always stored in cubic metres, regardless of the entry unit
+          const f = data.dimensions.unit === 'm' ? 1 : data.dimensions.unit === 'cm' ? 0.01 : 0.3048;
+          data.dimensions.internal.cbm = Number((length * f * width * f * height * f).toFixed(2));
         }
       }
 
@@ -570,13 +586,40 @@ const VehicleFormPage: React.FC = () => {
                 <input {...register('engineNo')} placeholder="E-987654321" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm placeholder:text-gray-400" />
               </div>
 
-              {/* Date of Manufacture */}
+              {/* Date of Manufacture — full date or year only */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between px-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Date of Manufacture</label>
-                  <span className="text-[9px] text-gray-300 italic">optional</span>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                    {manufactureMode === 'year' ? 'Year of Manufacture' : 'Date of Manufacture'}
+                  </label>
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                    {(['year', 'date'] as const).map(m => (
+                      <button key={m} type="button"
+                        onClick={() => {
+                          // Keep just the year when switching full date → year only
+                          if (m === 'year') {
+                            const cur = watch('dateOfManufacture') || '';
+                            if (cur.includes('-')) setValue('dateOfManufacture', cur.slice(0, 4));
+                          }
+                          setManufactureMode(m);
+                        }}
+                        className={cn('px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-colors',
+                          manufactureMode === m ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
+                        {m === 'year' ? 'Year' : 'Full Date'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <input {...register('dateOfManufacture')} type="date" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                {manufactureMode === 'year' ? (
+                  <select {...register('dateOfManufacture')} className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm">
+                    <option value="">Select year…</option>
+                    {Array.from({ length: new Date().getFullYear() - 1979 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                      <option key={y} value={String(y)}>{y}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input {...register('dateOfManufacture')} type="date" className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
+                )}
               </div>
 
               {/* Date of Registration */}
@@ -616,36 +659,46 @@ const VehicleFormPage: React.FC = () => {
 
             {/* Internal Dimensions */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100">
-              <div className="lg:col-span-4 flex items-center justify-between mb-2">
+              <div className="lg:col-span-4 flex items-center justify-between gap-3 mb-2 flex-wrap">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Internal Dimensions (Loadable Space)</span>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
-                  CBM: {(() => {
-                    const l = watch('dimensions.internal.length') || 0;
-                    const w = watch('dimensions.internal.width') || 0;
-                    const h = watch('dimensions.internal.height') || 0;
-                    const cbm = (l * w * h) / 35.315;
-                    return cbm.toFixed(2);
-                  })()} m³
-                </span>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Unit</span>
+                    <select {...register('dimensions.unit')}
+                      className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[11px] font-black uppercase tracking-widest text-gray-700 outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer">
+                      <option value="ft">Feet (ft)</option>
+                      <option value="cm">Centimetres (cm)</option>
+                      <option value="m">Metres (m)</option>
+                    </select>
+                  </label>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
+                    CBM: {(() => {
+                      const l = (watch('dimensions.internal.length') || 0) * unitToMetre;
+                      const w = (watch('dimensions.internal.width') || 0) * unitToMetre;
+                      const h = (watch('dimensions.internal.height') || 0) * unitToMetre;
+                      return (l * w * h).toFixed(2);
+                    })()} m³
+                  </span>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 px-1">
                   <Maximize className="w-3 h-3 text-gray-400" />
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Length (FT)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Length ({unitLabel})</label>
                 </div>
                 <input type="number" step="0.01" {...register('dimensions.internal.length', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 px-1">
                   <Maximize className="w-3 h-3 text-gray-400 rotate-90" />
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Width (FT)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Width ({unitLabel})</label>
                 </div>
                 <input type="number" step="0.01" {...register('dimensions.internal.width', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 px-1">
                   <Maximize className="w-3 h-3 text-gray-400" />
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Height (FT)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Height ({unitLabel})</label>
                 </div>
                 <input type="number" step="0.01" {...register('dimensions.internal.height', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
               </div>
@@ -664,15 +717,15 @@ const VehicleFormPage: React.FC = () => {
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">External Dimensions (Overall Size)</span>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Ext. Length (FT)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Ext. Length ({unitLabel})</label>
                 <input type="number" step="0.01" {...register('dimensions.external.length', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Ext. Width (FT)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Ext. Width ({unitLabel})</label>
                 <input type="number" step="0.01" {...register('dimensions.external.width', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Ext. Height (FT)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter px-1">Ext. Height ({unitLabel})</label>
                 <input type="number" step="0.01" {...register('dimensions.external.height', { valueAsNumber: true })} placeholder="0.00" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 text-sm" />
               </div>
             </div>

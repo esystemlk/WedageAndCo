@@ -53,6 +53,7 @@ export interface Vehicle {
 
   // Dimensions
   dimensions?: {
+    unit?: 'ft' | 'cm' | 'm';   // measurement unit for all dimension values below
     internal?: {
       length?: number;
       width?: number;
