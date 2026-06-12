@@ -6,6 +6,27 @@ import type { FuelType } from '../config/fuelTypes';
 
 const COLLECTION = 'fleet';
 
+/**
+ * Firestore rejects any `undefined` field value. Optional fields left blank on
+ * the vehicle form (especially the rented-vehicle owner details) arrive as
+ * `undefined`, which would throw on save — so strip them out recursively.
+ * Timestamps and arrays are preserved as-is.
+ */
+const stripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map(v => stripUndefined(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object' && !(value instanceof Timestamp) && !(value instanceof Date)) {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value as Record<string, any>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+};
+
 export interface VehicleOwnerDetails {
   ownerName: string;
   ownerAddress: string;
@@ -137,7 +158,7 @@ export const getVehicle = async (id: string) => {
 export const createVehicle = async (data: Omit<Vehicle, 'id'>) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
@@ -152,7 +173,7 @@ export const updateVehicle = async (id: string, data: Partial<Vehicle>) => {
   try {
     const docRef = doc(db, COLLECTION, id);
     await updateDoc(docRef, {
-      ...data,
+      ...stripUndefined(data),
       updatedAt: Timestamp.now()
     });
     await recordChange(OperationType.UPDATE, COLLECTION, id, `Updated vehicle: ${id}`);
