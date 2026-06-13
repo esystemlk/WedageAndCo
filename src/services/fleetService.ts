@@ -29,6 +29,8 @@ const stripUndefined = <T>(value: T): T => {
 
 export interface VehicleOwnerDetails {
   ownerName: string;
+  ownerNickname?: string;
+  businessName?: string;
   ownerAddress: string;
   ownerNicBr: string;
   brNumber?: string; // Separate BR number
@@ -42,7 +44,10 @@ export interface VehicleOwnerDetails {
   agreementStart: string;
   agreementEnd: string;
   paymentRate: number;
-  bankDetails: string;
+  bankName?: string;
+  bankBranch?: string;
+  accountNumber?: string;
+  bankDetails?: string; // legacy combined bank field
   contractPdfUrl?: string;
   brDocumentUrl?: string;
   idCopyUrl?: string;

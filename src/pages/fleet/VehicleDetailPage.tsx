@@ -250,14 +250,32 @@ const VehicleDetailPage: React.FC = () => {
                   ) : (
                      <div className="space-y-6">
                         <div className="space-y-4">
-                           <div>
-                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Contract Owner</p>
-                              <p className="text-sm font-bold text-gray-900">{vehicle.ownerDetails?.ownerName || 'Unknown'}</p>
-                           </div>
-                           <div>
-                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NIC / BR</p>
-                              <p className="text-sm font-bold text-gray-900">{vehicle.ownerDetails?.ownerNicBr || '---'}</p>
-                           </div>
+                           {(() => {
+                              const od = vehicle.ownerDetails;
+                              const OWNERSHIP_LABEL: Record<string, string> = {
+                                 'sole-proprietor': 'Sole Proprietor',
+                                 'single-owner': 'Single Owner',
+                                 'private-limited': 'Private Limited',
+                              };
+                              const Row = ({ label, value }: { label: string; value?: string }) =>
+                                 value ? (
+                                    <div>
+                                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+                                       <p className="text-sm font-bold text-gray-900 break-words">{value}</p>
+                                    </div>
+                                 ) : null;
+                              return (
+                                 <>
+                                    <Row label="Contract Owner" value={od?.ownerName || 'Unknown'} />
+                                    <Row label="Known As" value={od?.ownerNickname} />
+                                    <Row label="Business Name" value={od?.businessName} />
+                                    <Row label="Ownership Type" value={od?.ownershipType ? (OWNERSHIP_LABEL[od.ownershipType] || od.ownershipType) : undefined} />
+                                    <Row label="NIC" value={od?.ownerNicBr || '---'} />
+                                    <Row label="BR Number" value={od?.brNumber} />
+                                    <Row label="Address" value={od?.ownerAddress} />
+                                 </>
+                              );
+                           })()}
                            <div className="pt-4 border-t border-gray-50">
                               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Legal Documents</p>
                               <div className="grid grid-cols-1 gap-2">
@@ -268,6 +286,24 @@ const VehicleDetailPage: React.FC = () => {
                                           <span className="text-[10px] font-black uppercase text-gray-600 group-hover:text-indigo-600">Lease Agreement</span>
                                        </div>
                                        <Download className="w-3 h-3 text-gray-300 group-hover:text-indigo-400" />
+                                    </a>
+                                 )}
+                                 {vehicle.ownerDetails?.brDocumentUrl && (
+                                    <a href={vehicle.ownerDetails.brDocumentUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-gray-50 hover:bg-amber-50 rounded-xl transition-all group">
+                                       <div className="flex items-center gap-2">
+                                          <FileText className="w-4 h-4 text-amber-600" />
+                                          <span className="text-[10px] font-black uppercase text-gray-600 group-hover:text-amber-600">BR Document</span>
+                                       </div>
+                                       <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-amber-400" />
+                                    </a>
+                                 )}
+                                 {vehicle.ownerDetails?.idCopyUrl && (
+                                    <a href={vehicle.ownerDetails.idCopyUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-gray-50 hover:bg-indigo-50 rounded-xl transition-all group">
+                                       <div className="flex items-center gap-2">
+                                          <FileText className="w-4 h-4 text-indigo-600" />
+                                          <span className="text-[10px] font-black uppercase text-gray-600 group-hover:text-indigo-600">ID Copy</span>
+                                       </div>
+                                       <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-indigo-400" />
                                     </a>
                                  )}
                                  {vehicle.ownerDetails?.handoverConditionReport && (
@@ -292,18 +328,55 @@ const VehicleDetailPage: React.FC = () => {
                      <div className="space-y-4">
                         <div>
                            <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest">Payment Model</p>
-                           <p className="text-sm font-bold text-gray-900">{vehicle.ownerDetails.paymentModel}</p>
+                           <p className="text-sm font-bold text-gray-900 capitalize">{(vehicle.ownerDetails.paymentModel || '').replace(/-/g, ' ')}</p>
                         </div>
                         <div>
                            <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest">Rate (LKR)</p>
-                           <p className="text-xl font-black text-emerald-700">{vehicle.ownerDetails.paymentRate.toLocaleString()}</p>
+                           <p className="text-xl font-black text-emerald-700">{(vehicle.ownerDetails.paymentRate ?? 0).toLocaleString()}</p>
                         </div>
+
+                        {/* Monthly rental configuration */}
+                        {vehicle.ownerDetails.paymentModel === 'monthly' && vehicle.ownerDetails.monthlyConfig && (
+                           <div className="pt-4 border-t border-emerald-100 grid grid-cols-3 gap-3">
+                              <div>
+                                 <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest">Fixed (LKR)</p>
+                                 <p className="text-xs font-black text-gray-900">{(vehicle.ownerDetails.monthlyConfig.fixedAmount ?? 0).toLocaleString()}</p>
+                              </div>
+                              <div>
+                                 <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest">KM Limit</p>
+                                 <p className="text-xs font-black text-gray-900">{(vehicle.ownerDetails.monthlyConfig.kmLimit ?? 0).toLocaleString()}</p>
+                              </div>
+                              <div>
+                                 <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest">Extra/KM</p>
+                                 <p className="text-xs font-black text-gray-900">{(vehicle.ownerDetails.monthlyConfig.extraKmRate ?? 0).toLocaleString()}</p>
+                              </div>
+                           </div>
+                        )}
+
                         <div className="pt-4 border-t border-emerald-100">
                            <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest mb-1">Agreement Cycle</p>
                            <p className="text-xs font-bold text-gray-600">
-                              {vehicle.ownerDetails.agreementStart} TO {vehicle.ownerDetails.agreementEnd}
+                              {vehicle.ownerDetails.agreementStart || '---'} TO {vehicle.ownerDetails.agreementEnd || '---'}
                            </p>
                         </div>
+
+                        {/* Bank details */}
+                        {(vehicle.ownerDetails.bankName || vehicle.ownerDetails.accountNumber || vehicle.ownerDetails.bankDetails) && (
+                           <div className="pt-4 border-t border-emerald-100 space-y-1">
+                              <p className="text-[9px] font-black text-emerald-600/60 uppercase tracking-widest mb-1">Bank Details</p>
+                              {vehicle.ownerDetails.bankName && (
+                                 <p className="text-xs font-bold text-gray-900">
+                                    {vehicle.ownerDetails.bankName}{vehicle.ownerDetails.bankBranch ? ` · ${vehicle.ownerDetails.bankBranch}` : ''}
+                                 </p>
+                              )}
+                              {vehicle.ownerDetails.accountNumber && (
+                                 <p className="text-xs font-mono font-bold text-gray-600">A/C {vehicle.ownerDetails.accountNumber}</p>
+                              )}
+                              {!vehicle.ownerDetails.bankName && vehicle.ownerDetails.bankDetails && (
+                                 <p className="text-xs font-bold text-gray-600">{vehicle.ownerDetails.bankDetails}</p>
+                              )}
+                           </div>
+                        )}
                      </div>
                   </section>
                )}
