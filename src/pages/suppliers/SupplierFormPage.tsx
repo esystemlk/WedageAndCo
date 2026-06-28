@@ -159,7 +159,7 @@ const SupplierFormPage: React.FC = () => {
   if (initialLoading) return <LoadingSpinner />;
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <PageHeader 
         title={id ? 'Modify Vendor Record' : 'Register New Vendor'} 
         subtitle={id ? 'Optimizing external supply chain data.' : 'Expanding the logistics partner network.'}
@@ -175,8 +175,8 @@ const SupplierFormPage: React.FC = () => {
            <Package className="w-32 h-32 text-indigo-600" />
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 relative z-10">
-            <div className="space-y-3">
+        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10 relative z-10">
+            <div className="space-y-3 md:col-span-2">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Supplier Entity Name</label>
               <div className="relative group">
                 <Package className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
@@ -268,7 +268,7 @@ const SupplierFormPage: React.FC = () => {
             </div>
 
             {/* Primary & Additional Business Emails */}
-            <div className="space-y-4 md:col-span-2">
+            <div className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between px-1">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Primary Business Email</label>
@@ -454,7 +454,7 @@ const SupplierFormPage: React.FC = () => {
               </div>
             </div>
 
-          <div className="pt-10 border-t border-gray-100 flex items-center justify-end">
+          <div className="md:col-span-2 pt-10 border-t border-gray-100 flex items-center justify-end">
             <button
               type="submit"
               disabled={loading}
