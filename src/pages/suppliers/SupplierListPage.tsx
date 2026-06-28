@@ -224,7 +224,7 @@ const SupplierListPage: React.FC = () => {
       const q = search.toLowerCase();
       const matchSearch = !q || s.name.toLowerCase().includes(q)
         || (s.contactName||'').toLowerCase().includes(q)
-        || s.email.toLowerCase().includes(q);
+        || (s.email || '').toLowerCase().includes(q);
       const status = s.status || 'active';
       const matchStatus = statusFilter === 'All' || status === statusFilter.toLowerCase();
       const matchCat = catFilter === 'All' || s.supplyCategories?.includes(catFilter);

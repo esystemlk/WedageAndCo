@@ -25,7 +25,8 @@ const supplierSchema = z.object({
   name: z.string().min(2, 'Supplier name is required'),
   nickname: z.string().optional(),
   contactName: z.string().optional(),
-  email: z.string().email('Valid email is required'),
+  noEmail: z.boolean().optional(),
+  email: z.string().optional().or(z.literal('')),
   phone: z.string().min(10, 'Valid phone number is required'),
   additionalPhones: z.array(z.string()).optional(),
   businessEmails: z.array(z.string()).optional(),
@@ -39,6 +40,23 @@ const supplierSchema = z.object({
     email: z.string().optional(),
     role: z.string().optional()
   })).optional()
+}).superRefine((data, ctx) => {
+  // Email stays required unless the user explicitly ticks "No email provided".
+  if (!data.noEmail) {
+    if (!data.email || data.email.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['email'],
+        message: 'Email is required — or tick "No email provided"'
+      });
+    } else if (!z.string().email().safeParse(data.email).success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['email'],
+        message: 'Enter a valid email address'
+      });
+    }
+  }
 });
 
 type SupplierFormData = z.infer<typeof supplierSchema>;
@@ -61,10 +79,11 @@ const SupplierFormPage: React.FC = () => {
   ]);
   const [newCategoryText, setNewCategoryText] = useState('');
 
-  const { register, handleSubmit, setValue, getValues, control, formState: { errors } } = useForm<SupplierFormData>({
+  const { register, handleSubmit, setValue, getValues, control, watch, formState: { errors } } = useForm<SupplierFormData>({
     resolver: zodResolver(supplierSchema),
     defaultValues: {
       name: '',
+      noEmail: false,
       email: '',
       phone: '',
       additionalPhones: [],
@@ -86,7 +105,8 @@ const SupplierFormPage: React.FC = () => {
           if (data) {
             setValue('name', data.name);
             setValue('contactName', data.contactName || '');
-            setValue('email', data.email);
+            setValue('email', data.email || '');
+            setValue('noEmail', !data.email);
             setValue('phone', data.phone);
             setValue('brNo', data.brNo || '');
             setValue('vatNo', data.vatNo || '');
@@ -117,11 +137,14 @@ const SupplierFormPage: React.FC = () => {
   const onSubmit = async (data: SupplierFormData) => {
     try {
       setLoading(true);
+      // `noEmail` is a UI-only flag — don't persist it. Normalise email to '' when none.
+      const { noEmail, ...rest } = data;
+      const payload = { ...rest, email: noEmail ? '' : (rest.email || '') };
       if (id) {
-        await updateSupplier(id, data);
+        await updateSupplier(id, payload);
         toast.success('Supplier updated', `${(data as any).name || 'Supplier'} was saved.`);
       } else {
-        await createSupplier(data);
+        await createSupplier(payload);
         toast.success('Supplier created', `${(data as any).name || 'Supplier'} was added.`);
       }
       navigate('/suppliers');
@@ -247,16 +270,32 @@ const SupplierFormPage: React.FC = () => {
             {/* Primary & Additional Business Emails */}
             <div className="space-y-4 md:col-span-2">
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Primary Business Email</label>
+                <div className="flex items-center justify-between px-1">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Primary Business Email</label>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      {...register('noEmail')}
+                      onChange={(e) => {
+                        setValue('noEmail', e.target.checked, { shouldValidate: true });
+                        if (e.target.checked) setValue('email', '', { shouldValidate: true });
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500/50"
+                    />
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">No email provided</span>
+                  </label>
+                </div>
                 <div className="relative group">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 w-5 h-5 transition-colors" />
                   <input
                     {...register('email')}
                     type="email"
-                    placeholder="sales@vendor.com"
+                    disabled={watch('noEmail')}
+                    placeholder={watch('noEmail') ? 'No email on record for this vendor' : 'sales@vendor.com'}
                     className={cn(
                       "w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-bold text-gray-900 placeholder:text-gray-400",
-                      errors.email && "border-red-500/50"
+                      errors.email && "border-red-500/50",
+                      watch('noEmail') && "opacity-50 cursor-not-allowed"
                     )}
                   />
                 </div>

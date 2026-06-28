@@ -17,7 +17,7 @@ export interface Supplier {
   name: string;
   nickname?: string;
   contactName?: string;
-  email: string;
+  email?: string;
   phone: string;
   additionalPhones?: string[];
   businessEmails?: string[];
