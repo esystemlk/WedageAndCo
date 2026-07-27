@@ -88,7 +88,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   // Close and recalc on scroll / resize
   useEffect(() => {
     if (!isOpen) return;
-    const onScroll = () => close();
+    const onScroll = (e: Event) => {
+      // Ignore scrolling inside the dropdown's own option list — only close
+      // when an outside/ancestor element (the page) scrolls.
+      if (dropdownRef.current && e.target instanceof Node && dropdownRef.current.contains(e.target)) return;
+      close();
+    };
     const onResize = () => calcPosition();
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onResize);

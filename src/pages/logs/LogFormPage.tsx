@@ -379,7 +379,7 @@ const LogFormPage: React.FC = () => {
 
   const activeDrivers = staff.filter(s => s.category === 'Driver' && s.active);
   const activeHelpers = staff.filter(s => s.category === 'Helper' && s.active);
-  const activeVehicles = vehicles.filter(v => v.status === 'Active');
+  const activeVehicles = vehicles.filter(v => v.status === 'active');
 
   if (initialLoading) return <LoadingSpinner />;
 
