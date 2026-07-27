@@ -52,9 +52,11 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
     const openUp = spaceBelow < DROPDOWN_MAX_H && spaceAbove > spaceBelow;
+    // Dropdown is position: fixed, so use viewport-relative coords from
+    // getBoundingClientRect() directly — do NOT add scrollX/scrollY.
     setPos({
-      top: openUp ? rect.top + window.scrollY - DROPDOWN_MAX_H - 4 : rect.bottom + window.scrollY + 4,
-      left: rect.left + window.scrollX,
+      top: openUp ? rect.top - DROPDOWN_MAX_H - 4 : rect.bottom + 4,
+      left: rect.left,
       width: rect.width,
       openUp,
     });
