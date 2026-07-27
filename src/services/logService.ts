@@ -4,6 +4,28 @@ import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 
 const COLLECTION = 'logs';
 
+/**
+ * Firestore rejects any `undefined` field value. The log form leaves many
+ * optional fields undefined (googleMapsKm on a working meter, helperId,
+ * temporaryDriverName, idlingFreezerHours, etc.) — writing them directly would
+ * throw "Unsupported field value: undefined". Strip them out recursively.
+ * Timestamps and Dates are preserved as-is.
+ */
+const stripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map(v => stripUndefined(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object' && !(value instanceof Timestamp) && !(value instanceof Date)) {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value as Record<string, any>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+};
+
 export interface LogSheet {
   id?: string;
   logSheetCode: string;
@@ -78,7 +100,7 @@ export const createLogSheet = async (data: Omit<LogSheet, 'id'>) => {
   try {
     const logSheetCode = data.logSheetCode || `LS-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       logSheetCode,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
@@ -93,7 +115,7 @@ export const updateLogSheet = async (id: string, data: Partial<LogSheet>) => {
   try {
     const docRef = doc(db, COLLECTION, id);
     await updateDoc(docRef, {
-      ...data,
+      ...stripUndefined(data),
       updatedAt: Timestamp.now()
     });
   } catch (error) {
