@@ -6,7 +6,7 @@ import { Droplets, Save, Truck, User, Plus, Trash2, Gauge, Wrench, CheckCircle }
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
-import { cn } from '../../lib/utils';
+import { cn, litresPerUnit } from '../../lib/utils';
 import { createOilTransaction, updateOilTransaction, getOilTransaction } from '../../services/oilStockService';
 import { getInventoryItems, InventoryItem } from '../../services/inventoryService';
 import { getVehicles } from '../../services/fleetService';
@@ -70,10 +70,14 @@ const OilIssueFormPage: React.FC = () => {
   const openingStockL = watch('openingStockL') || 0;
   const checkedByManager = watch('checkedByManager');
 
+  const selectedItem = oilItems.find(i => i.id === stockItemId);
+
+  const lpu = litresPerUnit(selectedItem?.unitType);
   const quantityL = quantityMl / 1000;
   const closingStockL = Math.max(0, openingStockL - quantityL);
-
-  const selectedItem = oilItems.find(i => i.id === stockItemId);
+  // Inventory is tracked in pack units, so convert the litres issued back to units.
+  const quantityIssuedUnits = quantityL / lpu;
+  const minStockL = (selectedItem?.minStockLevel || 0) * lpu;
 
   // Refresh reference data when an entity is quick-added
   useEffect(() => {
@@ -113,6 +117,9 @@ const OilIssueFormPage: React.FC = () => {
       const payload = {
         ...data,
         quantityIssuedL: quantityL,
+        quantityIssuedUnits,
+        unitType: selectedItem?.unitType || '',
+        litresPerUnit: lpu,
         closingStockL,
         openingStockL: data.openingStockL || 0,
         itemName: selectedItem?.name || data.itemName || '',
@@ -178,7 +185,7 @@ const OilIssueFormPage: React.FC = () => {
                         field.onChange(v);
                         const item = oilItems.find(i => i.id === v);
                         if (item) {
-                          setValue('openingStockL', item.currentStock || 0);
+                          setValue('openingStockL', (item.currentStock || 0) * litresPerUnit(item.unitType));
                           setValue('oilType', item.subCategory || '');
                           setValue('oilGrade', item.extended?.oilGrade || '');
                         }
@@ -198,7 +205,7 @@ const OilIssueFormPage: React.FC = () => {
                   <div className="flex gap-4 text-[10px] font-bold text-gray-500 uppercase">
                     <span>Type: {selectedItem.subCategory || '—'}</span>
                     <span>Grade: {selectedItem.extended?.oilGrade || '—'}</span>
-                    <span>Stock: {selectedItem.currentStock} {selectedItem.unitType}</span>
+                    <span>Stock: {selectedItem.currentStock} {selectedItem.unitType} ({((selectedItem.currentStock || 0) * litresPerUnit(selectedItem.unitType)).toFixed(3)} L)</span>
                   </div>
                 </div>
               )}
@@ -284,6 +291,11 @@ const OilIssueFormPage: React.FC = () => {
                 <input type="number" step="0.001" {...register('openingStockL', { valueAsNumber: true })}
                   placeholder="Auto-filled from stock"
                   className={cn(fieldCls, "bg-white border-cyan-200")} />
+                {selectedItem && lpu !== 1 && (
+                  <p className="text-[10px] font-bold text-cyan-600 px-1">
+                    {selectedItem.currentStock} × {selectedItem.unitType} @ {lpu} L each
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className={cn(labelCls, "text-cyan-700")}>Issue Quantity (mL) *</label>
@@ -299,12 +311,12 @@ const OilIssueFormPage: React.FC = () => {
                 <label className={cn(labelCls, "text-cyan-700")}>Closing Stock (Auto)</label>
                 <div className={cn(
                   "px-4 py-3 rounded-xl border-2 font-black text-xl",
-                  closingStockL < (selectedItem?.minStockLevel || 0)
+                  closingStockL < minStockL
                     ? 'bg-amber-50 border-amber-300 text-amber-700'
                     : 'bg-emerald-50 border-emerald-300 text-emerald-700'
                 )}>
                   {closingStockL.toFixed(3)} L
-                  {closingStockL < (selectedItem?.minStockLevel || 0) && (
+                  {closingStockL < minStockL && (
                     <span className="block text-[10px] font-black text-amber-600 uppercase tracking-widest mt-1">Below Min Level</span>
                   )}
                 </div>

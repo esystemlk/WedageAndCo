@@ -1,12 +1,33 @@
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, getDoc, getDocs,
-  query, orderBy, serverTimestamp
+  query, orderBy, serverTimestamp, Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
 import { adjustInventoryStock } from './inventoryService';
 import type { FuelType } from '../config/fuelTypes';
+
+/**
+ * Firestore rejects any `undefined` field value. The fuel form leaves several
+ * optional fields undefined (litresPerKm, fuelCostPerL, quantityIssuedUnits on
+ * outside purchases, etc.) — writing them directly throws
+ * "Unsupported field value: undefined". Strip them out recursively.
+ */
+const stripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map(v => stripUndefined(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object' && !(value instanceof Timestamp) && !(value instanceof Date)) {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value as Record<string, any>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+};
 
 export interface FuelTransaction {
   id?: string;
@@ -22,6 +43,9 @@ export interface FuelTransaction {
   kmDriven: number;
   tankMeterReadingBefore: number;
   quantityIssuedL: number;
+  quantityIssuedUnits?: number;
+  unitType?: string;
+  litresPerUnit?: number;
   tankBalanceAfterL: number;
   litresPerKm?: number;
   stockItemId: string;
@@ -38,11 +62,13 @@ export const createFuelTransaction = async (
 ) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       createdAt: serverTimestamp()
     });
-    if (data.stockItemId && data.quantityIssuedL > 0) {
-      await adjustInventoryStock(data.stockItemId, -data.quantityIssuedL, updatedBy, data.date);
+    // Inventory is tracked in stock units; deduct in units (fall back to litres for legacy/plain-litre tanks).
+    const deductUnits = data.quantityIssuedUnits ?? data.quantityIssuedL;
+    if (data.stockItemId && deductUnits > 0) {
+      await adjustInventoryStock(data.stockItemId, -deductUnits, updatedBy, data.date);
     }
     await recordChange(OperationType.CREATE, COLLECTION, docRef.id,
       `Fuel issued to ${data.vehicleNo}: ${data.quantityIssuedL}L (${data.fuelType})`);
@@ -76,7 +102,7 @@ export const getFuelTransaction = async (id: string): Promise<FuelTransaction | 
 
 export const updateFuelTransaction = async (id: string, data: Partial<FuelTransaction>) => {
   try {
-    await updateDoc(doc(db, COLLECTION, id), { ...data });
+    await updateDoc(doc(db, COLLECTION, id), { ...stripUndefined(data) });
     await recordChange(OperationType.UPDATE, COLLECTION, id, 'Updated fuel transaction');
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION}/${id}`);

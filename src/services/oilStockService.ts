@@ -1,11 +1,31 @@
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, getDoc, getDocs,
-  query, orderBy, serverTimestamp
+  query, orderBy, serverTimestamp, Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
 import { adjustInventoryStock } from './inventoryService';
+
+/**
+ * Firestore rejects any `undefined` field value. The oil form leaves optional
+ * fields undefined (managerName when unchecked, remarks, meterReading, etc.) —
+ * writing them directly throws "Unsupported field value: undefined".
+ */
+const stripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map(v => stripUndefined(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object' && !(value instanceof Timestamp) && !(value instanceof Date)) {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value as Record<string, any>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+};
 
 export interface OilTransaction {
   id?: string;
@@ -20,6 +40,9 @@ export interface OilTransaction {
   openingStockL: number;
   quantityIssuedMl: number;
   quantityIssuedL: number;
+  quantityIssuedUnits?: number;
+  unitType?: string;
+  litresPerUnit?: number;
   closingStockL: number;
   meterReading: number;
   technicians: Array<{ name: string; staffId?: string }>;
@@ -37,11 +60,13 @@ export const createOilTransaction = async (
 ) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       createdAt: serverTimestamp()
     });
-    if (data.stockItemId && data.quantityIssuedL > 0) {
-      await adjustInventoryStock(data.stockItemId, -data.quantityIssuedL, updatedBy, data.date);
+    // Inventory is tracked in pack units, so deduct in units (fall back to litres for legacy records).
+    const deductUnits = data.quantityIssuedUnits ?? data.quantityIssuedL;
+    if (data.stockItemId && deductUnits > 0) {
+      await adjustInventoryStock(data.stockItemId, -deductUnits, updatedBy, data.date);
     }
     await recordChange(OperationType.CREATE, COLLECTION, docRef.id,
       `Oil issued to ${data.vehicleNo}: ${data.quantityIssuedL}L ${data.oilType}`);
@@ -75,7 +100,7 @@ export const getOilTransaction = async (id: string): Promise<OilTransaction | nu
 
 export const updateOilTransaction = async (id: string, data: Partial<OilTransaction>) => {
   try {
-    await updateDoc(doc(db, COLLECTION, id), { ...data });
+    await updateDoc(doc(db, COLLECTION, id), { ...stripUndefined(data) });
     await recordChange(OperationType.UPDATE, COLLECTION, id, 'Updated oil transaction');
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION}/${id}`);

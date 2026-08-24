@@ -11,7 +11,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import FileUpload from '../../components/shared/FileUpload';
-import { cn } from '../../lib/utils';
+import { cn, litresPerUnit } from '../../lib/utils';
 import {
   createFuelTransaction, updateFuelTransaction,
   getFuelTransaction, getFuelTransactions
@@ -144,6 +144,9 @@ const FuelIssueFormPage: React.FC = () => {
   const totalCost   = fuelCostPerL > 0 ? (fuelCostPerL * issued).toFixed(2) : null;
 
   const selectedFuelItem = fuelItems.find(i => i.id === stockItemId);
+  // Fuel stock may be counted in pack units (e.g. "200L Barrel"); convert to litres.
+  const fuelLpu = litresPerUnit(selectedFuelItem?.unitType);
+  const quantityIssuedUnits = issued / fuelLpu;
 
   // Refresh dropdowns after quick-add
   useEffect(() => {
@@ -244,6 +247,10 @@ const FuelIssueFormPage: React.FC = () => {
         tankBalanceAfterL: fuelSource === 'yard' ? tankBalanceAfter : null,
         litresPerKm: litresPerKm ? parseFloat(litresPerKm) : undefined,
         itemName: selectedFuelItem?.name || data.itemName || '',
+        // Deduct from inventory in stock units (litres for a plain-litre tank).
+        quantityIssuedUnits: fuelSource === 'yard' ? quantityIssuedUnits : undefined,
+        unitType: selectedFuelItem?.unitType || undefined,
+        litresPerUnit: selectedFuelItem ? fuelLpu : undefined,
       };
       if (id) {
         await updateFuelTransaction(id, payload as any);
@@ -386,7 +393,7 @@ const FuelIssueFormPage: React.FC = () => {
                             const item = fuelItems.find(i => i.id === v);
                             if (item) {
                               setValue('fuelType', (item as any).extended?.fuelType || 'diesel');
-                              setValue('tankMeterReadingBefore', item.currentStock || 0);
+                              setValue('tankMeterReadingBefore', (item.currentStock || 0) * litresPerUnit(item.unitType));
                             }
                           }}
                           placeholder="Select fuel stock..."
@@ -445,7 +452,10 @@ const FuelIssueFormPage: React.FC = () => {
                 {selectedFuelItem && (
                   <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-amber-200">
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Current Tank Stock:</span>
-                    <span className="text-sm font-black text-amber-700">{selectedFuelItem.currentStock} {selectedFuelItem.unitType}</span>
+                    <span className="text-sm font-black text-amber-700">
+                      {selectedFuelItem.currentStock} {selectedFuelItem.unitType}
+                      {fuelLpu !== 1 && ` (${((selectedFuelItem.currentStock || 0) * fuelLpu).toFixed(1)} L)`}
+                    </span>
                     <span className="text-[10px] font-bold text-gray-400 ml-auto">Location: {selectedFuelItem.warehouseLocation || '—'}</span>
                   </div>
                 )}
