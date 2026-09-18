@@ -70,7 +70,7 @@ const PurchaseOrderFormPage: React.FC = () => {
    const MONTHLY_LIMIT = 500000; // Default monthly PO limit in LKR
 
    const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<POFormData>({
-      resolver: zodResolver(poSchema),
+      resolver: zodResolver(poSchema) as any,
       defaultValues: {
          date: new Date().toISOString().split('T')[0],
          items: [{ description: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 }],

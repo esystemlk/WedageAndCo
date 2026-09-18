@@ -7,6 +7,46 @@
         { "fieldPath": "date", "order": "ASCENDING" },
         { "fieldPath": "entryTime", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "inventory_items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "maintenance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "vehicleId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "leave_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "staffId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "vehicle_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "vehiclePlate", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "employee_meals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "employeeId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

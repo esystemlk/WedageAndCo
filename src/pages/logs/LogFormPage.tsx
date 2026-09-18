@@ -144,7 +144,7 @@ const LogFormPage: React.FC = () => {
   const isInitialLoadRef = useRef(!!id);
 
   const { register, handleSubmit, setValue, watch, control, getValues, formState: { errors } } = useForm<LogFormData>({
-    resolver: zodResolver(logSchema),
+    resolver: zodResolver(logSchema) as any,
     defaultValues: {
       logSheetCode: `LS-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`,
       date: new Date().toISOString().split('T')[0],

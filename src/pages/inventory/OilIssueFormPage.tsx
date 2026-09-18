@@ -28,7 +28,7 @@ const schema = z.object({
   oilType: z.string().optional(),
   oilGrade: z.string().optional(),
   openingStockL: numOpt,
-  quantityIssuedMl: z.number({ required_error: 'Required' }).min(1, 'Must be > 0'),
+  quantityIssuedMl: z.number({ error: 'Required' }).min(1, 'Must be > 0'),
   meterReading: numOpt,
   technicians: z.array(z.object({ name: z.string().optional() })).optional(),
   checkedByManager: z.boolean().default(false),

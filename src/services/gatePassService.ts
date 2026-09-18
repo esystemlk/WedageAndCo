@@ -14,6 +14,7 @@ import {
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 export interface GatePass {
   id: string;
@@ -58,7 +59,7 @@ export const createGatePass = async (data: Omit<GatePass, 'id' | 'createdAt' | '
   try {
     const gatePassNo = `GP-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-      ...data,
+      ...stripUndefined(data),
       gatePassNo,
       createdAt: serverTimestamp()
     });
@@ -95,7 +96,7 @@ export const getGatePass = async (id: string) => {
 export const updateGatePass = async (id: string, data: Partial<GatePass>) => {
   try {
     const docRef = doc(db, COLLECTION_NAME, id);
-    await updateDoc(docRef, data);
+    await updateDoc(docRef, stripUndefined(data));
     await recordChange(OperationType.UPDATE, COLLECTION_NAME, id, `Updated gate pass fields: ${Object.keys(data).join(', ')}`);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION_NAME}/${id}`);

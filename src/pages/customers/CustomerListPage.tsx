@@ -272,7 +272,7 @@ const CustomerListPage: React.FC = () => {
     }
   };
 
-  const totalRevAllTime = Object.values(customerMetrics).reduce((s,m) => s+m.revenue, 0);
+  const totalRevAllTime = (Object.values(customerMetrics) as Array<{ revenue: number }>).reduce((s, m) => s + m.revenue, 0);
   const avgRevPerClient = customers.length > 0 ? totalRevAllTime / customers.length : 0;
   const revTrend = stats.revLastMonth > 0
     ? Math.round(((stats.revThisMonth - stats.revLastMonth) / stats.revLastMonth) * 100)

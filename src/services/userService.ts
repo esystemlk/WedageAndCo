@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { UserRole, Permission } from '../config/roles';
+import { stripUndefined } from '../lib/utils';
 
 /** Per-user toggles for which alert categories generate notifications. */
 export interface NotificationPrefs {
@@ -70,7 +71,7 @@ export const updateUserPermissions = async (userId: string, permissions: Permiss
 export const updateSelf = async (userId: string, data: Partial<UserProfile>) => {
   const userRef = doc(db, 'users', userId);
   await updateDoc(userRef, {
-    ...data,
+    ...stripUndefined(data),
     updatedAt: new Date().toISOString()
   });
 };

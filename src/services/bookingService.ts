@@ -5,6 +5,7 @@ import {
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 const COLLECTION = 'vehicle_bookings';
 
@@ -40,7 +41,7 @@ export const createBooking = async (
 ): Promise<string | undefined> => {
   try {
     const ref = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       status: 'pending',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -76,7 +77,7 @@ export const getBooking = async (id: string): Promise<VehicleBooking | null> => 
 
 export const updateBooking = async (id: string, data: Partial<VehicleBooking>): Promise<void> => {
   try {
-    await updateDoc(doc(db, COLLECTION, id), { ...data, updatedAt: serverTimestamp() });
+    await updateDoc(doc(db, COLLECTION, id), { ...stripUndefined(data), updatedAt: serverTimestamp() });
     await recordChange(OperationType.UPDATE, COLLECTION, id, `Updated booking: ${data.status || ''}`);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, `${COLLECTION}/${id}`);

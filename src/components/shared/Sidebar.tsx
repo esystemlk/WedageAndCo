@@ -44,7 +44,7 @@ interface SidebarProps {
 
 type MenuItem =
   | { type: 'header'; name: string }
-  | { type?: never; name: string; path: string; icon: React.ElementType; permission: string | null }
+  | { type?: undefined; name: string; path: string; icon: React.ElementType; permission: string | null }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const { user, role, can } = useAuth();
@@ -157,13 +157,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
             );
           }
 
-          if (item.permission && !can(item.permission as any)) return null;
+          const link = item as Extract<MenuItem, { path: string }>;
+
+          if (link.permission && !can(link.permission as any)) return null;
 
           return (
             <NavLink
-              key={`${item.path}-${item.name}`}
-              to={item.path}
-              end={item.path === '/'}
+              key={`${link.path}-${link.name}`}
+              to={link.path}
+              end={link.path === '/'}
               onClick={() => onClose?.()}
               className={({ isActive }) => cn(
                 "group flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-all duration-150",
@@ -172,8 +174,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                   : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-black/5 font-medium"
               )}
             >
-              <item.icon className="w-4 h-4 flex-shrink-0 group-hover:text-indigo-500 transition-colors" />
-              <span className="truncate">{item.name}</span>
+              <link.icon className="w-4 h-4 flex-shrink-0 group-hover:text-indigo-500 transition-colors" />
+              <span className="truncate">{link.name}</span>
             </NavLink>
           );
         })}

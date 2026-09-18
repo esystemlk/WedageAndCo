@@ -17,6 +17,7 @@ import {
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'tea';
@@ -337,7 +338,7 @@ export const upsertEmployeeMeal = async (
     updatedAt: Timestamp.now(),
   };
   try {
-    await setDoc(doc(db, MEALS_COLLECTION, id), { ...payload, createdAt: Timestamp.now() }, { merge: true });
+    await setDoc(doc(db, MEALS_COLLECTION, id), { ...stripUndefined(payload), createdAt: Timestamp.now() }, { merge: true });
     await recordChange(
       OperationType.UPDATE, MEALS_COLLECTION, id,
       `Meal entry ${entry.employeeName || entry.employeeId} on ${entry.date} @ ${payload.locationName || 'default'} = LKR ${dailyTotal}`,
@@ -550,7 +551,7 @@ export const saveMealLocation = async (location: MealLocation): Promise<string |
         .map(l => setDoc(doc(db, LOCATIONS_COLLECTION, l.id!), { isDefault: false }, { merge: true })));
     }
     const { id, ...data } = location;
-    await setDoc(ref, { ...data, updatedAt: Timestamp.now(), ...(location.id ? {} : { createdAt: Timestamp.now() }) }, { merge: true });
+    await setDoc(ref, { ...stripUndefined(data), updatedAt: Timestamp.now(), ...(location.id ? {} : { createdAt: Timestamp.now() }) }, { merge: true });
     await recordChange(location.id ? OperationType.UPDATE : OperationType.CREATE, LOCATIONS_COLLECTION, ref.id, `Saved meal location: ${location.name}`);
     return ref.id;
   } catch (error) {
@@ -582,7 +583,7 @@ export const saveMealSupplier = async (supplier: MealSupplier): Promise<string |
   try {
     const ref = supplier.id ? doc(db, SUPPLIERS_COLLECTION, supplier.id) : doc(collection(db, SUPPLIERS_COLLECTION));
     const { id, ...data } = supplier;
-    await setDoc(ref, { ...data, updatedAt: Timestamp.now(), ...(supplier.id ? {} : { createdAt: Timestamp.now() }) }, { merge: true });
+    await setDoc(ref, { ...stripUndefined(data), updatedAt: Timestamp.now(), ...(supplier.id ? {} : { createdAt: Timestamp.now() }) }, { merge: true });
     await recordChange(supplier.id ? OperationType.UPDATE : OperationType.CREATE, SUPPLIERS_COLLECTION, ref.id, `Saved meal supplier: ${supplier.name}`);
     return ref.id;
   } catch (error) {
@@ -632,7 +633,7 @@ export const saveGuestMeal = async (
     const total = computeGuestTotal(meal, settings, loc);
     const { id, ...data } = meal;
     await setDoc(ref, {
-      ...data,
+      ...stripUndefined(data),
       locationName: loc?.name ?? meal.locationName ?? '',
       total,
       updatedAt: Timestamp.now(),

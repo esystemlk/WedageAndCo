@@ -13,6 +13,7 @@ import {
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 export interface VisitorLog {
   id?: string;
@@ -39,7 +40,7 @@ export const createVisitorLog = async (data: Omit<VisitorLog, 'id' | 'logNo' | '
   try {
     const logNo = `VST-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-      ...data,
+      ...stripUndefined(data),
       logNo,
       createdAt: serverTimestamp()
     });
@@ -76,7 +77,7 @@ export const getVisitorLog = async (id: string) => {
 export const updateVisitorLog = async (id: string, data: Partial<VisitorLog>) => {
   try {
     const docRef = doc(db, COLLECTION_NAME, id);
-    await updateDoc(docRef, data);
+    await updateDoc(docRef, stripUndefined(data));
     await recordChange(OperationType.UPDATE, COLLECTION_NAME, id, `Updated visitor log fields: ${Object.keys(data).join(', ')}`);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION_NAME}/${id}`);

@@ -141,7 +141,7 @@ const SupplierListPage: React.FC = () => {
   // ── Spend by category ────────────────────────────────────────────────────
   const spendByCategory = useMemo(() => {
     const map: Record<string, number> = {};
-    const totalSpend = Object.values(supplierMetrics).reduce((s, m) => s + m.spend, 0);
+    const totalSpend = (Object.values(supplierMetrics) as Array<{ spend: number }>).reduce((s, m) => s + m.spend, 0);
     suppliers.forEach(s => {
       const cats = s.supplyCategories?.length ? s.supplyCategories : ['Uncategorised'];
       const m = supplierMetrics[s.id!];

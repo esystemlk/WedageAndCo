@@ -2,6 +2,7 @@ import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, 
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 const COLLECTION = 'maintenance';
 
@@ -44,7 +45,7 @@ export const getMaintenanceRecord = async (id: string) => {
 export const createMaintenanceRecord = async (data: Omit<Maintenance, 'id'>) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
@@ -59,7 +60,7 @@ export const updateMaintenanceRecord = async (id: string, data: Partial<Maintena
   try {
     const docRef = doc(db, COLLECTION, id);
     await updateDoc(docRef, {
-      ...data,
+      ...stripUndefined(data),
       updatedAt: Timestamp.now()
     });
     await recordChange(OperationType.UPDATE, COLLECTION, id, `Updated maintenance record fields: ${Object.keys(data).join(', ')}`);

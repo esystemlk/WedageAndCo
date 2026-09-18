@@ -50,7 +50,7 @@ const schema = z.object({
   stockItemId:          z.string().optional(),
   itemName:             z.string().optional(),
   tankMeterReadingBefore: numOpt,
-  quantityIssuedL: z.number({ required_error: 'Quantity is required' }).min(0.1, 'Must be > 0'),
+  quantityIssuedL: z.number({ error: 'Quantity is required' }).min(0.1, 'Must be > 0'),
 
   // Outside purchase
   supplierName:   z.string().optional(),

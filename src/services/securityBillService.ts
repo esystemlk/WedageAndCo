@@ -14,6 +14,7 @@ import {
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 export interface SecurityBillCheck {
   id: string;
@@ -36,7 +37,7 @@ export const createSecurityBillCheck = async (data: Omit<SecurityBillCheck, 'id'
   try {
     const totalAmount = data.units * data.price;
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-      ...data,
+      ...stripUndefined(data),
       totalAmount,
       createdAt: serverTimestamp()
     });

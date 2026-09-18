@@ -6,6 +6,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { db, storage } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 export type DocumentFileType = 'pdf' | 'image' | 'spreadsheet' | 'other';
 export type DocumentCategory = 'vehicle' | 'invoice' | 'maintenance' | 'contract' | 'other';
@@ -83,7 +84,7 @@ export const uploadAndCreateDocument = async (
     createdAt: Timestamp.now(),
   };
 
-  const docRef = await addDoc(collection(db, COLLECTION), docData);
+  const docRef = await addDoc(collection(db, COLLECTION), stripUndefined(docData));
   await recordChange(OperationType.CREATE, COLLECTION, docRef.id, `Uploaded: ${meta.name}`);
   return { id: docRef.id, ...docData };
 };

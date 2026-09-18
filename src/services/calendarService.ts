@@ -2,6 +2,7 @@ import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, 
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 const COLLECTION = 'calendar_events';
 
@@ -30,7 +31,7 @@ export const getCalendarEvents = async () => {
       const { id: _storedId, ...data } = d.data();
       return {
         id: d.id,
-        ...data,
+        ...stripUndefined(data),
         date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date)
       } as CalendarEvent;
     });
@@ -43,7 +44,7 @@ export const getCalendarEvents = async () => {
 export const createCalendarEvent = async (data: Omit<CalendarEvent, 'id'>) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       date: data.date instanceof Date ? Timestamp.fromDate(data.date) : data.date,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
@@ -58,7 +59,7 @@ export const createCalendarEvent = async (data: Omit<CalendarEvent, 'id'>) => {
 export const updateCalendarEvent = async (id: string, data: Partial<CalendarEvent>) => {
   try {
     const docRef = doc(db, COLLECTION, id);
-    const updateData = { ...data, updatedAt: Timestamp.now() };
+    const updateData = { ...stripUndefined(data), updatedAt: Timestamp.now() };
     if (data.date instanceof Date) {
       updateData.date = Timestamp.fromDate(data.date);
     }

@@ -2,6 +2,7 @@ import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, 
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 const COLLECTION = 'invoices';
 
@@ -53,7 +54,7 @@ export const getInvoice = async (id: string) => {
 export const createInvoice = async (data: Omit<Invoice, 'id'>) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
@@ -67,7 +68,7 @@ export const createInvoice = async (data: Omit<Invoice, 'id'>) => {
 export const updateInvoice = async (id: string, data: Partial<Invoice>) => {
   try {
     await updateDoc(doc(db, COLLECTION, id), {
-      ...data,
+      ...stripUndefined(data),
       updatedAt: Timestamp.now()
     });
     await recordChange(OperationType.UPDATE, COLLECTION, id, `Updated invoice fields: ${Object.keys(data).join(', ')}`);

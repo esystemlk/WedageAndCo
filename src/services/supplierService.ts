@@ -2,6 +2,7 @@ import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, 
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 const COLLECTION = 'suppliers';
 
@@ -68,7 +69,7 @@ export const getSupplier = async (id: string) => {
 export const createSupplier = async (data: Omit<Supplier, 'id'>) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
@@ -83,7 +84,7 @@ export const updateSupplier = async (id: string, data: Partial<Supplier>) => {
   try {
     const docRef = doc(db, COLLECTION, id);
     await updateDoc(docRef, {
-      ...data,
+      ...stripUndefined(data),
       updatedAt: Timestamp.now()
     });
     await recordChange(OperationType.UPDATE, COLLECTION, id, `Updated supplier: ${id}`);

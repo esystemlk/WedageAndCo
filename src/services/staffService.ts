@@ -2,6 +2,7 @@ import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, 
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 const COLLECTION = 'staff';
 
@@ -106,7 +107,7 @@ export const getStaffMember = async (id: string) => {
 export const createStaffMember = async (data: Omit<StaffMember, 'id'>) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
@@ -121,7 +122,7 @@ export const updateStaffMember = async (id: string, data: Partial<StaffMember>) 
   try {
     const docRef = doc(db, COLLECTION, id);
     await updateDoc(docRef, {
-      ...data,
+      ...stripUndefined(data),
       updatedAt: Timestamp.now()
     });
     await recordChange(OperationType.UPDATE, COLLECTION, id, `Updated staff: ${id}`);

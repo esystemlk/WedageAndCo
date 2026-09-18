@@ -3,6 +3,7 @@ import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
 import { createCalendarEvent } from './calendarService';
+import { stripUndefined } from '../lib/utils';
 
 const COLLECTION = 'leave_requests';
 
@@ -47,7 +48,7 @@ export const getLeaveRequestsByStaff = async (staffId: string) => {
 export const createLeaveRequest = async (data: Omit<LeaveRequest, 'id'>) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
@@ -62,7 +63,7 @@ export const updateLeaveRequest = async (id: string, data: Partial<LeaveRequest>
   try {
     const docRef = doc(db, COLLECTION, id);
     await updateDoc(docRef, {
-      ...data,
+      ...stripUndefined(data),
       updatedAt: Timestamp.now()
     });
     await recordChange(OperationType.UPDATE, COLLECTION, id, `Updated leave request: ${id}`);

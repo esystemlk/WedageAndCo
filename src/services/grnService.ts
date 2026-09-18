@@ -14,6 +14,7 @@ import {
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { stripUndefined } from '../lib/utils';
 
 const COLLECTION = 'grns';
 
@@ -62,7 +63,7 @@ export const createGRN = async (data: Omit<GRN, 'id'>) => {
   try {
     const grnNo = `GRN-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       grnNo,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
@@ -78,7 +79,7 @@ export const updateGRN = async (id: string, data: Partial<GRN>) => {
   try {
     const docRef = doc(db, COLLECTION, id);
     await updateDoc(docRef, {
-      ...data,
+      ...stripUndefined(data),
       updatedAt: Timestamp.now()
     });
     await recordChange(OperationType.UPDATE, COLLECTION, id, `Updated GRN fields: ${Object.keys(data).join(', ')}`);
