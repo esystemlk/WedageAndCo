@@ -21,8 +21,10 @@ import {
 } from '../../services/configService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { useSuppliers } from '../../hooks/useSuppliers';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import SearchableSelect from '../../components/shared/SearchableSelect';
 
 const numOpt = z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined));
 
@@ -40,6 +42,10 @@ const schema = z.object({
   purchaseCost: numOpt,
   averageCost: numOpt,
   issueRate: numOpt,
+  discountPercent: numOpt,
+  vatApplicable: z.boolean().optional(),
+  vatPercent: numOpt,
+  supplierId: z.string().optional(),
   supplierName: z.string().optional(),
   supplierContact: z.string().optional(),
   datePurchased: z.string().optional(),
@@ -112,6 +118,7 @@ const InventoryItemFormPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { user } = useAuth();
+  const { suppliers } = useSuppliers();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(!!id);
 
@@ -149,6 +156,14 @@ const InventoryItemFormPage: React.FC = () => {
   const currentStock = watch('currentStock') || 0;
   const maxStockLevel = watch('maxStockLevel') || 0;
   const minStockLevel = watch('minStockLevel') || 0;
+
+  // Live VAT/discount computation for the purchase cost
+  const purchaseCost = watch('purchaseCost') || 0;
+  const discountPercent = watch('discountPercent') || 0;
+  const vatApplicable = watch('vatApplicable');
+  const vatPercent = watch('vatPercent') || 0;
+  const discountedCost = purchaseCost * (1 - (discountPercent || 0) / 100);
+  const netUnitCost = discountedCost * (1 + (vatApplicable ? (vatPercent || 0) / 100 : 0));
 
   // Load custom config from Firestore on mount
   useEffect(() => {
@@ -246,6 +261,11 @@ const InventoryItemFormPage: React.FC = () => {
         purchaseCost: data.purchaseCost || 0,
         averageCost: data.averageCost || 0,
         issueRate: data.issueRate || 0,
+        discountPercent: data.discountPercent || 0,
+        vatApplicable: !!data.vatApplicable,
+        vatPercent: data.vatApplicable ? (data.vatPercent || 0) : 0,
+        netUnitCost: Number(netUnitCost.toFixed(2)),
+        supplierId: data.supplierId || '',
         supplierName: data.supplierName || '',
         supplierContact: data.supplierContact || '',
         datePurchased: data.datePurchased || '',
@@ -492,6 +512,42 @@ const InventoryItemFormPage: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {/* VAT & Discount on purchase */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-emerald-50/40 p-6 rounded-[2rem] border border-emerald-100">
+              <div className="space-y-2">
+                <label className={cn(labelCls, "text-emerald-700")}>Discount (%)</label>
+                <input type="number" step="0.01" {...register('discountPercent', { valueAsNumber: true })}
+                  placeholder="0" className={cn(fieldCls, "bg-white border-emerald-200")} />
+              </div>
+              <div className="space-y-2">
+                <label className={cn(labelCls, "text-emerald-700")}>VAT</label>
+                <label className="flex items-center gap-3 p-3 bg-white border border-emerald-200 rounded-xl cursor-pointer h-[46px]">
+                  <input type="checkbox" {...register('vatApplicable')} className="w-4 h-4 text-emerald-600 rounded" />
+                  <span className="text-[10px] font-bold text-gray-700 uppercase tracking-widest">VAT applicable</span>
+                </label>
+              </div>
+              <div className="space-y-2">
+                <label className={cn(labelCls, "text-emerald-700")}>VAT Rate (%)</label>
+                <input type="number" step="0.01" {...register('vatPercent', { valueAsNumber: true })}
+                  placeholder="e.g. 18" disabled={!vatApplicable}
+                  className={cn(fieldCls, "bg-white border-emerald-200", !vatApplicable && "opacity-40 cursor-not-allowed")} />
+              </div>
+
+              {/* Net cost readout */}
+              {purchaseCost > 0 && (discountPercent > 0 || (vatApplicable && vatPercent > 0)) && (
+                <div className="md:col-span-3 flex flex-wrap items-center justify-end gap-x-6 gap-y-1 pt-2 border-t border-emerald-100 text-right">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Base LKR {purchaseCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    {discountPercent > 0 && <> · −{discountPercent}%</>}
+                    {vatApplicable && vatPercent > 0 && <> · +{vatPercent}% VAT</>}
+                  </span>
+                  <span className="text-sm font-black text-emerald-700">
+                    Net Unit Cost: LKR {netUnitCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Supplier & Purchase */}
@@ -503,12 +559,35 @@ const InventoryItemFormPage: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <label className={labelCls}>Supplier Name</label>
-                <input {...register('supplierName')} placeholder="Supplier company name" className={fieldCls} />
+                <label className={labelCls}>Supplier</label>
+                <Controller
+                  control={control}
+                  name="supplierId"
+                  render={({ field }) => (
+                    <SearchableSelect
+                      options={suppliers.map(s => ({
+                        value: s.id!,
+                        label: s.name,
+                        subLabel: [s.contactName, s.phone].filter(Boolean).join(' · ') || s.email,
+                      }))}
+                      value={field.value || ''}
+                      onChange={(val) => {
+                        field.onChange(val);
+                        const sup = suppliers.find(s => s.id === val);
+                        if (sup) {
+                          setValue('supplierName', sup.name);
+                          setValue('supplierContact', [sup.phone, sup.email].filter(Boolean).join(' / '));
+                        }
+                      }}
+                      placeholder="Search supplier by name…"
+                      icon={<Truck className="w-4 h-4 text-gray-400" />}
+                    />
+                  )}
+                />
               </div>
               <div className="space-y-2">
                 <label className={labelCls}>Supplier Contact</label>
-                <input {...register('supplierContact')} placeholder="Phone / email" className={fieldCls} />
+                <input {...register('supplierContact')} placeholder="Auto-filled — or type phone / email" className={fieldCls} />
               </div>
               <div className="space-y-2">
                 <label className={labelCls}>Date Purchased</label>

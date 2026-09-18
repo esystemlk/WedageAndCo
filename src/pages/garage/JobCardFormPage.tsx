@@ -14,6 +14,7 @@ import { cn } from '../../lib/utils';
 import {
   createJobCard, updateJobCard, getJobCard, generateWorkOrderNo, JobCardStatus
 } from '../../services/jobCardService';
+import { getInventoryItems, InventoryItem } from '../../services/inventoryService';
 import { useFleet } from '../../hooks/useFleet';
 import { useStaff } from '../../hooks/useStaff';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,16 +24,19 @@ import SearchableSelect from '../../components/shared/SearchableSelect';
 
 const stockItemSchema = z.object({
   stockItemId: z.string().optional(),
-  itemName: z.string().min(1, 'Item name required'),
-  quantity: z.number({ invalid_type_error: 'Enter quantity' }).min(0.01),
+  itemName: z.string().optional(),
+  quantity: z.number().min(0).optional(),
   unit: z.string().optional(),
+  unitCost: z.number().min(0).optional(),
 });
 
 const outsideItemSchema = z.object({
-  description: z.string().min(1, 'Description required'),
-  quantity: z.number({ invalid_type_error: 'Enter quantity' }).min(0.01),
+  description: z.string().optional(),
+  quantity: z.number().min(0).optional(),
   unit: z.string().optional(),
-  unitCost: z.number({ invalid_type_error: 'Enter cost' }).min(0).optional(),
+  unitCost: z.number().min(0).optional(),
+  discountPercent: z.number().min(0).max(100).optional(),
+  vatPercent: z.number().min(0).optional(),
 });
 
 const jobCardSchema = z.object({
@@ -83,6 +87,7 @@ const JobCardFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { vehicles, refresh: refreshVehicles } = useFleet();
   const { staff } = useStaff();
+  const [stock, setStock] = useState<InventoryItem[]>([]);
   const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -110,6 +115,11 @@ const JobCardFormPage: React.FC = () => {
 
   const selectedVehicleId = watch('vehicleId');
   const status = watch('status');
+
+  // Load inventory items for the stock-item picker
+  useEffect(() => {
+    getInventoryItems().then(setStock).catch(console.error);
+  }, []);
 
   // Auto-fill vehicleNo when vehicle changes
   useEffect(() => {
@@ -146,6 +156,8 @@ const JobCardFormPage: React.FC = () => {
         vehicleNo: data.vehicleNo || vehicles.find(v => v.id === data.vehicleId)?.plateNo || '',
         problemDescription: data.problemDescription.filter(p => p.text.trim()),
         solutionDescription: data.solutionDescription.filter(s => s.text.trim()),
+        itemsFromStock: data.itemsFromStock.filter(i => (i.itemName || '').trim() || i.stockItemId),
+        itemsFromOutside: data.itemsFromOutside.filter(i => (i.description || '').trim()),
       } as any;
       if (id) {
         await updateJobCard(id, payload);
@@ -163,10 +175,18 @@ const JobCardFormPage: React.FC = () => {
 
   if (initialLoading) return <LoadingSpinner />;
 
-  const outsideTotalCost = watch('itemsFromOutside')?.reduce((sum, item) => {
-    const cost = (item.unitCost || 0) * (item.quantity || 0);
-    return sum + cost;
+  const stockTotalCost = watch('itemsFromStock')?.reduce((sum, item) => {
+    return sum + (item.unitCost || 0) * (item.quantity || 0);
   }, 0) || 0;
+
+  // Per-line net = qty × unitCost, less discount%, plus VAT%
+  const lineNet = (item: { unitCost?: number; quantity?: number; discountPercent?: number; vatPercent?: number }) => {
+    const gross = (item.unitCost || 0) * (item.quantity || 0);
+    const afterDiscount = gross * (1 - (item.discountPercent || 0) / 100);
+    return afterDiscount * (1 + (item.vatPercent || 0) / 100);
+  };
+
+  const outsideTotalCost = watch('itemsFromOutside')?.reduce((sum, item) => sum + lineNet(item), 0) || 0;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -367,45 +387,89 @@ const JobCardFormPage: React.FC = () => {
           {stockItems.fields.length > 0 && (
             <div className="mb-3">
               <div className="grid grid-cols-12 gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest px-1 mb-2">
-                <span className="col-span-1">#</span>
-                <span className="col-span-5">Item Name</span>
-                <span className="col-span-3">Qty</span>
-                <span className="col-span-2">Unit</span>
+                <span className="col-span-4">Stock Item</span>
+                <span className="col-span-2">Qty</span>
+                <span className="col-span-1">Unit</span>
+                <span className="col-span-2">Rate (LKR)</span>
+                <span className="col-span-2 text-right">Line Total</span>
                 <span className="col-span-1"></span>
               </div>
               <div className="space-y-2">
-                {stockItems.fields.map((field, idx) => (
+                {stockItems.fields.map((field, idx) => {
+                  const qty = watch(`itemsFromStock.${idx}.quantity`) || 0;
+                  const rate = watch(`itemsFromStock.${idx}.unitCost`) || 0;
+                  return (
                   <div key={field.id} className="grid grid-cols-12 gap-2 items-center">
-                    <span className="col-span-1 text-[10px] font-black text-gray-300 text-center">{idx + 1}</span>
-                    <input
-                      {...register(`itemsFromStock.${idx}.itemName`)}
-                      placeholder="Item name"
-                      className="col-span-5 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:border-indigo-300 placeholder:text-gray-400"
-                    />
+                    <div className="col-span-4">
+                      <Controller
+                        control={control}
+                        name={`itemsFromStock.${idx}.stockItemId`}
+                        render={({ field: f }) => (
+                          <SearchableSelect
+                            options={stock.map(s => ({
+                              value: s.id!,
+                              label: s.name,
+                              subLabel: `${s.currentStock ?? 0} ${s.unitType} in stock · LKR ${(s.issueRate || 0).toLocaleString()}`,
+                            }))}
+                            value={f.value || ''}
+                            onChange={(val) => {
+                              f.onChange(val);
+                              const item = stock.find(s => s.id === val);
+                              if (item) {
+                                setValue(`itemsFromStock.${idx}.itemName`, item.name);
+                                setValue(`itemsFromStock.${idx}.unit`, item.unitType);
+                                setValue(`itemsFromStock.${idx}.unitCost`, item.issueRate || 0);
+                              }
+                            }}
+                            placeholder="Search stock item…"
+                            icon={<Package className="w-4 h-4 text-indigo-400" />}
+                          />
+                        )}
+                      />
+                    </div>
                     <input
                       {...register(`itemsFromStock.${idx}.quantity`, { valueAsNumber: true })}
                       type="number"
                       step="0.01"
                       placeholder="0"
-                      className="col-span-3 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-indigo-300 placeholder:text-gray-400"
+                      className="col-span-2 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-indigo-300 placeholder:text-gray-400"
                     />
-                    <select
+                    <input
                       {...register(`itemsFromStock.${idx}.unit`)}
-                      className="col-span-2 px-2 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:border-indigo-300 appearance-none"
-                    >
-                      <option value="">—</option>
-                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                      placeholder="unit"
+                      className="col-span-1 px-2 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:border-indigo-300 placeholder:text-gray-400"
+                    />
+                    <input
+                      {...register(`itemsFromStock.${idx}.unitCost`, { valueAsNumber: true })}
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      className="col-span-2 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-indigo-300 placeholder:text-gray-400"
+                    />
+                    <span className="col-span-2 text-right text-sm font-black text-gray-800 pr-1">
+                      {(qty * rate).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
                     <button type="button" onClick={() => stockItems.remove(idx)}
                       className="col-span-1 p-1.5 text-gray-300 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 flex items-center justify-center">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
+              {stockTotalCost > 0 && (
+                <div className="mt-4 flex justify-end">
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-3 text-right">
+                    <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Total Stock Value</p>
+                    <p className="text-lg font-black text-gray-900 mt-0.5">
+                      LKR {stockTotalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-          <button type="button" onClick={() => stockItems.append({ itemName: '', quantity: 1, unit: 'pcs' })}
+          <button type="button" onClick={() => stockItems.append({ itemName: '', quantity: 1, unit: 'pcs', unitCost: 0 })}
             className="flex items-center gap-2 text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-600 transition-colors">
             <Plus className="w-3.5 h-3.5" /> Add Stock Item
           </button>
@@ -422,36 +486,37 @@ const JobCardFormPage: React.FC = () => {
           {outsideItems.fields.length > 0 && (
             <div className="mb-3">
               <div className="grid grid-cols-12 gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest px-1 mb-2">
-                <span className="col-span-1">#</span>
-                <span className="col-span-4">Description</span>
-                <span className="col-span-2">Qty</span>
-                <span className="col-span-2">Unit</span>
-                <span className="col-span-2">Unit Cost (LKR)</span>
+                <span className="col-span-3">Description</span>
+                <span className="col-span-1">Qty</span>
+                <span className="col-span-1">Unit</span>
+                <span className="col-span-2">Unit Cost</span>
+                <span className="col-span-1">Disc %</span>
+                <span className="col-span-1">VAT %</span>
+                <span className="col-span-2 text-right">Line Total</span>
                 <span className="col-span-1"></span>
               </div>
               <div className="space-y-2">
-                {outsideItems.fields.map((field, idx) => (
+                {outsideItems.fields.map((field, idx) => {
+                  const row = watch(`itemsFromOutside.${idx}`);
+                  return (
                   <div key={field.id} className="grid grid-cols-12 gap-2 items-center">
-                    <span className="col-span-1 text-[10px] font-black text-gray-300 text-center">{idx + 1}</span>
                     <input
                       {...register(`itemsFromOutside.${idx}.description`)}
                       placeholder="Item description"
-                      className="col-span-4 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:border-amber-300 placeholder:text-gray-400"
+                      className="col-span-3 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:border-amber-300 placeholder:text-gray-400"
                     />
                     <input
                       {...register(`itemsFromOutside.${idx}.quantity`, { valueAsNumber: true })}
                       type="number"
                       step="0.01"
                       placeholder="0"
-                      className="col-span-2 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-amber-300 placeholder:text-gray-400"
+                      className="col-span-1 px-2 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-amber-300 placeholder:text-gray-400"
                     />
-                    <select
+                    <input
                       {...register(`itemsFromOutside.${idx}.unit`)}
-                      className="col-span-2 px-2 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:border-amber-300 appearance-none"
-                    >
-                      <option value="">—</option>
-                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                      placeholder="unit"
+                      className="col-span-1 px-2 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:border-amber-300 placeholder:text-gray-400"
+                    />
                     <input
                       {...register(`itemsFromOutside.${idx}.unitCost`, { valueAsNumber: true })}
                       type="number"
@@ -459,17 +524,35 @@ const JobCardFormPage: React.FC = () => {
                       placeholder="0.00"
                       className="col-span-2 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-amber-300 placeholder:text-gray-400"
                     />
+                    <input
+                      {...register(`itemsFromOutside.${idx}.discountPercent`, { valueAsNumber: true })}
+                      type="number"
+                      step="0.01"
+                      placeholder="0"
+                      className="col-span-1 px-2 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-amber-300 placeholder:text-gray-400"
+                    />
+                    <input
+                      {...register(`itemsFromOutside.${idx}.vatPercent`, { valueAsNumber: true })}
+                      type="number"
+                      step="0.01"
+                      placeholder="0"
+                      className="col-span-1 px-2 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-amber-300 placeholder:text-gray-400"
+                    />
+                    <span className="col-span-2 text-right text-sm font-black text-gray-800 pr-1">
+                      {lineNet(row || {}).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
                     <button type="button" onClick={() => outsideItems.remove(idx)}
                       className="col-span-1 p-1.5 text-gray-300 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 flex items-center justify-center">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               {outsideTotalCost > 0 && (
                 <div className="mt-4 flex justify-end">
                   <div className="bg-amber-50 border border-amber-100 rounded-2xl px-5 py-3 text-right">
-                    <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Total Outside Cost</p>
+                    <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Total Outside Cost (incl. VAT − disc.)</p>
                     <p className="text-lg font-black text-gray-900 mt-0.5">
                       LKR {outsideTotalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </p>
@@ -478,7 +561,7 @@ const JobCardFormPage: React.FC = () => {
               )}
             </div>
           )}
-          <button type="button" onClick={() => outsideItems.append({ description: '', quantity: 1, unit: 'pcs', unitCost: 0 })}
+          <button type="button" onClick={() => outsideItems.append({ description: '', quantity: 1, unit: 'pcs', unitCost: 0, discountPercent: 0, vatPercent: 0 })}
             className="flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase tracking-widest hover:text-amber-600 transition-colors">
             <Plus className="w-3.5 h-3.5" /> Add Outside Item
           </button>

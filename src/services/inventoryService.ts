@@ -135,6 +135,12 @@ export interface InventoryItem {
   purchaseCost: number;
   averageCost: number;
   issueRate: number;
+  // Purchase VAT & discount (applied to the purchase cost)
+  discountPercent?: number;   // % off the purchase cost
+  vatApplicable?: boolean;    // whether VAT is charged on purchase
+  vatPercent?: number;        // VAT rate, e.g. 18
+  netUnitCost?: number;       // computed: purchaseCost after discount + VAT
+  supplierId?: string;        // link to suppliers collection (when picked from list)
   supplierName: string;
   supplierContact: string;
   datePurchased: string;
@@ -153,12 +159,28 @@ export interface InventoryItem {
 
 const COLLECTION = 'inventory_items';
 
+/** Firestore rejects `undefined` field values — strip them recursively before writing. */
+const stripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map(v => stripUndefined(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value as Record<string, any>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+};
+
 export const createInventoryItem = async (data: Omit<InventoryItem, 'id' | 'sku' | 'stockStatus' | 'createdAt' | 'updatedAt'>) => {
   try {
     const sku = generateSKU(data.category);
     const stockStatus = computeStockStatus(data.currentStock ?? 0, data.minStockLevel ?? 0);
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       sku,
       stockStatus,
       createdAt: serverTimestamp(),
@@ -201,7 +223,7 @@ export const updateInventoryItem = async (id: string, data: Partial<InventoryIte
       ? computeStockStatus(data.currentStock, data.minStockLevel)
       : undefined;
     await updateDoc(doc(db, COLLECTION, id), {
-      ...data,
+      ...stripUndefined(data),
       ...(stockStatus && { stockStatus }),
       updatedAt: serverTimestamp()
     });

@@ -17,6 +17,26 @@ import { recordChange } from './auditService';
 
 const COLLECTION = 'daily_updates';
 
+/**
+ * Firestore rejects any `undefined` field value. The daily-update form leaves
+ * optional fields (helper ids, reasons, temporary names) as `undefined`/blank,
+ * which would throw on save — so strip them out recursively before writing.
+ */
+const stripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map(v => stripUndefined(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object' && !(value instanceof Timestamp) && !(value instanceof Date)) {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value as Record<string, any>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+};
+
 export interface DailyVehicleUpdate {
   id?: string;
   date: string;
@@ -61,7 +81,7 @@ export const getDailyUpdates = async (date?: string) => {
 export const createDailyUpdate = async (data: Omit<DailyVehicleUpdate, 'id' | 'createdAt' | 'entryTime'>) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       entryTime: Timestamp.now(),
       createdAt: Timestamp.now()
     });
@@ -81,7 +101,7 @@ export const createDailyUpdatesBulk = async (
     const ids: string[] = [];
     for (const data of updates) {
       const docRef = await addDoc(collection(db, COLLECTION), {
-        ...data,
+        ...stripUndefined(data),
         entryTime: now,
         createdAt: now
       });

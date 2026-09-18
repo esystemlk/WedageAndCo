@@ -15,6 +15,7 @@ export interface JobCardStockItem {
   itemName: string;
   quantity: number;
   unit?: string;
+  unitCost?: number;   // auto-filled from the stock item's issue/selling rate
 }
 
 export interface JobCardOutsideItem {
@@ -22,6 +23,8 @@ export interface JobCardOutsideItem {
   quantity: number;
   unit?: string;
   unitCost?: number;
+  discountPercent?: number;  // % off the line
+  vatPercent?: number;       // VAT rate applied to the line
 }
 
 export interface JobCard {
@@ -56,10 +59,26 @@ export function generateWorkOrderNo(): string {
   return `JC-${year}-${Date.now().toString(36).toUpperCase().slice(-5)}`;
 }
 
+/** Firestore rejects `undefined` field values — strip them recursively before writing. */
+const stripUndefined = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map(v => stripUndefined(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value as Record<string, any>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+};
+
 export const createJobCard = async (data: Omit<JobCard, 'id' | 'createdAt'>) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
+      ...stripUndefined(data),
       createdAt: serverTimestamp()
     });
     await recordChange(OperationType.CREATE, COLLECTION, docRef.id,
@@ -94,7 +113,7 @@ export const getJobCard = async (id: string): Promise<JobCard | null> => {
 
 export const updateJobCard = async (id: string, data: Partial<JobCard>) => {
   try {
-    await updateDoc(doc(db, COLLECTION, id), { ...data });
+    await updateDoc(doc(db, COLLECTION, id), { ...stripUndefined(data) });
     await recordChange(OperationType.UPDATE, COLLECTION, id, 'Updated job card');
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION}/${id}`);
