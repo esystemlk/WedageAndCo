@@ -32,11 +32,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(firebaseUser);
       
       if (firebaseUser) {
-        // Immediate priority: Hardcoded developer override for the system owner
+        // Immediate priority: Hardcoded developer override for the system owner.
+        // The role is granted on the client for instant access, but Firestore
+        // security rules resolve roles from the users/{uid} document — so we must
+        // ALSO persist role: 'developer' there, otherwise every write (daily
+        // updates, yard parking, etc.) is denied server-side with permission-denied.
         if (firebaseUser.email === 'thimira.vishwa2003@gmail.com') {
           setRole(UserRole.DEVELOPER);
           setPermissions(null); // full role access, no override
           setLoading(false);
+          try {
+            const devDocRef = doc(db, 'users', firebaseUser.uid);
+            await setDoc(devDocRef, {
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+              role: UserRole.DEVELOPER,
+              status: 'active',
+              isApproved: true,
+              lastLogin: new Date().toISOString(),
+            }, { merge: true });
+          } catch (e) {
+            console.error('Failed to sync developer user doc:', e);
+          }
           return;
         }
 

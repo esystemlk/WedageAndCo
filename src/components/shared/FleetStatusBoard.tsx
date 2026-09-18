@@ -126,7 +126,13 @@ const FleetStatusBoard: React.FC<FleetStatusBoardProps> = ({ date, onChanged, cl
       onChanged?.();
     } catch (err) {
       console.error(err);
-      alert('Failed to place vehicles as Yard Parking.');
+      const raw = err instanceof Error ? err.message : String(err);
+      const denied = raw.includes('permission-denied') || raw.includes('PERMISSION_DENIED') || raw.includes('Missing or insufficient permissions');
+      alert(
+        denied
+          ? 'Failed: Firestore denied the write (permission-denied). Your account role is not allowed to create daily updates under the deployed security rules.'
+          : `Failed to place vehicles as Yard Parking.\n\n${raw}`
+      );
     } finally {
       setBulkBusy(false);
     }
