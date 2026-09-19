@@ -30,6 +30,7 @@ const stripUndefined = <T>(value: T): T => {
 export interface OilTransaction {
   id?: string;
   date: string;
+  issueTarget?: 'vehicle' | 'garage';
   vehicleNo: string;
   driverName: string;
   issuingOfficer: string;

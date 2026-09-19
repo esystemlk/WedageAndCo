@@ -33,6 +33,7 @@ export interface FuelTransaction {
   id?: string;
   date: string;
   time: string;
+  issueTarget?: 'vehicle' | 'garage';
   vehicleNo: string;
   driverName: string;
   location: string;

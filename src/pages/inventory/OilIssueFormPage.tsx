@@ -20,8 +20,9 @@ const numOpt = z.number().optional().or(z.literal(null)).transform(v => v === nu
 
 const schema = z.object({
   date: z.string().min(1, 'Date is required'),
-  vehicleNo: z.string().min(1, 'Vehicle is required'),
-  driverName: z.string().min(1, 'Driver is required'),
+  issueTarget: z.enum(['vehicle', 'garage']).default('vehicle'),
+  vehicleNo: z.string().optional(),
+  driverName: z.string().optional(),
   issuingOfficer: z.string().min(1, 'Issuing officer is required'),
   stockItemId: z.string().min(1, 'Select oil/lubricant item'),
   itemName: z.string().optional(),
@@ -34,7 +35,10 @@ const schema = z.object({
   checkedByManager: z.boolean().default(false),
   managerName: z.string().optional(),
   remarks: z.string().optional(),
-});
+}).refine(
+  d => d.issueTarget === 'garage' || (!!d.vehicleNo && !!d.driverName),
+  { message: 'Vehicle and driver are required when issuing to a vehicle', path: ['vehicleNo'] }
+);
 
 type FormData = z.infer<typeof schema>;
 
@@ -54,6 +58,7 @@ const OilIssueFormPage: React.FC = () => {
     resolver: zodResolver(schema) as any,
     defaultValues: {
       date: todayStr(),
+      issueTarget: 'vehicle',
       quantityIssuedMl: 0,
       checkedByManager: false,
       technicians: [],
@@ -66,6 +71,7 @@ const OilIssueFormPage: React.FC = () => {
   });
 
   const stockItemId = watch('stockItemId');
+  const issueTarget = watch('issueTarget');
   const quantityMl = watch('quantityIssuedMl') || 0;
   const openingStockL = watch('openingStockL') || 0;
   const checkedByManager = watch('checkedByManager');
@@ -114,8 +120,12 @@ const OilIssueFormPage: React.FC = () => {
   const onSubmit = async (data: FormData) => {
     setLoading(true);
     try {
+      const isGarage = data.issueTarget === 'garage';
       const payload = {
         ...data,
+        vehicleNo: isGarage ? 'GARAGE' : (data.vehicleNo || ''),
+        driverName: isGarage ? '' : (data.driverName || ''),
+        meterReading: isGarage ? undefined : data.meterReading,
         quantityIssuedL: quantityL,
         quantityIssuedUnits,
         unitType: selectedItem?.unitType || '',
@@ -212,52 +222,78 @@ const OilIssueFormPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Vehicle & Personnel */}
+          {/* Issue Target + Personnel */}
           <div className="space-y-6">
             <div className="flex items-center gap-4">
               <div className="h-px bg-gray-100 flex-1" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Vehicle & Personnel</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Issue To</h3>
               <div className="h-px bg-gray-100 flex-1" />
             </div>
+
+            {/* Vehicle / Garage toggle */}
+            <div className="grid grid-cols-2 gap-3 max-w-md">
+              {([
+                { key: 'vehicle', label: 'Vehicle', icon: Truck },
+                { key: 'garage', label: 'Garage', icon: Wrench },
+              ] as const).map(opt => (
+                <button key={opt.key} type="button"
+                  onClick={() => setValue('issueTarget', opt.key)}
+                  className={cn(
+                    "flex items-center justify-center gap-2 py-3 rounded-xl border text-[11px] font-black uppercase tracking-widest transition-all",
+                    issueTarget === opt.key
+                      ? "bg-cyan-600 border-cyan-500 text-white shadow-lg shadow-cyan-500/20"
+                      : "bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300"
+                  )}
+                >
+                  <opt.icon className="w-4 h-4" /> {opt.label}
+                </button>
+              ))}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className={labelCls}>Date *</label>
                 <input type="date" {...register('date')} className={cn(fieldCls, errors.date && "border-red-400")} />
               </div>
-              <div className="space-y-2">
-                <label className={labelCls}>Vehicle No.</label>
-                <Controller control={control} name="vehicleNo"
-                  render={({ field }) => (
-                    <SearchableSelect
-                      options={vehicles.map(v => ({ value: v.plateNo, label: v.plateNo, subLabel: v.type }))}
-                      value={field.value || ''}
-                      onChange={field.onChange}
-                      placeholder="Select vehicle"
-                      icon={<Truck className="w-4 h-4 text-indigo-600" />}
-                      onAddNew={() => setQuickAdd({ type: 'vehicle', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
-                      addNewLabel="Add New Vehicle"
+
+              {issueTarget === 'vehicle' && (
+                <>
+                  <div className="space-y-2">
+                    <label className={labelCls}>Vehicle No. *</label>
+                    <Controller control={control} name="vehicleNo"
+                      render={({ field }) => (
+                        <SearchableSelect
+                          options={vehicles.map(v => ({ value: v.plateNo, label: v.plateNo, subLabel: v.type }))}
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          placeholder="Select vehicle"
+                          icon={<Truck className="w-4 h-4 text-indigo-600" />}
+                          onAddNew={() => setQuickAdd({ type: 'vehicle', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
+                          addNewLabel="Add New Vehicle"
+                        />
+                      )}
                     />
-                  )}
-                />
-                {errors.vehicleNo && <p className="text-[10px] font-bold text-red-500 px-1">{errors.vehicleNo.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <label className={labelCls}>Driver Name</label>
-                <Controller control={control} name="driverName"
-                  render={({ field }) => (
-                    <SearchableSelect
-                      options={staff.filter(s => s.category === 'Driver').map(s => ({ value: s.fullName, label: s.fullName }))}
-                      value={field.value || ''}
-                      onChange={field.onChange}
-                      placeholder="Select driver"
-                      icon={<User className="w-4 h-4 text-indigo-600" />}
-                      onAddNew={() => setQuickAdd({ type: 'driver', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
-                      addNewLabel="Add New Driver"
+                    {errors.vehicleNo && <p className="text-[10px] font-bold text-red-500 px-1">{errors.vehicleNo.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <label className={labelCls}>Driver Name *</label>
+                    <Controller control={control} name="driverName"
+                      render={({ field }) => (
+                        <SearchableSelect
+                          options={staff.filter(s => s.category === 'Driver').map(s => ({ value: s.fullName, label: s.fullName }))}
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          placeholder="Select driver"
+                          icon={<User className="w-4 h-4 text-indigo-600" />}
+                          onAddNew={() => setQuickAdd({ type: 'driver', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
+                          addNewLabel="Add New Driver"
+                        />
+                      )}
                     />
-                  )}
-                />
-                {errors.driverName && <p className="text-[10px] font-bold text-red-500 px-1">{errors.driverName.message}</p>}
-              </div>
+                  </div>
+                </>
+              )}
+
               <div className="space-y-2">
                 <label className={labelCls}>Issuing Officer *</label>
                 <div className="relative">
@@ -267,14 +303,17 @@ const OilIssueFormPage: React.FC = () => {
                 </div>
                 {errors.issuingOfficer && <p className="text-[10px] font-bold text-red-500 px-1">{errors.issuingOfficer.message}</p>}
               </div>
-              <div className="space-y-2">
-                <label className={labelCls}>Meter Reading (km)</label>
-                <div className="relative">
-                  <Gauge className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" step="1" {...register('meterReading', { valueAsNumber: true })}
-                    placeholder="Current odometer" className={cn(fieldCls, "pl-10")} />
+
+              {issueTarget === 'vehicle' && (
+                <div className="space-y-2">
+                  <label className={labelCls}>Meter Reading (km)</label>
+                  <div className="relative">
+                    <Gauge className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="number" step="1" {...register('meterReading', { valueAsNumber: true })}
+                      placeholder="Current odometer" className={cn(fieldCls, "pl-10")} />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 

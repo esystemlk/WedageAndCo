@@ -5,7 +5,7 @@ import { z } from 'zod';
 import {
   Fuel, Save, Truck, User, MapPin, Clock, AlertTriangle, Gauge, Droplets,
   Plus, X, Check, RefreshCw, ShoppingBag, Camera, Receipt,
-  CheckCircle2, XCircle, Info, Banknote
+  CheckCircle2, XCircle, Info, Banknote, Wrench
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -33,10 +33,11 @@ const numOpt = z.number().optional()
 
 const schema = z.object({
   fuelSource:   z.enum(['yard', 'outside']).default('yard'),
+  issueTarget:  z.enum(['vehicle', 'garage']).default('vehicle'),
   date:         z.string().min(1, 'Date is required'),
   time:         z.string().min(1, 'Time is required'),
-  vehicleNo:    z.string().min(1, 'Vehicle is required'),
-  driverName:   z.string().min(1, 'Driver is required'),
+  vehicleNo:    z.string().optional(),
+  driverName:   z.string().optional(),
   location:     z.string().optional(),
   issuingOfficer: z.string().min(1, 'Issuing officer is required'),
   fuelType:     z.string().min(1, 'Fuel type is required'),
@@ -60,8 +61,13 @@ const schema = z.object({
   notes: z.string().optional(),
 })
 .refine(d => {
-  // Meter reading check — only when meter is working
-  if (!d.meterWorking) return true;
+  // Vehicle + driver required only when issuing to a vehicle
+  if (d.issueTarget === 'garage') return true;
+  return !!d.vehicleNo && !!d.driverName;
+}, { message: 'Vehicle and driver are required when issuing to a vehicle', path: ['vehicleNo'] })
+.refine(d => {
+  // Meter reading check — only when meter is working and issuing to a vehicle
+  if (d.issueTarget === 'garage' || !d.meterWorking) return true;
   const prev = d.vehiclePrevMeterReading ?? 0;
   const curr = d.vehicleCurrentMeterReading ?? 0;
   return curr >= prev;
@@ -117,6 +123,7 @@ const FuelIssueFormPage: React.FC = () => {
     resolver: zodResolver(schema) as any,
     defaultValues: {
       fuelSource: 'yard',
+      issueTarget: 'vehicle',
       date: todayStr(),
       time: formatTime(new Date()),
       fuelType: 'diesel',
@@ -129,6 +136,7 @@ const FuelIssueFormPage: React.FC = () => {
   });
 
   const fuelSource   = watch('fuelSource');
+  const issueTarget  = watch('issueTarget');
   const meterWorking = watch('meterWorking');
   const stockItemId  = watch('stockItemId');
   const tankBefore   = watch('tankMeterReadingBefore') ?? 0;
@@ -241,9 +249,14 @@ const FuelIssueFormPage: React.FC = () => {
     setFormError(null);
     setLoading(true);
     try {
+      const isGarage = data.issueTarget === 'garage';
       const payload = {
         ...data,
-        kmDriven: meterWorking ? kmDriven : null,
+        vehicleNo: isGarage ? 'GARAGE' : (data.vehicleNo || ''),
+        driverName: isGarage ? '' : (data.driverName || ''),
+        vehiclePrevMeterReading: isGarage ? undefined : data.vehiclePrevMeterReading,
+        vehicleCurrentMeterReading: isGarage ? undefined : data.vehicleCurrentMeterReading,
+        kmDriven: (!isGarage && meterWorking) ? kmDriven : null,
         tankBalanceAfterL: fuelSource === 'yard' ? tankBalanceAfter : null,
         litresPerKm: litresPerKm ? parseFloat(litresPerKm) : undefined,
         itemName: selectedFuelItem?.name || data.itemName || '',
@@ -574,14 +587,36 @@ const FuelIssueFormPage: React.FC = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-4">
               <div className="h-px bg-gray-100 flex-1" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Vehicle &amp; Personnel</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Issue To &amp; Personnel</h3>
               <div className="h-px bg-gray-100 flex-1" />
             </div>
+
+            {/* Vehicle / Garage toggle */}
+            <div className="grid grid-cols-2 gap-3 max-w-md">
+              {([
+                { key: 'vehicle', label: 'Vehicle', icon: Truck },
+                { key: 'garage', label: 'Garage', icon: Wrench },
+              ] as const).map(opt => (
+                <button key={opt.key} type="button"
+                  onClick={() => setValue('issueTarget', opt.key)}
+                  className={cn(
+                    "flex items-center justify-center gap-2 py-3 rounded-xl border text-[11px] font-black uppercase tracking-widest transition-all",
+                    issueTarget === opt.key
+                      ? "bg-amber-500 border-amber-400 text-white shadow-lg shadow-amber-500/20"
+                      : "bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300"
+                  )}
+                >
+                  <opt.icon className="w-4 h-4" /> {opt.label}
+                </button>
+              ))}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
               {/* Vehicle */}
+              {issueTarget === 'vehicle' && (
               <div className="space-y-2">
-                <label className={labelCls}>Vehicle No.</label>
+                <label className={labelCls}>Vehicle No. *</label>
                 <Controller control={control} name="vehicleNo"
                   render={({ field }) => (
                     <SearchableSelect
@@ -602,10 +637,12 @@ const FuelIssueFormPage: React.FC = () => {
                   </p>
                 )}
               </div>
+              )}
 
               {/* Driver */}
+              {issueTarget === 'vehicle' && (
               <div className="space-y-2">
-                <label className={labelCls}>Driver</label>
+                <label className={labelCls}>Driver *</label>
                 <Controller control={control} name="driverName"
                   render={({ field }) => (
                     <SearchableSelect
@@ -621,6 +658,7 @@ const FuelIssueFormPage: React.FC = () => {
                 />
                 {errors.driverName && <p className="text-[10px] font-bold text-red-500 px-1">{errors.driverName.message}</p>}
               </div>
+              )}
 
               {/* Issuing Officer */}
               <div className="space-y-2">
@@ -663,8 +701,9 @@ const FuelIssueFormPage: React.FC = () => {
           </div>
 
           {/* ══════════════════════════════════════════════════════════════════
-              ODOMETER STATUS + METER READINGS
+              ODOMETER STATUS + METER READINGS (vehicle issues only)
           ══════════════════════════════════════════════════════════════════ */}
+          {issueTarget === 'vehicle' && (
           <div className="space-y-6">
             <div className="flex items-center gap-4">
               <div className="h-px bg-gray-100 flex-1" />
@@ -805,6 +844,7 @@ const FuelIssueFormPage: React.FC = () => {
               )}
             </AnimatePresence>
           </div>
+          )}
 
           {/* ══════════════════════════════════════════════════════════════════
               FUEL DISPENSING — Quantity
