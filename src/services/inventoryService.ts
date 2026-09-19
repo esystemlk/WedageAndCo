@@ -195,11 +195,15 @@ export const createInventoryItem = async (data: Omit<InventoryItem, 'id' | 'sku'
 
 export const getInventoryItems = async (category?: InventoryCategory): Promise<InventoryItem[]> => {
   try {
+    // Equality-only query when filtering by category (auto-indexed), then sort
+    // by createdAt in JS — avoids a (category, createdAt) composite index.
     const q = category
-      ? query(collection(db, COLLECTION), where('category', '==', category), orderBy('createdAt', 'desc'))
+      ? query(collection(db, COLLECTION), where('category', '==', category))
       : query(collection(db, COLLECTION), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as InventoryItem[];
+    const rows = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as InventoryItem[];
+    if (category) rows.sort((a, b) => ((b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0)));
+    return rows;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, COLLECTION);
     return [];

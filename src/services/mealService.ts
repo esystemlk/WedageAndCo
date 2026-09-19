@@ -283,15 +283,17 @@ export const getEmployeeMeals = async (
   employeeId: string, start: string, end: string,
 ): Promise<EmployeeMeal[]> => {
   try {
+    // Query by employee only (auto-indexed), then filter the date range + sort
+    // in JS — avoids a (employeeId, date) composite index.
     const q = query(
       collection(db, MEALS_COLLECTION),
       where('employeeId', '==', employeeId),
-      where('date', '>=', start),
-      where('date', '<=', end),
-      orderBy('date', 'desc'),
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as EmployeeMeal));
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as EmployeeMeal))
+      .filter(m => m.date >= start && m.date <= end)
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, MEALS_COLLECTION);
     return [];

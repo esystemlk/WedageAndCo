@@ -19,12 +19,15 @@ export interface Maintenance {
 
 export const getMaintenanceRecords = async (vehicleId?: string) => {
   try {
-    let q = query(collection(db, COLLECTION), orderBy('date', 'desc'));
-    if (vehicleId) {
-      q = query(collection(db, COLLECTION), where('vehicleId', '==', vehicleId), orderBy('date', 'desc'));
-    }
+    // Equality-only query when filtering by vehicle (auto-indexed), then sort
+    // by date in JS — avoids needing a (vehicleId, date) composite index.
+    const q = vehicleId
+      ? query(collection(db, COLLECTION), where('vehicleId', '==', vehicleId))
+      : query(collection(db, COLLECTION), orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Maintenance));
+    const rows = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Maintenance));
+    if (vehicleId) rows.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    return rows;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, COLLECTION);
   }

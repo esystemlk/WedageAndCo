@@ -67,12 +67,23 @@ export interface DailyVehicleUpdate {
 
 export const getDailyUpdates = async (date?: string) => {
   try {
-    let q = query(collection(db, COLLECTION), orderBy('entryTime', 'desc'));
-    if (date) {
-      q = query(collection(db, COLLECTION), where('date', '==', date), orderBy('entryTime', 'desc'));
-    }
+    // When filtering by date we use an equality-only query (auto-indexed) and
+    // sort by entryTime in JS. Combining where('date','==') with
+    // orderBy('entryTime') would require a composite index; sorting client-side
+    // keeps this working without one.
+    const q = date
+      ? query(collection(db, COLLECTION), where('date', '==', date))
+      : query(collection(db, COLLECTION), orderBy('entryTime', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DailyVehicleUpdate));
+    const rows = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DailyVehicleUpdate));
+    if (date) {
+      rows.sort((a, b) => {
+        const ta = (a.entryTime?.toMillis?.() ?? 0);
+        const tb = (b.entryTime?.toMillis?.() ?? 0);
+        return tb - ta;
+      });
+    }
+    return rows;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, COLLECTION);
   }

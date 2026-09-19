@@ -36,9 +36,12 @@ export const getLeaveRequests = async () => {
 
 export const getLeaveRequestsByStaff = async (staffId: string) => {
   try {
-    const q = query(collection(db, COLLECTION), where('staffId', '==', staffId), orderBy('createdAt', 'desc'));
+    // Equality-only query (auto-indexed) + JS sort — avoids a (staffId, createdAt) composite index.
+    const q = query(collection(db, COLLECTION), where('staffId', '==', staffId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveRequest));
+    const rows = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LeaveRequest));
+    rows.sort((a, b) => ((b as any).createdAt?.toMillis?.() ?? 0) - ((a as any).createdAt?.toMillis?.() ?? 0));
+    return rows;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, `${COLLECTION}/${staffId}`);
     return [];

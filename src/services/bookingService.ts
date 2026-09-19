@@ -118,14 +118,16 @@ export const checkVehicleAvailability = async (
   excludeId?: string
 ): Promise<VehicleBooking[]> => {
   try {
+    // Single equality filter (auto-indexed); status is filtered in JS to avoid
+    // needing a (vehiclePlate, status) composite index.
     const q = query(
       collection(db, COLLECTION),
-      where('vehiclePlate', '==', vehiclePlate),
-      where('status', 'in', ['pending', 'approved'])
+      where('vehiclePlate', '==', vehiclePlate)
     );
     const snap = await getDocs(q);
-    const bookings = snap.docs
-      .map(d => ({ id: d.id, ...d.data() })) as VehicleBooking[];
+    const bookings = (snap.docs
+      .map(d => ({ id: d.id, ...d.data() })) as VehicleBooking[])
+      .filter(b => b.status === 'pending' || b.status === 'approved');
 
     return bookings.filter(b => {
       if (excludeId && b.id === excludeId) return false;
