@@ -223,7 +223,7 @@ const LogFormPage: React.FC = () => {
     if (selectedVehicleId && vehicles.length > 0) {
       const vehicle = vehicles.find(v => v.id === selectedVehicleId);
       if (vehicle) {
-        setValue('vehicleHasFreezer', vehicle.type === 'freezer-truck' || vehicle.type === 'refrigerated-truck');
+        setValue('vehicleHasFreezer', vehicle.type === 'freezer-truck');
       }
     }
   }, [selectedVehicleId, vehicles, setValue]);

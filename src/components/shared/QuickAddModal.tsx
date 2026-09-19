@@ -79,7 +79,7 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ type, onCreated, onClose 
 
       if (type === 'vehicle') {
         if (!plateNo.trim()) { setError('Plate number is required'); setSaving(false); return; }
-        newId = await createVehicle({ plateNo: plateNo.trim().toUpperCase(), type: vType, fuelType, ownership, status: 'active' });
+        newId = await createVehicle({ plateNo: plateNo.trim().toUpperCase(), type: vType, fuelType: fuelType as any, ownership, status: 'active' });
         label = plateNo.trim().toUpperCase();
       } else if (type === 'supplier') {
         if (!supplierName.trim()) { setError('Business name is required'); setSaving(false); return; }

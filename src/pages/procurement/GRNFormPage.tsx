@@ -210,7 +210,7 @@ const GRNFormPage: React.FC = () => {
                       name="supplierId"
                       render={({ field }) => (
                         <SearchableSelect
-                          options={suppliers.map(s => ({ value: s.id!, label: s.name, subLabel: s.category || undefined }))}
+                          options={suppliers.map(s => ({ value: s.id!, label: s.name, subLabel: s.supplyCategories?.join(', ') || undefined }))}
                           value={field.value}
                           onChange={field.onChange}
                           placeholder="Select Supplier"

@@ -55,7 +55,7 @@ const ReportsPage: React.FC = () => {
     const totalRevenue = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
     const totalMaintenance = maintenance.reduce((sum, rec) => sum + rec.cost, 0);
     const totalTrips = logs.length;
-    const completedTrips = logs.filter(l => l.status === 'completed').length;
+    const completedTrips = logs.filter(l => l.status === 'Completed').length;
     const activeVehicles = vehicles.filter(v => v.status === 'active').length;
 
     return { totalRevenue, totalMaintenance, totalTrips, completedTrips, activeVehicles };
@@ -105,7 +105,7 @@ const ReportsPage: React.FC = () => {
     });
 
     maintenance.forEach(rec => {
-      const month = new Date(rec.date || rec.createdAt || Date.now()).toLocaleString('default', { month: 'short' });
+      const month = new Date(rec.date || Date.now()).toLocaleString('default', { month: 'short' });
       const entry = monthMap.get(month) || { revenue: 0, trips: 0, maintenance: 0 };
       entry.maintenance += rec.cost;
       monthMap.set(month, entry);

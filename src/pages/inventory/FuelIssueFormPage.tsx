@@ -784,7 +784,7 @@ const FuelIssueFormPage: React.FC = () => {
                       />
                     </div>
                     {errors.vehiclePrevMeterReading && (
-                      <p className="text-[10px] font-bold text-red-500 px-1">{errors.vehiclePrevMeterReading.message}</p>
+                      <p className="text-[10px] font-bold text-red-500 px-1">{errors.vehiclePrevMeterReading.message as string}</p>
                     )}
                   </div>
 
@@ -800,7 +800,7 @@ const FuelIssueFormPage: React.FC = () => {
                       />
                     </div>
                     {errors.vehicleCurrentMeterReading && (
-                      <p className="text-[10px] font-bold text-red-500 px-1">{errors.vehicleCurrentMeterReading.message}</p>
+                      <p className="text-[10px] font-bold text-red-500 px-1">{errors.vehicleCurrentMeterReading.message as string}</p>
                     )}
                   </div>
 
@@ -877,7 +877,7 @@ const FuelIssueFormPage: React.FC = () => {
                     />
                   </div>
                   {errors.tankMeterReadingBefore && (
-                    <p className="text-[10px] font-bold text-red-500 px-1">{errors.tankMeterReadingBefore.message}</p>
+                    <p className="text-[10px] font-bold text-red-500 px-1">{errors.tankMeterReadingBefore.message as string}</p>
                   )}
                 </div>
               )}

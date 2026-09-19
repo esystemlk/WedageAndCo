@@ -77,7 +77,7 @@ const AdvancedFleetDashboard: React.FC = () => {
       const vehicleMaintCount = maintenance.filter(m => m.vehicleId === v.id).length;
       let health = 90;
       if (v.status === 'maintenance') health = 45;
-      else if (v.status === 'inactive') health = 20;
+      else if (v.status === 'unavailable') health = 20;
       else {
         // More maintenance records = potentially more issues, cap at 95
         health = Math.max(60, 95 - vehicleMaintCount * 5);

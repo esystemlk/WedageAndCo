@@ -26,33 +26,33 @@ export type Permission =
   | 'view_fleet' | 'edit_fleet'
   | 'view_logs' | 'edit_logs'
   | 'view_garage' | 'edit_garage'
-  | 'view_reports' | 'view_billing' | 'view_audit_logs';
+  | 'view_reports' | 'view_billing' | 'edit_accounts' | 'view_audit_logs';
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.DEVELOPER]: [
     'view_users', 'manage_users', 'view_customers', 'edit_customers',
     'view_suppliers', 'edit_suppliers', 'view_staff', 'edit_staff',
     'view_fleet', 'edit_fleet', 'view_logs', 'edit_logs',
-    'view_garage', 'edit_garage', 'view_reports', 'view_billing', 'view_audit_logs'
+    'view_garage', 'edit_garage', 'view_reports', 'view_billing', 'edit_accounts', 'view_audit_logs'
   ],
   [UserRole.SUPER_ADMIN]: [
     'view_users', 'manage_users', 'view_customers', 'edit_customers',
     'view_suppliers', 'edit_suppliers', 'view_staff', 'edit_staff',
     'view_fleet', 'edit_fleet', 'view_logs', 'edit_logs',
-    'view_garage', 'edit_garage', 'view_reports', 'view_billing', 'view_audit_logs'
+    'view_garage', 'edit_garage', 'view_reports', 'view_billing', 'edit_accounts', 'view_audit_logs'
   ],
   [UserRole.ADMIN]: [
     'view_customers', 'edit_customers', 'view_suppliers', 'edit_suppliers',
     'view_staff', 'edit_staff', 'view_fleet', 'edit_fleet',
     'view_logs', 'edit_logs', 'view_garage', 'edit_garage',
-    'view_reports', 'view_billing'
+    'view_reports', 'view_billing', 'edit_accounts'
   ],
   [UserRole.OPERATIONS]: [
     'view_customers', 'view_suppliers', 'view_staff', 'view_fleet',
     'view_logs', 'edit_logs', 'view_garage'
   ],
   [UserRole.ACCOUNTS]: [
-    'view_customers', 'view_suppliers', 'view_billing', 'view_reports'
+    'view_customers', 'view_suppliers', 'view_billing', 'edit_accounts', 'view_reports'
   ],
   [UserRole.DRIVER]: [
     'view_logs', 'edit_logs'

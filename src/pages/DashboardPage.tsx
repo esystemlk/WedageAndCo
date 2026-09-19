@@ -331,8 +331,8 @@ const DashboardPage: React.FC = () => {
   const maintenanceDue   = alerts.filter(a => a.category === 'maintenance').length;
   const docAlerts        = alerts.filter(a => a.category === 'document').length;
 
-  const thisMonthLogs    = logs.filter(l => isThisMonth(l.startDate || l.date || ''));
-  const lastMonthLogs    = logs.filter(l => isLastMonth(l.startDate || l.date || ''));
+  const thisMonthLogs    = logs.filter(l => isThisMonth(l.date || ''));
+  const lastMonthLogs    = logs.filter(l => isLastMonth(l.date || ''));
   const tripsThisMonth   = thisMonthLogs.length;
 
   const thisMonthFuel    = fuelTx.filter(t => isThisMonth(t.date));
@@ -347,13 +347,13 @@ const DashboardPage: React.FC = () => {
   const totalCost        = fuelCost + maintCost + salaryCost;
 
   const totalKmThisMonth = thisMonthLogs.reduce((s, l) => {
-    const start = l.startMeterReading || 0;
-    const end   = l.endMeterReading   || 0;
+    const start = l.startMileage || 0;
+    const end   = l.endMileage   || 0;
     return s + Math.max(0, end - start);
   }, 0);
   const totalKmLastMonth = lastMonthLogs.reduce((s, l) => {
-    const start = l.startMeterReading || 0;
-    const end   = l.endMeterReading   || 0;
+    const start = l.startMileage || 0;
+    const end   = l.endMileage   || 0;
     return s + Math.max(0, end - start);
   }, 0);
   const kmTrend = pct(totalKmThisMonth, totalKmLastMonth);
@@ -382,9 +382,9 @@ const DashboardPage: React.FC = () => {
   // ── 7-day utilization line data ─────────────────────────────────────────────
   const days7 = lastNDays(7);
   const utilData = days7.map(d => {
-    const dayLogs  = logs.filter(l => (l.startDate || l.date || '').startsWith(d));
+    const dayLogs  = logs.filter(l => (l.date || '').startsWith(d));
     const dayFuel  = fuelTx.filter(t => t.date.startsWith(d));
-    const km       = dayLogs.reduce((s, l) => s + Math.max(0, (l.endMeterReading||0) - (l.startMeterReading||0)), 0);
+    const km       = dayLogs.reduce((s, l) => s + Math.max(0, (l.endMileage||0) - (l.startMileage||0)), 0);
     const fuel     = dayFuel.reduce((s, t) => s + (t.quantityIssuedL || 0), 0);
     const util     = totalVehicles > 0 ? Math.round((dayLogs.length / totalVehicles) * 100) : 0;
     return { date: shortDate(d), km, fuel: Math.round(fuel), util };
@@ -397,8 +397,8 @@ const DashboardPage: React.FC = () => {
       if (t.driverName && t.kmDriven) map[t.driverName] = (map[t.driverName] || 0) + t.kmDriven;
     });
     thisMonthLogs.forEach(l => {
-      const name = l.driverName || '';
-      const km = Math.max(0, (l.endMeterReading||0) - (l.startMeterReading||0));
+      const name = staff.find(s => s.id === l.driverId)?.fullName || '';
+      const km = Math.max(0, (l.endMileage||0) - (l.startMileage||0));
       if (name && km > 0) map[name] = (map[name] || 0) + km;
     });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -410,8 +410,8 @@ const DashboardPage: React.FC = () => {
     const items: { icon: React.ReactNode; text: string; time: string; color: string }[] = [];
     [...logs].slice(0, 3).forEach(l => items.push({
       icon: <Truck className="w-3.5 h-3.5" />,
-      text: `Vehicle ${l.vehicleNo || '—'} log by ${l.driverName || '—'}`,
-      time: l.startDate || l.date || '',
+      text: `Vehicle ${vehicles.find(v => v.id === l.vehicleId)?.plateNo || '—'} log by ${staff.find(s => s.id === l.driverId)?.fullName || '—'}`,
+      time: l.date || '',
       color: 'bg-indigo-100 text-indigo-600',
     }));
     [...maintenance].slice(0, 3).forEach(m => items.push({
@@ -864,14 +864,14 @@ const DashboardPage: React.FC = () => {
             label: 'Total Distance (Month)',
             value: totalKmThisMonth >= 1000 ? `${(totalKmThisMonth/1000).toFixed(1)}K km` : `${totalKmThisMonth} km`,
             trend: kmTrend, good: true,
-            spark: days7.map((d) => logs.filter(l => (l.startDate||'').startsWith(d)).reduce((s,l) => s + Math.max(0,(l.endMeterReading||0)-(l.startMeterReading||0)), 0)),
+            spark: days7.map((d) => logs.filter(l => (l.date||'').startsWith(d)).reduce((s,l) => s + Math.max(0,(l.endMileage||0)-(l.startMileage||0)), 0)),
             color: '#6366F1',
           },
           {
             label: 'Total Trips (Month)',
             value: tripsThisMonth,
             trend: pct(tripsThisMonth, Math.max(1, lastMonthLogs.length)), good: true,
-            spark: days7.map(d => logs.filter(l => (l.startDate||'').startsWith(d)).length),
+            spark: days7.map(d => logs.filter(l => (l.date||'').startsWith(d)).length),
             color: '#10B981',
           },
           {

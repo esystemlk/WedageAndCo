@@ -10,6 +10,7 @@ interface FileUploadProps {
   label?: string;
   path: string;
   currentUrl?: string;
+  showPreview?: boolean;
 }
 
 const FileUpload: React.FC<FileUploadProps> = ({ 
