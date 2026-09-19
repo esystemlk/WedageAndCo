@@ -140,3 +140,22 @@ export const deleteDailyUpdate = async (id: string) => {
   }
 };
 
+// Delete many daily updates at once (used to clear duplicate/erroneous logs)
+export const deleteDailyUpdatesBulk = async (ids: string[]) => {
+  try {
+    await Promise.all(ids.map(id => deleteDoc(doc(db, COLLECTION, id))));
+    await recordChange(OperationType.DELETE, COLLECTION, ids[0] || 'bulk', `Deleted ${ids.length} daily update(s)`);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, COLLECTION);
+  }
+};
+
+/**
+ * Returns the existing daily-update docs for a given vehicle on a given date.
+ * Used to prevent logging the same vehicle twice for the same day.
+ */
+export const getDailyUpdatesForVehicle = async (date: string, vehicleId: string, vehicleNo?: string) => {
+  const all = await getDailyUpdates(date);
+  return (all || []).filter(u => u.vehicleId === vehicleId || (!!vehicleNo && u.vehicleNo === vehicleNo));
+};
+

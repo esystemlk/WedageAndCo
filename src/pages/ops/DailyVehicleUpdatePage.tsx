@@ -8,11 +8,14 @@ import {
   Clock,
   LayoutDashboard,
   User,
-  MapPin
+  MapPin,
+  Trash2,
+  Square,
+  CheckSquare
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { getDailyUpdates, DailyVehicleUpdate } from '../../services/dailyUpdateService';
+import { getDailyUpdates, deleteDailyUpdatesBulk, DailyVehicleUpdate } from '../../services/dailyUpdateService';
 import FleetStatusBoard from '../../components/shared/FleetStatusBoard';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -23,9 +26,12 @@ const DailyVehicleUpdatePage: React.FC = () => {
   const [updates, setUpdates] = useState<DailyVehicleUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(todayStr());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
+    setSelectedIds(new Set());
     loadUpdates();
   }, [selectedDate]);
 
@@ -38,6 +44,38 @@ const DailyVehicleUpdatePage: React.FC = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = updates.length > 0 && updates.every(u => u.id && selectedIds.has(u.id));
+
+  const toggleSelectAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(updates.map(u => u.id!).filter(Boolean)));
+  };
+
+  const handleDeleteSelected = async () => {
+    const ids: string[] = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} asset log(s)? This cannot be undone.`)) return;
+    try {
+      setDeleting(true);
+      await deleteDailyUpdatesBulk(ids);
+      setSelectedIds(new Set());
+      await loadUpdates();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete selected logs.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -140,6 +178,39 @@ const DailyVehicleUpdatePage: React.FC = () => {
         </div>
       </div>
 
+      {/* Selection / bulk-delete bar */}
+      {updates.length > 0 && (
+        <div className="flex items-center justify-between gap-4 bg-white border border-gray-200 rounded-2xl px-5 py-3 shadow-sm">
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className="flex items-center gap-2 text-[10px] font-black text-gray-600 uppercase tracking-widest hover:text-indigo-600 transition-colors"
+          >
+            {allSelected
+              ? <CheckSquare className="w-4 h-4 text-indigo-600" />
+              : <Square className="w-4 h-4 text-gray-400" />}
+            Select All
+          </button>
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedIds.size} selected</span>
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              disabled={selectedIds.size === 0 || deleting}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95",
+                selectedIds.size === 0 || deleting
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-rose-600 text-white hover:bg-rose-700 shadow-lg shadow-rose-100"
+              )}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {deleting ? 'Deleting…' : `Delete Selected${selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Two-column layout: Operations grid (left) + Fleet Status Board (right) */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
@@ -153,10 +224,25 @@ const DailyVehicleUpdatePage: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  className="bg-white border border-gray-100 rounded-[2rem] p-6 space-y-6 hover:border-indigo-200 transition-all group relative overflow-hidden shadow-sm"
+                  className={cn(
+                    "bg-white border rounded-[2rem] p-6 space-y-6 transition-all group relative overflow-hidden shadow-sm",
+                    update.id && selectedIds.has(update.id)
+                      ? "border-indigo-400 ring-2 ring-indigo-500/20"
+                      : "border-gray-100 hover:border-indigo-200"
+                  )}
                 >
                   <div className="flex items-start justify-between relative z-10">
                     <div className="flex items-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => update.id && toggleSelect(update.id)}
+                        className="shrink-0"
+                        title="Select for deletion"
+                      >
+                        {update.id && selectedIds.has(update.id)
+                          ? <CheckSquare className="w-5 h-5 text-indigo-600" />
+                          : <Square className="w-5 h-5 text-gray-300 hover:text-indigo-400" />}
+                      </button>
                       <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center border border-gray-100 group-hover:scale-110 transition-transform">
                         <Truck className="w-6 h-6 text-indigo-600" />
                       </div>

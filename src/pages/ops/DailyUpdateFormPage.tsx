@@ -18,7 +18,7 @@ import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddMod
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createDailyUpdate } from '../../services/dailyUpdateService';
+import { createDailyUpdate, getDailyUpdatesForVehicle } from '../../services/dailyUpdateService';
 import { useFleet } from '../../hooks/useFleet';
 import { useStaff } from '../../hooks/useStaff';
 import { useCustomers } from '../../hooks/useCustomers';
@@ -122,6 +122,15 @@ const DailyUpdateFormPage: React.FC = () => {
       try {
          setLoading(true);
          const vehicle = vehicles.find(v => v.id === data.vehicleId);
+
+         // Prevent logging the same vehicle twice for the same date
+         const existing = await getDailyUpdatesForVehicle(data.date, data.vehicleId, vehicle?.plateNo);
+         if (existing.length > 0) {
+            alert(`${vehicle?.plateNo || 'This vehicle'} is already logged for ${data.date}. Delete the existing log first if you need to change it.`);
+            setLoading(false);
+            return;
+         }
+
          const driver = data.actualDriverId === 'temp' ? null : staff.find(s => s.id === data.actualDriverId);
          const helper = data.actualHelperId === 'temp' ? null : staff.find(s => s.id === data.actualHelperId);
          const customer = customers.find(c => c.id === data.customerId);
