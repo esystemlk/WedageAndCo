@@ -274,6 +274,36 @@ const InventoryPage: React.FC = () => {
     [items]
   );
 
+  // Per-item breakdown: issued (L) vs remaining (L), per lubricant / fuel item
+  const buildBreakdown = (category: 'lubricants' | 'fuel', txs: any[]) => {
+    const issuedById: Record<string, number> = {};
+    const issuedByName: Record<string, number> = {};
+    txs.forEach(t => {
+      const L = typeof t.quantityIssuedL === 'number'
+        ? t.quantityIssuedL
+        : (t.quantityIssuedMl || 0) / 1000;
+      if (t.stockItemId) issuedById[t.stockItemId] = (issuedById[t.stockItemId] || 0) + L;
+      if (t.itemName) issuedByName[t.itemName] = (issuedByName[t.itemName] || 0) + L;
+    });
+    const catItems = items.filter(i => i.category === category);
+    const rows = catItems.map(i => ({
+      id: i.id!,
+      name: i.name,
+      grade: i.extended?.oilGrade || i.subCategory || '',
+      issued: issuedById[i.id!] ?? issuedByName[i.name] ?? 0,
+      remaining: (i.currentStock || 0) * litresPerUnit(i.unitType),
+    }));
+    // Include issued items that are no longer in the inventory list
+    const knownNames = new Set(catItems.map(i => i.name));
+    Object.entries(issuedByName).forEach(([name, issued]) => {
+      if (!knownNames.has(name)) rows.push({ id: name, name, grade: '', issued, remaining: 0 });
+    });
+    return rows.sort((a, b) => b.issued - a.issued);
+  };
+
+  const oilBreakdown = useMemo(() => buildBreakdown('lubricants', oilTx), [items, oilTx]);
+  const fuelBreakdown = useMemo(() => buildBreakdown('fuel', fuelTx), [items, fuelTx]);
+
   // ── Category breakdown (donut) ──────────────────────────────────────────────
   const categoryBreakdown = useMemo(() => {
     return CATEGORY_GROUPS.map(g => ({
@@ -770,6 +800,39 @@ const InventoryPage: React.FC = () => {
               ))}
             </div>
 
+            {/* Per-fuel breakdown: issued vs remaining */}
+            {fuelBreakdown.length > 0 && (
+              <div className="bg-white border border-gray-100 rounded-[2rem] shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+                  <Fuel className="w-4 h-4 text-amber-600" />
+                  <h3 className="text-sm font-black text-gray-900">Fuel Types — Issued vs Remaining</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        {['Fuel / Item', 'Type', 'Issued (L)', 'Remaining (L)'].map(h => (
+                          <th key={h} className="text-left px-6 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {fuelBreakdown.map(r => (
+                        <tr key={r.id} className="hover:bg-amber-50/30">
+                          <td className="px-6 py-3 text-sm font-bold text-gray-900">{r.name}</td>
+                          <td className="px-6 py-3 text-[11px] font-bold text-gray-500">{r.grade || '—'}</td>
+                          <td className="px-6 py-3 text-sm font-black text-amber-600">{r.issued.toLocaleString(undefined, { maximumFractionDigits: 2 })} L</td>
+                          <td className={cn("px-6 py-3 text-sm font-black", r.remaining <= 0 ? 'text-red-500' : 'text-emerald-600')}>
+                            {r.remaining.toLocaleString(undefined, { maximumFractionDigits: 2 })} L
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Fuel table */}
             <div className="bg-white border border-gray-100 rounded-[2rem] shadow-xl shadow-gray-100/50 overflow-hidden">
               <div className="p-6 border-b border-gray-100">
@@ -910,6 +973,39 @@ const InventoryPage: React.FC = () => {
                 </motion.div>
               ))}
             </div>
+
+            {/* Per-lubricant breakdown: issued vs remaining */}
+            {oilBreakdown.length > 0 && (
+              <div className="bg-white border border-gray-100 rounded-[2rem] shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+                  <Droplets className="w-4 h-4 text-cyan-600" />
+                  <h3 className="text-sm font-black text-gray-900">Lubricant Types — Issued vs Remaining</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        {['Lubricant / Item', 'Grade', 'Issued (L)', 'Remaining (L)'].map(h => (
+                          <th key={h} className="text-left px-6 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {oilBreakdown.map(r => (
+                        <tr key={r.id} className="hover:bg-cyan-50/30">
+                          <td className="px-6 py-3 text-sm font-bold text-gray-900">{r.name}</td>
+                          <td className="px-6 py-3 text-[11px] font-bold text-gray-500">{r.grade || '—'}</td>
+                          <td className="px-6 py-3 text-sm font-black text-cyan-600">{r.issued.toLocaleString(undefined, { maximumFractionDigits: 2 })} L</td>
+                          <td className={cn("px-6 py-3 text-sm font-black", r.remaining <= 0 ? 'text-red-500' : 'text-emerald-600')}>
+                            {r.remaining.toLocaleString(undefined, { maximumFractionDigits: 2 })} L
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Oil table */}
             <div className="bg-white border border-gray-100 rounded-[2rem] shadow-xl shadow-gray-100/50 overflow-hidden">
