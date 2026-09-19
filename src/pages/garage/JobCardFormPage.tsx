@@ -68,6 +68,14 @@ type JobCardForm = z.infer<typeof jobCardSchema>;
 
 const UNITS = ['pcs', 'L', 'mL', 'kg', 'g', 'set', 'pair', 'bottle', 'can', 'box', 'roll', 'sheet', 'm'];
 
+/**
+ * Best available unit price for a stock item. Many parts/lubricants only have a
+ * purchase or average cost (no selling rate), so fall back through them instead
+ * of loading 0.
+ */
+const resolveItemPrice = (item: InventoryItem): number =>
+  item.issueRate || item.netUnitCost || item.averageCost || item.purchaseCost || 0;
+
 const SectionHeader: React.FC<{ icon: React.FC<any>; title: string; color: string; count?: number }> = ({ icon: Icon, title, color, count }) => (
   <div className={cn("flex items-center gap-3 pb-4 border-b mb-6", `border-${color}-100`)}>
     <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", `bg-${color}-50 border border-${color}-100`)}>
@@ -409,16 +417,16 @@ const JobCardFormPage: React.FC = () => {
                             options={stock.map(s => ({
                               value: s.id!,
                               label: s.name,
-                              subLabel: `${s.currentStock ?? 0} ${s.unitType} in stock · LKR ${(s.issueRate || 0).toLocaleString()}`,
+                              subLabel: `${s.currentStock ?? 0} ${s.unitType} in stock · LKR ${resolveItemPrice(s).toLocaleString()}`,
                             }))}
                             value={f.value || ''}
                             onChange={(val) => {
                               f.onChange(val);
                               const item = stock.find(s => s.id === val);
                               if (item) {
-                                setValue(`itemsFromStock.${idx}.itemName`, item.name);
-                                setValue(`itemsFromStock.${idx}.unit`, item.unitType);
-                                setValue(`itemsFromStock.${idx}.unitCost`, item.issueRate || 0);
+                                setValue(`itemsFromStock.${idx}.itemName`, item.name, { shouldDirty: true });
+                                setValue(`itemsFromStock.${idx}.unit`, item.unitType, { shouldDirty: true });
+                                setValue(`itemsFromStock.${idx}.unitCost`, resolveItemPrice(item), { shouldDirty: true, shouldValidate: true });
                               }
                             }}
                             placeholder="Search stock item…"
