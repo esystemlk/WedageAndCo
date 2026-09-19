@@ -11,7 +11,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
   AreaChart, Area, XAxis, YAxis, CartesianGrid, RadialBarChart, RadialBar,
 } from 'recharts';
-import { cn } from '../../lib/utils';
+import { cn, litresPerUnit } from '../../lib/utils';
 import {
   getInventoryItems, deleteInventoryItem,
   InventoryItem, CATEGORY_LABELS, StockStatus
@@ -261,6 +261,18 @@ const InventoryPage: React.FC = () => {
       stockTurns,
     };
   }, [items]);
+
+  // ── Fuel / lubricant remaining stock, expressed in litres ───────────────────
+  const fuelStockL = useMemo(
+    () => items.filter(i => i.category === 'fuel')
+      .reduce((s, i) => s + (i.currentStock || 0) * litresPerUnit(i.unitType), 0),
+    [items]
+  );
+  const oilStockL = useMemo(
+    () => items.filter(i => i.category === 'lubricants')
+      .reduce((s, i) => s + (i.currentStock || 0) * litresPerUnit(i.unitType), 0),
+    [items]
+  );
 
   // ── Category breakdown (donut) ──────────────────────────────────────────────
   const categoryBreakdown = useMemo(() => {
@@ -673,6 +685,11 @@ const InventoryPage: React.FC = () => {
                                 {item.currentStock}
                               </span>
                               <span className="text-[10px] text-gray-400 ml-1">{item.unitType}</span>
+                              {(item.category === 'fuel' || item.category === 'lubricants') && (
+                                <p className="text-[10px] font-black text-emerald-600 mt-0.5">
+                                  = {((item.currentStock || 0) * litresPerUnit(item.unitType)).toLocaleString(undefined, { maximumFractionDigits: 2 })} L
+                                </p>
+                              )}
                             </td>
                             <td className="px-5 py-4">
                               <span className={cn(
@@ -729,10 +746,11 @@ const InventoryPage: React.FC = () => {
             className="space-y-6"
           >
             {/* Fuel summary stats */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
+                { label: 'Fuel in Stock',   value: `${fuelStockL.toLocaleString(undefined, { maximumFractionDigits: 0 })} L`,        color: 'text-emerald-600', bg: 'bg-emerald-50', icon: Fuel },
                 { label: 'Total Issues',    value: fuelTx.length,                                                                     color: 'text-amber-600',  bg: 'bg-amber-50',  icon: Fuel     },
-                { label: 'Total Litres',    value: `${fuelTx.reduce((s, t) => s + (t.quantityIssuedL || 0), 0).toFixed(0)} L`,        color: 'text-orange-600', bg: 'bg-orange-50', icon: Gauge    },
+                { label: 'Total Litres Issued', value: `${fuelTx.reduce((s, t) => s + (t.quantityIssuedL || 0), 0).toFixed(0)} L`,    color: 'text-orange-600', bg: 'bg-orange-50', icon: Gauge    },
                 { label: 'Vehicles Served', value: new Set(fuelTx.map(t => t.vehicleNo)).size,                                        color: 'text-indigo-600', bg: 'bg-indigo-50', icon: ChevronRight },
               ].map((s, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -869,10 +887,11 @@ const InventoryPage: React.FC = () => {
             className="space-y-6"
           >
             {/* Oil summary stats */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
+                { label: 'Lubricant in Stock', value: `${oilStockL.toLocaleString(undefined, { maximumFractionDigits: 1 })} L`,           color: 'text-emerald-600', bg: 'bg-emerald-50', icon: Droplets },
                 { label: 'Total Issues',    value: oilTx.length,                                                                           color: 'text-cyan-600',   bg: 'bg-cyan-50',   icon: Droplets },
-                { label: 'Total Qty (mL)',  value: `${oilTx.reduce((s, t) => s + (t.quantityIssuedMl || 0), 0).toLocaleString()} mL`,      color: 'text-teal-600',   bg: 'bg-teal-50',   icon: Gauge    },
+                { label: 'Total Litres Issued', value: `${(oilTx.reduce((s, t) => s + (t.quantityIssuedMl || 0), 0) / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} L`, color: 'text-teal-600', bg: 'bg-teal-50', icon: Gauge },
                 { label: 'Vehicles Served', value: new Set(oilTx.map(t => t.vehicleNo)).size,                                              color: 'text-indigo-600', bg: 'bg-indigo-50', icon: ChevronRight },
               ].map((s, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
