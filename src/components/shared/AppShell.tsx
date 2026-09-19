@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import CommandPalette from './CommandPalette';
 import InstallPrompt from './InstallPrompt';
+import ErrorBoundary from './ErrorBoundary';
 import { motion, AnimatePresence } from 'motion/react';
 import { Menu } from 'lucide-react';
 
@@ -53,7 +54,9 @@ const AppShell: React.FC = () => {
             transition={{ duration: 0.3 }}
             className={wideLayout ? 'max-w-[1800px] mx-auto' : 'max-w-7xl mx-auto'}
           >
-            <Outlet />
+            <ErrorBoundary resetKey={location.pathname}>
+              <Outlet />
+            </ErrorBoundary>
           </motion.div>
         </div>
       </main>

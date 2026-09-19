@@ -298,7 +298,7 @@ const DailyVehicleUpdatePage: React.FC = () => {
                       <Clock className="w-3.5 h-3.5" />
                       <span className="text-[9px] font-black uppercase tracking-widest">Logged: {format(update.entryTime?.toDate ? update.entryTime.toDate() : new Date(), 'HH:mm')}</span>
                     </div>
-                    <p className="text-[9px] font-bold">@ {update.enteredBy.split('@')[0]}</p>
+                    <p className="text-[9px] font-bold">@ {(update.enteredBy || 'system').split('@')[0]}</p>
                   </div>
                 </motion.div>
               ))}

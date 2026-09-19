@@ -11,7 +11,7 @@ import {
   Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../../lib/utils';
+import { cn, toJsDate } from '../../lib/utils';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { getAuditLogs, AuditLog } from '../../services/auditService';
@@ -162,10 +162,10 @@ const AuditLogPage: React.FC = () => {
                        <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900">
                              <Clock className="w-3 h-3 text-gray-400" />
-                             {new Date(log.timestamp.toDate()).toLocaleTimeString()}
+                             {toJsDate(log.timestamp)?.toLocaleTimeString() || '—'}
                           </div>
                           <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">
-                             {new Date(log.timestamp.toDate()).toLocaleDateString()}
+                             {toJsDate(log.timestamp)?.toLocaleDateString() || '—'}
                           </p>
                        </div>
                     </td>

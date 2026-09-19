@@ -29,6 +29,24 @@ export function todayStr(): string {
 }
 
 /**
+ * Safely coerce any stored date value to a JS Date, or null.
+ * Handles Firestore Timestamp ({toDate}), {seconds}, Date, ISO string and epoch
+ * number — so callers never crash calling `.toDate()` on a string/undefined.
+ */
+export function toJsDate(value: any): Date | null {
+  if (value == null) return null;
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+  if (typeof value.toDate === 'function') {
+    try { const d = value.toDate(); return isNaN(d.getTime()) ? null : d; } catch { return null; }
+  }
+  if (typeof value === 'object' && typeof value.seconds === 'number') {
+    return new Date(value.seconds * 1000);
+  }
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
  * Firestore rejects any `undefined` field value (it throws "Unsupported field
  * value: undefined"). Optional fields left blank on forms arrive as `undefined`,
  * so strip them out recursively before writing. Dates, Firestore Timestamps and
