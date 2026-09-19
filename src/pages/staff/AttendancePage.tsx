@@ -17,7 +17,7 @@ import {
   Save,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 import { PermissionGate } from '../../components/auth/RouteGuards';
 
 const AttendancePage: React.FC = () => {
@@ -25,7 +25,7 @@ const AttendancePage: React.FC = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'Operations' | 'Office Staff'>('Operations');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(todayStr());
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 

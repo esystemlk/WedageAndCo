@@ -10,7 +10,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 import { useStaff } from '../../hooks/useStaff';
 import { updateStaffMember, StaffMember } from '../../services/staffService';
 import {
@@ -31,7 +31,7 @@ import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { useToast } from '../../contexts/ToastContext';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => todayStr();
 const fmt = (n: number) => `LKR ${n.toLocaleString('en-LK')}`;
 const initials = (name: string) => name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 

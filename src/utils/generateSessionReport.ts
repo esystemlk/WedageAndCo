@@ -11,6 +11,7 @@
 
 // @ts-ignore
 import jsPDF from 'jspdf';
+import { todayStr } from '../lib/utils';
 
 // ─── Colour palette ──────────────────────────────────────────────────────────
 const C = {
@@ -418,6 +419,6 @@ export function generateSessionReport(): void {
   addFooter(doc.getNumberOfPages(), SECTIONS.length + 1);
 
   // ── save ────────────────────────────────────────────────────────────────────
-  const date = new Date().toISOString().split('T')[0];
+  const date = todayStr();
   doc.save(`WedageCo-Session-Report-${date}.pdf`);
 }

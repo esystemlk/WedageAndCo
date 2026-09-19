@@ -8,7 +8,7 @@ import {
   CheckCircle2, Users, Info
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 import { createBooking, checkVehicleAvailability, VehicleBooking } from '../../services/bookingService';
 import { getVehicles } from '../../services/fleetService';
 import { getStaffMembers } from '../../services/staffService';
@@ -46,7 +46,7 @@ const VehicleBookingFormPage: React.FC = () => {
   const [staff, setStaff] = useState<any[]>([]);
   const [checkingAvail, setCheckingAvail] = useState(false);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayStr();
   const now   = new Date().toTimeString().slice(0,5);
 
   const { register, handleSubmit, setValue, watch, control, formState: { errors, isSubmitted } } = useForm<FormData>({

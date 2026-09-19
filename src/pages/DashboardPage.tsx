@@ -14,7 +14,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, AreaChart, Area,
 } from 'recharts';
 import { motion } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, toDateStr } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useFleet } from '../hooks/useFleet';
 import { useStaff } from '../hooks/useStaff';
@@ -44,7 +44,7 @@ function lastNDays(n: number): string[] {
   return Array.from({ length: n }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (n - 1 - i));
-    return d.toISOString().split('T')[0];
+    return toDateStr(d);
   });
 }
 function shortDate(d: string) {

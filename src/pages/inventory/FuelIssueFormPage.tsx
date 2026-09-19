@@ -11,7 +11,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import FileUpload from '../../components/shared/FileUpload';
-import { cn, litresPerUnit } from '../../lib/utils';
+import { cn, litresPerUnit, todayStr } from '../../lib/utils';
 import {
   createFuelTransaction, updateFuelTransaction,
   getFuelTransaction, getFuelTransactions
@@ -117,7 +117,7 @@ const FuelIssueFormPage: React.FC = () => {
     resolver: zodResolver(schema) as any,
     defaultValues: {
       fuelSource: 'yard',
-      date: new Date().toISOString().split('T')[0],
+      date: todayStr(),
       time: formatTime(new Date()),
       fuelType: 'diesel',
       meterWorking: true,

@@ -26,7 +26,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import SearchableSelect from '../../components/shared/SearchableSelect';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 
 const grnSchema = z.object({
   date: z.string().min(1, 'Date is required'),
@@ -59,8 +59,8 @@ const GRNFormPage: React.FC = () => {
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<GRNFormData>({
     resolver: zodResolver(grnSchema),
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
-      voucherDate: new Date().toISOString().split('T')[0],
+      date: todayStr(),
+      voucherDate: todayStr(),
       items: [{ description: '', orderedQuantity: 0, receivedQuantity: 0, unit: 'pcs' }],
     }
   });

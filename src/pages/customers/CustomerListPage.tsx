@@ -11,7 +11,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
   AreaChart, Area, XAxis, YAxis, CartesianGrid, LineChart, Line,
 } from 'recharts';
-import { cn } from '../../lib/utils';
+import { cn, toDateStr } from '../../lib/utils';
 import { useToast } from '../../contexts/ToastContext';
 import { PermissionGate } from '../../components/auth/RouteGuards';
 import { deleteCustomer, Customer } from '../../services/customerService';
@@ -56,8 +56,8 @@ function getInitials(name: string) {
 function tsToDateStr(ts: any): string {
   if (!ts) return '';
   if (typeof ts === 'string') return ts.slice(0,7);
-  if (ts?.seconds) return new Date(ts.seconds*1000).toISOString().slice(0,7);
-  if (ts instanceof Date) return ts.toISOString().slice(0,7);
+  if (ts?.seconds) return toDateStr(new Date(ts.seconds*1000)).slice(0,7);
+  if (ts instanceof Date) return toDateStr(ts).slice(0,7);
   return '';
 }
 

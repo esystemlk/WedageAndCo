@@ -28,7 +28,7 @@ import { getCustomers } from '../../services/customerService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import SearchableSelect from '../../components/shared/SearchableSelect';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 
 const gatePassSchema = z.object({
   linkedLogSheetNo: z.string().optional(),
@@ -105,7 +105,7 @@ const GatePassFormPage: React.FC = () => {
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<GatePassFormData>({
     resolver: zodResolver(gatePassSchema) as any,
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: todayStr(),
       status: 'Open',
       timeOut: formatTime(new Date()),
       helperNames: [],

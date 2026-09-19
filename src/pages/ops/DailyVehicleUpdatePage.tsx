@@ -16,13 +16,13 @@ import { getDailyUpdates, DailyVehicleUpdate } from '../../services/dailyUpdateS
 import FleetStatusBoard from '../../components/shared/FleetStatusBoard';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 import { format } from 'date-fns';
 
 const DailyVehicleUpdatePage: React.FC = () => {
   const [updates, setUpdates] = useState<DailyVehicleUpdate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(todayStr());
   const navigate = useNavigate();
 
   useEffect(() => {

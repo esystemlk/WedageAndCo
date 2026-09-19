@@ -7,6 +7,28 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Return a `YYYY-MM-DD` string using LOCAL calendar date components.
+ *
+ * IMPORTANT: never use `new Date().toISOString().split('T')[0]` for "today" —
+ * toISOString() converts to UTC, so in Sri Lanka (UTC+5:30) any time between
+ * local midnight and ~05:30 resolves to the PREVIOUS day, producing wrong
+ * default dates and date-filter mismatches. This helper reads the local Y/M/D.
+ */
+export function toDateStr(d: Date | string | number = new Date()): string {
+  const date = d instanceof Date ? d : new Date(d);
+  if (isNaN(date.getTime())) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Today's date as a local `YYYY-MM-DD` string (see toDateStr). */
+export function todayStr(): string {
+  return toDateStr(new Date());
+}
+
+/**
  * Firestore rejects any `undefined` field value (it throws "Unsupported field
  * value: undefined"). Optional fields left blank on forms arrive as `undefined`,
  * so strip them out recursively before writing. Dates, Firestore Timestamps and

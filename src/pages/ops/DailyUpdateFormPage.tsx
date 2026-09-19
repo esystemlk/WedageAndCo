@@ -27,7 +27,7 @@ import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import SearchableSelect from '../../components/shared/SearchableSelect';
 import FleetStatusBoard from '../../components/shared/FleetStatusBoard';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 
 const dailyUpdateSchema = z.object({
    date: z.string().min(1, 'Date is required'),
@@ -100,7 +100,7 @@ const DailyUpdateFormPage: React.FC = () => {
    const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<DailyUpdateFormData>({
       resolver: zodResolver(dailyUpdateSchema),
       defaultValues: {
-         date: new Date().toISOString().split('T')[0],
+         date: todayStr(),
          status: 'Yard Parking',
          customerId: '',
          actualDriverId: '',

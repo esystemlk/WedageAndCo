@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Truck, CheckCircle2, Square, CheckSquare, Loader2, ParkingSquare
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 import { useFleet } from '../../hooks/useFleet';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -34,8 +34,7 @@ const FleetStatusBoard: React.FC<FleetStatusBoardProps> = ({ date, onChanged, cl
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const isToday = date === todayStr;
+  const isToday = date === todayStr();
 
   const load = async () => {
     if (!date) return;

@@ -35,7 +35,7 @@ import { exportDatabase, importDatabase, ImportProgress } from '../services/back
 import PageHeader from '../components/shared/PageHeader';
 import FileUpload from '../components/shared/FileUpload';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, todayStr } from '../lib/utils';
 
 const NOTIF_CATEGORIES: { key: keyof NotificationPrefs; label: string; desc: string }[] = [
   { key: 'document',    label: 'Document Expiry',  desc: 'Licence, insurance & agreement expiry warnings' },
@@ -71,7 +71,7 @@ const SettingsPage: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `wedage_backup_${new Date().toISOString().split('T')[0]}_${Date.now().toString().slice(-4)}.json`;
+      link.download = `wedage_backup_${todayStr()}_${Date.now().toString().slice(-4)}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

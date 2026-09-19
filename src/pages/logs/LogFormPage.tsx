@@ -19,7 +19,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
-import { cn } from '../../lib/utils';
+import { cn, todayStr, toDateStr } from '../../lib/utils';
 import { getLogSheet, createLogSheet, updateLogSheet } from '../../services/logService';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useFleet } from '../../hooks/useFleet';
@@ -147,8 +147,8 @@ const LogFormPage: React.FC = () => {
     resolver: zodResolver(logSchema) as any,
     defaultValues: {
       logSheetCode: `LS-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-5)}`,
-      date: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
+      date: todayStr(),
+      endDate: todayStr(),
       status: 'Completed',
       meterStatus: 'Working',
       vehicleHasFreezer: false,
@@ -238,7 +238,7 @@ const LogFormPage: React.FC = () => {
     const current = getValues('freezerDailyTimes') || [];
     const newDays: { date: string; onTime: string; offTime: string }[] = [];
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const ds = d.toISOString().split('T')[0];
+      const ds = toDateStr(d);
       const existing = current.find(f => f.date === ds);
       newDays.push({ date: ds, onTime: existing?.onTime || '', offTime: existing?.offTime || '' });
     }
@@ -301,7 +301,7 @@ const LogFormPage: React.FC = () => {
             const endD = new Date((data.endDate || data.date) + 'T00:00:00');
             const generatedDays: { date: string; onTime: string; offTime: string }[] = [];
             for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-              const ds = d.toISOString().split('T')[0];
+              const ds = toDateStr(d);
               const saved = Array.isArray(savedDailyTimes) ? savedDailyTimes.find((x: any) => x.date === ds) : null;
               const legacyOn = ds === data.date && data.freezerOnTime ? data.freezerOnTime.slice(11, 16) : '';
               const legacyOff = ds === data.date && data.freezerOffTime ? data.freezerOffTime.slice(11, 16) : '';

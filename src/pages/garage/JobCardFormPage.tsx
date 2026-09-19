@@ -10,7 +10,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 import {
   createJobCard, updateJobCard, getJobCard, generateWorkOrderNo, JobCardStatus
 } from '../../services/jobCardService';
@@ -97,7 +97,7 @@ const JobCardFormPage: React.FC = () => {
     resolver: zodResolver(jobCardSchema),
     defaultValues: {
       workOrderNo: generateWorkOrderNo(),
-      date: new Date().toISOString().split('T')[0],
+      date: todayStr(),
       time: new Date().toTimeString().slice(0, 5),
       status: 'open',
       problemDescription: [{ text: '' }],

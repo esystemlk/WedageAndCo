@@ -4,7 +4,7 @@ import {
   Utensils, Power, Coffee, Sun, Moon, Soup, Wallet, CalendarDays,
   Download, FileText, Search, CheckCircle, XCircle, ArrowUpRight,
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, toDateStr } from '../../lib/utils';
 import { StaffMember, updateStaffMember } from '../../services/staffService';
 import {
   getMealSettings, getEmployeeMeals, monthDateRange,
@@ -41,7 +41,7 @@ const StaffMealPanel: React.FC<{ member: StaffMember; onChange?: (m: StaffMember
       setLoading(true);
       setSettings(await getMealSettings());
       // last ~2 months of history
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+      const start = toDateStr(new Date(now.getFullYear(), now.getMonth() - 1, 1));
       const end = monthDateRange(now.getFullYear(), now.getMonth() + 1).end;
       setHistory(await getEmployeeMeals(member.id, start, end));
       setLoading(false);

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 import { useToast } from '../../contexts/ToastContext';
 import { getCustomer, createCustomer, updateCustomer } from '../../services/customerService';
 import PageHeader from '../../components/shared/PageHeader';
@@ -72,7 +72,7 @@ const CustomerFormPage: React.FC = () => {
       name: '',
       brNo: '',
       officialContact: '',
-      agreementStart: new Date().toISOString().split('T')[0],
+      agreementStart: todayStr(),
       agreementEnd: '',
       customerType: 'permanent',
       paysVat: true,

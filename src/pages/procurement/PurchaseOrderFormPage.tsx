@@ -29,7 +29,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import SearchableSelect from '../../components/shared/SearchableSelect';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 import { useToast } from '../../contexts/ToastContext';
 
 const poSchema = z.object({
@@ -72,7 +72,7 @@ const PurchaseOrderFormPage: React.FC = () => {
    const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<POFormData>({
       resolver: zodResolver(poSchema) as any,
       defaultValues: {
-         date: new Date().toISOString().split('T')[0],
+         date: todayStr(),
          items: [{ description: '', quantity: 1, unit: 'pcs', unitPrice: 0, total: 0 }],
          status: 'Draft',
          deliveryAddress: 'Main Warehouse, Wedage & Company',

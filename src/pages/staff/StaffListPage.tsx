@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip,
 } from 'recharts';
-import { cn } from '../../lib/utils';
+import { cn, toDateStr } from '../../lib/utils';
 import { useToast } from '../../contexts/ToastContext';
 import { PermissionGate } from '../../components/auth/RouteGuards';
 import { deleteStaffMember, updateStaffMember, StaffMember } from '../../services/staffService';
@@ -69,7 +69,7 @@ const StaffListPage: React.FC = () => {
   useEffect(() => { setPage(1); }, [search, catFilter, deptFilter, statusFilter]);
 
   const now = new Date();
-  const todayISO = now.toISOString().slice(0, 10);
+  const todayISO = toDateStr(now);
 
   // staff currently on approved leave
   const onLeaveIds = useMemo(() => new Set(

@@ -8,7 +8,7 @@ import { getCustomFuelTypes, CustomFuelType } from '../../services/configService
 import { createSupplier } from '../../services/supplierService';
 import { createCustomer } from '../../services/customerService';
 import { createStaffMember } from '../../services/staffService';
-import { cn } from '../../lib/utils';
+import { cn, todayStr, toDateStr } from '../../lib/utils';
 
 export type QuickAddType = 'vehicle' | 'supplier' | 'customer' | 'driver' | 'helper' | 'staff';
 
@@ -56,8 +56,8 @@ const QuickAddModal: React.FC<QuickAddModalProps> = ({ type, onCreated, onClose 
   const [officialContact, setOfficialContact] = useState('');
   const [customerType, setCustomerType] = useState<'permanent' | 'temporary'>('permanent');
   const [paysVat, setPaysVat] = useState(false);
-  const today = new Date().toISOString().split('T')[0];
-  const nextYear = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
+  const today = todayStr();
+  const nextYear = toDateStr(new Date(new Date().setFullYear(new Date().getFullYear() + 1)));
   const [agreementStart, setAgreementStart] = useState(today);
   const [agreementEnd, setAgreementEnd] = useState(nextYear);
 

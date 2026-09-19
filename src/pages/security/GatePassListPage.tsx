@@ -40,7 +40,7 @@ import {
 } from '../../services/visitorLogService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -118,7 +118,7 @@ const GatePassListPage: React.FC = () => {
   } = useForm<BillCheckFormData>({
     resolver: zodResolver(billCheckSchema),
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: todayStr(),
       targetType: 'Vehicle',
       units: 1,
       price: 0
@@ -136,7 +136,7 @@ const GatePassListPage: React.FC = () => {
   } = useForm<VisitorFormData>({
     resolver: zodResolver(visitorSchema),
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: todayStr(),
       visitorType: 'Individual',
       status: 'On-site',
       timeIn: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -187,7 +187,7 @@ const GatePassListPage: React.FC = () => {
       };
       await createSecurityBillCheck(payload);
       resetBill({
-        date: new Date().toISOString().split('T')[0],
+        date: todayStr(),
         targetType: 'Vehicle',
         units: 1,
         price: 0
@@ -220,7 +220,7 @@ const GatePassListPage: React.FC = () => {
       setDrawerLoading(true);
       await createVisitorLog(data);
       resetVisitor({
-        date: new Date().toISOString().split('T')[0],
+        date: todayStr(),
         visitorType: 'Individual',
         status: 'On-site',
         timeIn: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -405,7 +405,7 @@ const GatePassListPage: React.FC = () => {
           <button
             onClick={() => {
               resetVisitor({
-                date: new Date().toISOString().split('T')[0],
+                date: todayStr(),
                 visitorType: 'Individual',
                 status: 'On-site',
                 timeIn: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

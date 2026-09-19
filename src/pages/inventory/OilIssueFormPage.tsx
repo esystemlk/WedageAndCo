@@ -6,7 +6,7 @@ import { Droplets, Save, Truck, User, Plus, Trash2, Gauge, Wrench, CheckCircle }
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
-import { cn, litresPerUnit } from '../../lib/utils';
+import { cn, litresPerUnit, todayStr } from '../../lib/utils';
 import { createOilTransaction, updateOilTransaction, getOilTransaction } from '../../services/oilStockService';
 import { getInventoryItems, InventoryItem } from '../../services/inventoryService';
 import { getVehicles } from '../../services/fleetService';
@@ -53,7 +53,7 @@ const OilIssueFormPage: React.FC = () => {
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: todayStr(),
       quantityIssuedMl: 0,
       checkedByManager: false,
       technicians: [],

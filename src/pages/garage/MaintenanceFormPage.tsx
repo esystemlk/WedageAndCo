@@ -14,7 +14,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
-import { cn } from '../../lib/utils';
+import { cn, todayStr } from '../../lib/utils';
 import { getMaintenanceRecord, createMaintenanceRecord, updateMaintenanceRecord } from '../../services/maintenanceService';
 import { useFleet } from '../../hooks/useFleet';
 import { useSuppliers } from '../../hooks/useSuppliers';
@@ -47,7 +47,7 @@ const MaintenanceFormPage: React.FC = () => {
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<MaintenanceFormData>({
     resolver: zodResolver(maintenanceSchema),
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: todayStr(),
       cost: 0
     }
   });

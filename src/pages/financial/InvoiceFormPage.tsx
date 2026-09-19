@@ -21,7 +21,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
-import { cn } from '../../lib/utils';
+import { cn, todayStr, toDateStr } from '../../lib/utils';
 import { createInvoice, updateInvoice, getInvoice, InvoiceItem } from '../../services/invoiceService';
 import { useCustomers } from '../../hooks/useCustomers';
 import PageHeader from '../../components/shared/PageHeader';
@@ -61,8 +61,8 @@ const InvoiceFormPage: React.FC = () => {
   const { register, control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      date: todayStr(),
+      dueDate: toDateStr(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)),
       invoiceNo: `INV-${Date.now().toString().slice(-6)}`,
       status: 'draft',
       taxRate: 0,
