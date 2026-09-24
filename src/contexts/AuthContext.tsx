@@ -61,12 +61,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         
         userDocUnsubscribe = onSnapshot(userDocRef, async (snapshot) => {
+          const fromCache = snapshot.metadata.fromCache;
           if (snapshot.exists()) {
             const data = snapshot.data();
             setRole(data.role as UserRole);
             setPermissions(Array.isArray(data.permissions) ? (data.permissions as Permission[]) : null);
             setLoading(false);
           } else {
+            // IMPORTANT: a "not found" snapshot that came from the local cache
+            // (offline / flaky connection) does NOT mean the user is new — the
+            // real doc may exist on the server. Creating a PENDING doc here would
+            // overwrite the user's real role once the device reconnects. So only
+            // treat it as a genuinely new user when the SERVER confirms absence.
+            if (fromCache) {
+              return; // wait for the authoritative server snapshot
+            }
             // New user registration in Firestore
             const defaultRole = UserRole.PENDING;
             await setDoc(userDocRef, {
