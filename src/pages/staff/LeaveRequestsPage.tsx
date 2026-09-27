@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, LeaveRequest } from '../../services/leaveService';
+import { getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest, LeaveRequest } from '../../services/leaveService';
 import { useStaff } from '../../hooks/useStaff';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -15,8 +15,9 @@ import {
   Briefcase,
   AlertCircle
 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../../lib/utils';
+import { cn, toJsDate } from '../../lib/utils';
 import { PermissionGate } from '../../components/auth/RouteGuards';
 
 const LeaveRequestsPage: React.FC = () => {
@@ -100,6 +101,18 @@ const LeaveRequestsPage: React.FC = () => {
         fetchRequests();
       } catch (err) {
         console.error(err);
+      }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Delete this leave request permanently? This cannot be undone.')) {
+      try {
+        await deleteLeaveRequest(id);
+        fetchRequests();
+      } catch (err) {
+        console.error(err);
+        alert('Failed to delete the leave request.');
       }
     }
   };
@@ -211,14 +224,32 @@ const LeaveRequestsPage: React.FC = () => {
                     <CheckCircle className="w-3.5 h-3.5" />
                     Approve
                   </button>
+                  <button
+                    onClick={() => handleDelete(req.id!)}
+                    title="Delete request"
+                    className="py-2.5 px-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all border border-gray-100 flex items-center justify-center"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </PermissionGate>
               </div>
             )}
 
             {req.status !== 'Pending' && (
-              <div className="pt-4 mt-4 border-t border-gray-150 flex items-center justify-between text-[9px] font-black uppercase text-gray-400 tracking-wider">
-                <span>Processed by: {req.approvedBy || 'System'}</span>
-                <span>{req.approvedAt ? new Date(req.approvedAt.toDate()).toLocaleDateString() : ''}</span>
+              <div className="pt-4 mt-4 border-t border-gray-150 space-y-3">
+                <div className="flex items-center justify-between text-[9px] font-black uppercase text-gray-400 tracking-wider">
+                  <span>Processed by: {req.approvedBy || 'System'}</span>
+                  <span>{toJsDate(req.approvedAt)?.toLocaleDateString() || ''}</span>
+                </div>
+                <PermissionGate permission="edit_staff">
+                  <button
+                    onClick={() => handleDelete(req.id!)}
+                    className="w-full py-2.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all border border-rose-100 flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete {req.status === 'Rejected' ? 'Rejected ' : ''}Request
+                  </button>
+                </PermissionGate>
               </div>
             )}
           </motion.div>

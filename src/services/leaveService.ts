@@ -114,6 +114,15 @@ export const approveLeaveRequest = async (id: string, approvedBy: string) => {
   }
 };
 
+export const deleteLeaveRequest = async (id: string) => {
+  try {
+    await deleteDoc(doc(db, COLLECTION, id));
+    await recordChange(OperationType.DELETE, COLLECTION, id, `Deleted leave request: ${id}`);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${COLLECTION}/${id}`);
+  }
+};
+
 export const rejectLeaveRequest = async (id: string, rejectedBy: string) => {
   try {
     const docRef = doc(db, COLLECTION, id);
