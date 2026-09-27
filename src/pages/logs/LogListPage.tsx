@@ -25,6 +25,7 @@ import { useFleet } from '../../hooks/useFleet';
 import { useStaff } from '../../hooks/useStaff';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import SearchableSelect from '../../components/shared/SearchableSelect';
 
 const LogListPage: React.FC = () => {
   const { logs, loading, refresh } = useLogs();
@@ -32,21 +33,46 @@ const LogListPage: React.FC = () => {
   const { vehicles } = useFleet();
   const { staff } = useStaff();
   const [searchTerm, setSearchTerm] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('all');
+  const [vehicleFilter, setVehicleFilter] = useState('all');
+  const [driverFilter, setDriverFilter] = useState('all');
   const navigate = useNavigate();
 
   const getCustomerName = (id: string) => customers.find(c => c.id === id)?.nickname || customers.find(c => c.id === id)?.name || '---';
   const getVehiclePlate = (id: string) => vehicles.find(v => v.id === id)?.plateNo || '---';
   const getStaffName = (id: string) => staff.find(s => s.id === id)?.fullName || '---';
 
+  // Build filter options from the entities that actually appear in the logs.
+  const customerOptions = [
+    { value: 'all', label: 'All Companies' },
+    ...Array.from(new Set(logs.map(l => l.customerId).filter(Boolean)))
+      .map(id => ({ value: id, label: getCustomerName(id) }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  ];
+  const vehicleOptions = [
+    { value: 'all', label: 'All Trucks' },
+    ...Array.from(new Set(logs.map(l => l.vehicleId).filter(Boolean)))
+      .map(id => ({ value: id, label: getVehiclePlate(id) }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  ];
+  const driverOptions = [
+    { value: 'all', label: 'All Drivers' },
+    ...Array.from(new Set(logs.map(l => l.driverId).filter(Boolean)))
+      .map(id => ({ value: id, label: getStaffName(id) }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  ];
+
   const filteredLogs = logs.filter(l => {
+    if (customerFilter !== 'all' && l.customerId !== customerFilter) return false;
+    if (vehicleFilter !== 'all' && l.vehicleId !== vehicleFilter) return false;
+    if (driverFilter !== 'all' && l.driverId !== driverFilter) return false;
+    const term = searchTerm.toLowerCase();
+    if (!term) return true;
     const custName = getCustomerName(l.customerId).toLowerCase();
     const plate = getVehiclePlate(l.vehicleId).toLowerCase();
     const driver = getStaffName(l.driverId).toLowerCase();
     const code = (l.logSheetCode || '').toLowerCase();
-    return custName.includes(searchTerm.toLowerCase()) || 
-           plate.includes(searchTerm.toLowerCase()) ||
-           driver.includes(searchTerm.toLowerCase()) ||
-           code.includes(searchTerm.toLowerCase());
+    return custName.includes(term) || plate.includes(term) || driver.includes(term) || code.includes(term);
   });
 
   const handleDelete = async (id: string) => {
@@ -96,6 +122,45 @@ const LogListPage: React.FC = () => {
           </div>
         }
       />
+
+      {/* Filter bar: Company · Truck · Driver */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SearchableSelect
+          options={customerOptions}
+          value={customerFilter}
+          onChange={setCustomerFilter}
+          placeholder="All Companies"
+          icon={<Building2 className="w-4 h-4 text-amber-500" />}
+        />
+        <SearchableSelect
+          options={vehicleOptions}
+          value={vehicleFilter}
+          onChange={setVehicleFilter}
+          placeholder="All Trucks"
+          icon={<Truck className="w-4 h-4 text-emerald-600" />}
+        />
+        <SearchableSelect
+          options={driverOptions}
+          value={driverFilter}
+          onChange={setDriverFilter}
+          placeholder="All Drivers"
+          icon={<UserSquare2 className="w-4 h-4 text-indigo-500" />}
+        />
+      </div>
+
+      {(customerFilter !== 'all' || vehicleFilter !== 'all' || driverFilter !== 'all' || searchTerm) && (
+        <div className="flex items-center gap-3 -mt-4">
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            {filteredLogs.length} of {logs.length} logs
+          </span>
+          <button
+            onClick={() => { setCustomerFilter('all'); setVehicleFilter('all'); setDriverFilter('all'); setSearchTerm(''); }}
+            className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
 
       <div className="bg-white border border-gray-200 rounded-[2rem] overflow-hidden flex flex-col shadow-sm min-h-[60vh]">
         {loading ? (

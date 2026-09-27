@@ -76,9 +76,20 @@ export interface LogSheet {
 
 export const getLogSheets = async () => {
   try {
-    const q = query(collection(db, COLLECTION), orderBy('date', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LogSheet));
+    // Fetch without a server orderBy: orderBy('date') silently drops any doc that
+    // is missing the `date` field, which would hide logs. Sort client-side instead
+    // so every log shows regardless of field consistency.
+    const snapshot = await getDocs(collection(db, COLLECTION));
+    const rows = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LogSheet));
+    rows.sort((a, b) => {
+      const da = String(a.date || '');
+      const db_ = String(b.date || '');
+      if (da !== db_) return db_.localeCompare(da);
+      const ca = (a.createdAt?.toMillis?.() ?? 0);
+      const cb = (b.createdAt?.toMillis?.() ?? 0);
+      return cb - ca;
+    });
+    return rows;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, COLLECTION);
   }

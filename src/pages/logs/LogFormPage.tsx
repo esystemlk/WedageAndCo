@@ -172,7 +172,7 @@ const LogFormPage: React.FC = () => {
     name: 'additionalHelperIds'
   });
 
-  const { fields: dailyFreezerFields, replace: replaceDailyFreezer } = useFieldArray({
+  const { fields: dailyFreezerFields, replace: replaceDailyFreezer, append: appendFreezer, remove: removeFreezer } = useFieldArray({
     control,
     name: 'freezerDailyTimes'
   });
@@ -236,13 +236,17 @@ const LogFormPage: React.FC = () => {
     if (isNaN(start.getTime()) || end < start) return;
 
     const current = getValues('freezerDailyTimes') || [];
-    const newDays: { date: string; onTime: string; offTime: string }[] = [];
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const ds = toDateStr(d);
-      const existing = current.find(f => f.date === ds);
-      newDays.push({ date: ds, onTime: existing?.onTime || '', offTime: existing?.offTime || '' });
-    }
-    replaceDailyFreezer(newDays);
+    const daysInRange: string[] = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) daysInRange.push(toDateStr(d));
+
+    // Preserve ALL existing rows within the range (a day can have several on/off
+    // intervals), then add a blank row for any day that has no entry yet.
+    const kept = current.filter(f => daysInRange.includes(f.date));
+    daysInRange.forEach(ds => {
+      if (!kept.some(k => k.date === ds)) kept.push({ date: ds, onTime: '', offTime: '' });
+    });
+    kept.sort((a, b) => a.date.localeCompare(b.date));
+    replaceDailyFreezer(kept);
   }, [watchedDate, watchedEndDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-calculate Total Freezer Hours from all daily entries
@@ -759,7 +763,7 @@ const LogFormPage: React.FC = () => {
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Reefer ON / OFF Times</label>
 
                 {dailyFreezerFields.length === 0 && (
-                  <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider px-1">Set Start & End dates above to generate time entries.</p>
+                  <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider px-1">Set Start &amp; End dates above, or add an ON/OFF time below.</p>
                 )}
 
                 <div className="space-y-2">
@@ -769,11 +773,14 @@ const LogFormPage: React.FC = () => {
                     const offVal = timeData?.offTime || '';
                     const hrs = computeDayHours(onVal, offVal);
                     return (
-                      <div key={field.id} className="grid grid-cols-[110px_1fr_1fr_72px] gap-3 items-center p-4 bg-gray-50 border border-gray-100 rounded-2xl">
-                        <div>
-                          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider leading-tight">
-                            {formatDayLabel(field.date, index)}
-                          </p>
+                      <div key={field.id} className="grid grid-cols-[140px_1fr_1fr_64px_40px] gap-3 items-end p-4 bg-gray-50 border border-gray-100 rounded-2xl">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Date</label>
+                          <input
+                            type="date"
+                            {...register(`freezerDailyTimes.${index}.date`)}
+                            className="w-full bg-white border border-gray-200 px-2 py-2.5 rounded-xl text-gray-900 font-bold text-xs outline-none focus:border-emerald-400"
+                          />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">ON</label>
@@ -791,16 +798,27 @@ const LogFormPage: React.FC = () => {
                             className="w-full bg-white border border-gray-200 px-3 py-2.5 rounded-xl text-gray-900 font-bold text-sm outline-none focus:border-emerald-400"
                           />
                         </div>
-                        <div className="text-right pt-4">
+                        <div className="text-right">
                           <p className={cn("text-lg font-black font-mono leading-none", hrs ? "text-emerald-600" : "text-gray-300")}>
                             {hrs || '—'}
                           </p>
                           <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">hrs</p>
                         </div>
+                        <button type="button" onClick={() => removeFreezer(index)}
+                          className="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center"
+                          title="Remove this on/off entry">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     );
                   })}
                 </div>
+
+                <button type="button"
+                  onClick={() => appendFreezer({ date: watchedEndDate || watchedDate || todayStr(), onTime: '', offTime: '' })}
+                  className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:text-emerald-700 transition-colors mt-1">
+                  <Plus className="w-3.5 h-3.5" /> Add ON / OFF Time
+                </button>
               </div>
 
               {/* Total Freezer Hours (auto-computed) */}
