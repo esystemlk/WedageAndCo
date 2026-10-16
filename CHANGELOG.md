@@ -28,6 +28,11 @@ Investigated `src/pages/inventory/` and `src/services/inventoryService.ts`:
 - **All other categories** (filters, parts, battery, electrical, stationery) have **no issuance screen**. Only a generic `adjustInventoryStock()` function exists in code — it is not exposed as a feature, so staff cannot currently issue these items to a department/person from the UI.
 - **Answer to client**: general item issuance is not currently supported; it would need a new feature (an "Issue Item" form similar to the Fuel/Oil ones) to be built.
 
+### 6. Inventory — Item Issuance (feature added)
+- Added a dedicated **Issue Item** flow for every inventory category other than Fuel and Oil/Lubricant (filters, parts, battery, electrical, stationery, other) — those two already had their own issuance screens.
+- New **Item Issues** tab on the Inventory page ([InventoryPage.tsx](src/pages/inventory/InventoryPage.tsx)), a matching form ([ItemIssueFormPage.tsx](src/pages/inventory/ItemIssueFormPage.tsx)), and a new `item_issues` record type ([itemIssueService.ts](src/services/itemIssueService.ts)).
+- Issuing an item records the date, item, quantity, who/what it was issued to (department, person, or vehicle) and the issuing officer, and automatically deducts the quantity from stock.
+
 ### Verification
 - `npx tsc --noEmit` — passes with no errors.
 - `npm run build` — production build succeeds.

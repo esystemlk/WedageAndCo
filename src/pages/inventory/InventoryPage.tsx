@@ -5,7 +5,7 @@ import {
   Trash2, RefreshCw, Archive, Gauge, User, Calendar, ChevronRight,
   Download, Clock, ChevronDown
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
@@ -22,6 +22,9 @@ import {
 import {
   getOilTransactions, deleteOilTransaction, OilTransaction
 } from '../../services/oilStockService';
+import {
+  getItemIssues, deleteItemIssue, ItemIssue
+} from '../../services/itemIssueService';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -87,7 +90,7 @@ function fmtLKR(v: number): string {
 }
 
 // ─── Main section tabs ─────────────────────────────────────────────────────
-type MainTab = 'stock' | 'fuel' | 'oil';
+type MainTab = 'stock' | 'fuel' | 'oil' | 'items';
 
 const MAIN_TABS: { key: MainTab; label: string; icon: React.ReactNode; color: string; activeColor: string }[] = [
   {
@@ -111,6 +114,13 @@ const MAIN_TABS: { key: MainTab; label: string; icon: React.ReactNode; color: st
     color: 'text-cyan-600',
     activeColor: 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-500/20',
   },
+  {
+    key: 'items',
+    label: 'Item Issues',
+    icon: <Package className="w-4 h-4" />,
+    color: 'text-emerald-600',
+    activeColor: 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/20',
+  },
 ];
 
 // ─── Fuel type pill colours ────────────────────────────────────────────────
@@ -129,10 +139,11 @@ const FUEL_PILL: Record<string, string> = {
 // ══════════════════════════════════════════════════════════════════════════════
 const InventoryPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
 
   // Main tab
-  const [mainTab, setMainTab] = useState<MainTab>('stock');
+  const [mainTab, setMainTab] = useState<MainTab>((location.state as any)?.tab || 'stock');
 
   // Stock state
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -153,6 +164,12 @@ const InventoryPage: React.FC = () => {
   const [oilLoading, setOilLoading] = useState(false);
   const [oilLoaded, setOilLoaded] = useState(false);
   const [oilSearch, setOilSearch] = useState('');
+
+  // Item issue state
+  const [itemTx, setItemTx] = useState<ItemIssue[]>([]);
+  const [itemLoading, setItemLoading] = useState(false);
+  const [itemLoaded, setItemLoaded] = useState(false);
+  const [itemSearch, setItemSearch] = useState('');
 
   // Load stock on mount
   useEffect(() => {
@@ -181,6 +198,14 @@ const InventoryPage: React.FC = () => {
         setOilLoaded(true);
       });
     }
+    if (mainTab === 'items' && !itemLoaded) {
+      setItemLoading(true);
+      getItemIssues().then(data => {
+        setItemTx(data);
+        setItemLoading(false);
+        setItemLoaded(true);
+      });
+    }
   }, [mainTab]);
 
   // ── Delete handlers ────────────────────────────────────────────────────────
@@ -203,6 +228,13 @@ const InventoryPage: React.FC = () => {
     await deleteOilTransaction(id);
     setOilTx(prev => prev.filter(t => t.id !== id));
     toast.success('Oil issue deleted', 'The oil/lubricant issue record was removed.');
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    if (!window.confirm('Delete this item issue record?')) return;
+    await deleteItemIssue(id);
+    setItemTx(prev => prev.filter(t => t.id !== id));
+    toast.success('Item issue deleted', 'The item issue record was removed.');
   };
 
   // ── Distinct warehouse locations for the filter ─────────────────────────────
@@ -240,6 +272,13 @@ const InventoryPage: React.FC = () => {
     || t.vehicleNo.toLowerCase().includes(oilSearch.toLowerCase())
     || t.driverName.toLowerCase().includes(oilSearch.toLowerCase())
     || (t.oilType || '').toLowerCase().includes(oilSearch.toLowerCase())
+  );
+
+  const filteredItems = itemTx.filter(t =>
+    !itemSearch
+    || t.itemName.toLowerCase().includes(itemSearch.toLowerCase())
+    || t.issuedTo.toLowerCase().includes(itemSearch.toLowerCase())
+    || (t.vehicleNo || '').toLowerCase().includes(itemSearch.toLowerCase())
   );
 
   // ── Stats ──────────────────────────────────────────────────────────────────
@@ -405,6 +444,14 @@ const InventoryPage: React.FC = () => {
               className="flex items-center gap-2 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-cyan-500/20"
             >
               <Droplets className="w-3.5 h-3.5" /> Issue Oil / Lubricant
+            </button>
+          )}
+          {mainTab === 'items' && (
+            <button
+              onClick={() => navigate('/inventory/items/new')}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
+            >
+              <Package className="w-3.5 h-3.5" /> Issue Item
             </button>
           )}
         </div>
@@ -1104,6 +1151,120 @@ const InventoryPage: React.FC = () => {
                                   <Edit className="w-3.5 h-3.5" />
                                 </button>
                                 <button onClick={() => handleDeleteOil(tx.id!)}
+                                  className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </motion.tr>
+                        ))}
+                      </AnimatePresence>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            ITEM ISSUES TAB (filters, parts, battery, electrical, stationery...)
+        ════════════════════════════════════════════════════════════════════ */}
+        {mainTab === 'items' && (
+          <motion.div key="items"
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {[
+                { label: 'Total Issues', value: itemTx.length, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: Package },
+                { label: 'Total Units Issued', value: itemTx.reduce((s, t) => s + (t.quantityIssued || 0), 0).toLocaleString(), color: 'text-teal-600', bg: 'bg-teal-50', icon: Gauge },
+                { label: 'Recipients', value: new Set(itemTx.map(t => t.issuedTo)).size, color: 'text-indigo-600', bg: 'bg-indigo-50', icon: User },
+              ].map((s, i) => (
+                <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="bg-white border border-gray-100 rounded-[1.5rem] p-5 shadow-sm"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{s.label}</p>
+                      <p className="text-2xl font-black text-gray-900 mt-1">{s.value}</p>
+                    </div>
+                    <div className={cn("p-2.5 rounded-xl", s.bg)}>
+                      <s.icon className={cn("w-4 h-4", s.color)} />
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="bg-white border border-gray-100 rounded-[2rem] shadow-xl shadow-gray-100/50 overflow-hidden">
+              <div className="p-6 border-b border-gray-100">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text" value={itemSearch} onChange={e => setItemSearch(e.target.value)}
+                    placeholder="Search by item, issued to, vehicle..."
+                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-1 focus:ring-emerald-500/50 outline-none text-sm font-bold text-gray-900 placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
+
+              {itemLoading ? (
+                <div className="flex justify-center py-20"><LoadingSpinner /></div>
+              ) : filteredItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <Package className="w-12 h-12 text-gray-200" />
+                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No item issues recorded</p>
+                  <button onClick={() => navigate('/inventory/items/new')}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                  >
+                    <Plus className="w-3 h-3" /> Record First Issue
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        {['Date', 'Item', 'Category', 'Qty Issued', 'Issued To', 'Vehicle', 'Officer', ''].map(h => (
+                          <th key={h} className="text-left px-5 py-3 text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      <AnimatePresence>
+                        {filteredItems.map((tx, i) => (
+                          <motion.tr key={tx.id}
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            transition={{ delay: i * 0.02 }}
+                            className="hover:bg-emerald-50/30 transition-colors group"
+                          >
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-1.5 text-[11px] text-gray-600 font-bold">
+                                <Calendar className="w-3 h-3 text-gray-400" />
+                                {tx.date}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-[11px] font-black text-gray-800">{tx.itemName}</td>
+                            <td className="px-5 py-4 text-[10px] font-bold text-gray-500">{CATEGORY_LABELS[tx.category] || tx.category}</td>
+                            <td className="px-5 py-4">
+                              <span className="text-sm font-black text-emerald-600">{tx.quantityIssued?.toLocaleString()}</span>
+                              <span className="text-[10px] text-gray-400 ml-1">{tx.unitType}</span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-1.5">
+                                <User className="w-3 h-3 text-gray-400" />
+                                <span className="text-[11px] font-bold text-gray-700">{tx.issuedTo}</span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-[11px] font-bold text-gray-500">{tx.vehicleNo || '—'}</td>
+                            <td className="px-5 py-4 text-[11px] font-bold text-gray-500">{tx.issuingOfficer}</td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleDeleteItem(tx.id!)}
                                   className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />

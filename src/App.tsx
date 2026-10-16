@@ -58,6 +58,7 @@ import JobCardFormPage from './pages/garage/JobCardFormPage';
 import InventoryItemFormPage from './pages/inventory/InventoryItemFormPage';
 import FuelIssueFormPage from './pages/inventory/FuelIssueFormPage';
 import OilIssueFormPage from './pages/inventory/OilIssueFormPage';
+import ItemIssueFormPage from './pages/inventory/ItemIssueFormPage';
 import SessionReportPage from './pages/SessionReportPage';
 import VehicleBookingPage from './pages/fleet/VehicleBookingPage';
 import VehicleBookingFormPage from './pages/fleet/VehicleBookingFormPage';
@@ -99,6 +100,7 @@ function App() {
               <Route path="/inventory/fuel/:id/edit" element={<FuelIssueFormPage />} />
               <Route path="/inventory/oil/new" element={<OilIssueFormPage />} />
               <Route path="/inventory/oil/:id/edit" element={<OilIssueFormPage />} />
+              <Route path="/inventory/items/new" element={<ItemIssueFormPage />} />
                 
                 {/* Module 4: Staff */}
                 <Route path="/staff" element={<StaffListPage />} />
