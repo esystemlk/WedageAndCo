@@ -19,7 +19,7 @@ import { stripUndefined } from '../lib/utils';
 export interface SecurityBillCheck {
   id: string;
   date: string;
-  targetType: 'Vehicle' | 'Stores';
+  targetType: 'Vehicle' | 'Private Vehicle' | 'Stores';
   vehicleNo?: string;
   supplierName: string;
   description: string;

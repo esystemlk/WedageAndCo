@@ -6,6 +6,7 @@
 
 import { getVehicles } from './fleetService';
 import { getInventoryItems } from './inventoryService';
+import { getBookings } from './bookingService';
 import { getSystemConfig, DEFAULT_SYSTEM_CONFIG } from './systemConfigService';
 
 export type AlertSeverity = 'expired' | 'critical' | 'warning' | 'info';
@@ -156,6 +157,26 @@ export const getSystemAlerts = async (): Promise<SystemAlert[]> => {
     }
   } catch (e) {
     console.warn('alertService: stock check failed', e);
+  }
+
+  // ── 3. Vehicle bookings awaiting approval ────────────────────────────────
+  try {
+    const bookings = await getBookings() || [];
+    for (const b of bookings.filter(b => b.status === 'pending')) {
+      alerts.push({
+        id:           `booking-${b.id}`,
+        category:     'booking',
+        severity:     'warning',
+        title:        `${b.vehiclePlate} — Booking Awaiting Approval`,
+        message:      `${b.requestedBy} requested ${b.vehiclePlate} for ${b.destination} (${b.fromDate} ${b.fromTime} → ${b.toDate} ${b.toTime}).`,
+        vehicleId:    b.vehicleId,
+        vehiclePlate: b.vehiclePlate,
+        actionUrl:    `/fleet/bookings`,
+        actionLabel:  'Review Booking',
+      });
+    }
+  } catch (e) {
+    console.warn('alertService: booking check failed', e);
   }
 
   // Sort: expired first, then critical, warning, info — then by daysUntil asc

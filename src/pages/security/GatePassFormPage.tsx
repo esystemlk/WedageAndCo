@@ -39,7 +39,7 @@ const gatePassSchema = z.object({
   helperNames: z.array(z.object({ name: z.string().optional() })).optional(),
   customerName: z.string().optional().or(z.literal('')),
   tripType: z.enum(['Customer', 'Test Run', 'Other']).optional(),
-  reason: z.string().optional(),
+  reason: z.string().min(1, 'Reason is required'),
   timeOut: z.string().min(1, 'Time Out is required'),
   meterOut: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v),
   securityOfficer: z.string().min(1, 'Security Officer name is required'),
@@ -47,9 +47,6 @@ const gatePassSchema = z.object({
   status: z.enum(['Open', 'Returned', 'Cancelled']),
   timeIn: z.string().optional(),
   meterIn: z.number().optional().or(z.literal(null)).or(z.literal('')).transform(v => (v === null || v === '') ? undefined : typeof v === 'string' ? parseFloat(v) : v),
-  invoiceNotAvailable: z.boolean().optional(),
-  invoiceNo: z.string().optional(),
-  invoiceReason: z.string().optional(),
   managerApproved: z.boolean().optional(),
   securityApproved: z.boolean().optional(),
   managerApprovedBy: z.string().optional(),
@@ -65,19 +62,7 @@ const gatePassSchema = z.object({
 .refine(data => {
   if (data.tripType === 'Customer' && !data.customerName?.trim()) return false;
   return true;
-}, { message: 'Customer is required for customer trips', path: ['customerName'] })
-.refine(data => {
-  if ((data.tripType === 'Test Run' || data.tripType === 'Other') && !data.reason?.trim()) return false;
-  return true;
-}, { message: 'Reason is required', path: ['reason'] })
-.refine(data => {
-  if (!data.invoiceNotAvailable && !data.invoiceNo?.trim()) return false;
-  return true;
-}, { message: 'Invoice No is required', path: ['invoiceNo'] })
-.refine(data => {
-  if (data.invoiceNotAvailable && !data.invoiceReason?.trim()) return false;
-  return true;
-}, { message: 'Reason for no invoice is required', path: ['invoiceReason'] });
+}, { message: 'Customer is required for customer trips', path: ['customerName'] });
 
 type GatePassFormData = z.infer<typeof gatePassSchema>;
 
@@ -110,9 +95,7 @@ const GatePassFormPage: React.FC = () => {
       timeOut: formatTime(new Date()),
       helperNames: [],
       customerName: '',
-      invoiceNotAvailable: false,
-      invoiceNo: '',
-      invoiceReason: '',
+      reason: '',
       managerApproved: false,
       securityApproved: false,
       managerApprovedBy: '',
@@ -131,7 +114,6 @@ const GatePassFormPage: React.FC = () => {
     name: 'outsideFuelFills'
   });
 
-  const invoiceNotAvailable = watch('invoiceNotAvailable');
   const tripType = watch('tripType');
 
   // Refresh reference data when an entity is quick-added
@@ -425,67 +407,22 @@ const GatePassFormPage: React.FC = () => {
                 </motion.div>
               )}
 
-              {/* Mandatory reason — when tripType is Test Run or Other */}
-              {(tripType === 'Test Run' || tripType === 'Other') && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-3">
-                  <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest px-1">
-                    Reason <span className="text-rose-400">(Required)</span>
-                  </label>
-                  <textarea
-                    {...register('reason')}
-                    rows={3}
-                    placeholder={tripType === 'Test Run' ? 'e.g. Pre-delivery refrigeration test' : 'Specify the purpose of this movement'}
-                    className={cn(
-                      "w-full px-6 py-4 bg-rose-50/30 border border-rose-100 rounded-2xl focus:ring-1 focus:ring-rose-500/50 outline-none transition-all font-bold text-gray-900 text-sm resize-none shadow-sm",
-                      errors.reason && "border-rose-400 bg-rose-50"
-                    )}
-                  />
-                  {errors.reason && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.reason.message}</p>}
-                </motion.div>
-              )}
-            </div>
-
-            {/* Invoice & Billing Section */}
-            <div className="pt-6 border-t border-gray-100 space-y-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Invoice & Billing Verification</h4>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 tracking-widest">Enforce financial clearance at yard departure</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest cursor-pointer select-none" htmlFor="invoiceNotAvailable">Invoice Not Available</label>
-                  <input
-                    type="checkbox"
-                    id="invoiceNotAvailable"
-                    {...register('invoiceNotAvailable')}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                </div>
+              {/* Reason — always mandatory */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest px-1">
+                  Reason <span className="text-rose-400">(Required)</span>
+                </label>
+                <textarea
+                  {...register('reason')}
+                  rows={3}
+                  placeholder="Specify the purpose of this movement"
+                  className={cn(
+                    "w-full px-6 py-4 bg-rose-50/30 border border-rose-100 rounded-2xl focus:ring-1 focus:ring-rose-500/50 outline-none transition-all font-bold text-gray-900 text-sm resize-none shadow-sm",
+                    errors.reason && "border-rose-400 bg-rose-50"
+                  )}
+                />
+                {errors.reason && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.reason.message}</p>}
               </div>
-
-              {!invoiceNotAvailable ? (
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Invoice Number</label>
-                  <input
-                    type="text"
-                    {...register('invoiceNo')}
-                    placeholder="e.g. INV-10492"
-                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none font-bold text-gray-900 text-sm placeholder:text-gray-300 shadow-sm"
-                  />
-                  {errors.invoiceNo && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.invoiceNo.message}</p>}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-black text-rose-600 uppercase tracking-widest px-1">Reason for No Invoice</label>
-                  <input
-                    type="text"
-                    {...register('invoiceReason')}
-                    placeholder="Specify release justification reason"
-                    className="w-full px-6 py-4 bg-rose-50/30 border border-rose-100 rounded-2xl focus:ring-1 focus:ring-rose-500/50 outline-none font-bold text-gray-900 text-sm placeholder:text-rose-300 shadow-sm"
-                  />
-                  {errors.invoiceReason && <p className="text-[10px] font-bold text-rose-600 px-1">{errors.invoiceReason.message}</p>}
-                </div>
-              )}
             </div>
           </div>
 
@@ -778,7 +715,7 @@ const GatePassFormPage: React.FC = () => {
                 {errors.driverName && <li>Driver assignment required</li>}
                 {errors.securityOfficer && <li>Recording officer name required</li>}
                 {errors.customerName && <li>Customer selection required for customer trips</li>}
-                {errors.reason && <li>Reason is required for this trip type</li>}
+                {errors.reason && <li>Reason is required</li>}
               </ul>
             </motion.div>
           )}

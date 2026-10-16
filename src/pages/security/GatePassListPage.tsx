@@ -46,10 +46,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth } from '../../contexts/AuthContext';
 
-// Zod schema for Bill Verification
+// Zod schema for Goods Inward / Material Receiving
 const billCheckSchema = z.object({
   date: z.string().min(1, 'Date is required'),
-  targetType: z.enum(['Vehicle', 'Stores']),
+  targetType: z.enum(['Vehicle', 'Private Vehicle', 'Stores']),
   vehicleNo: z.string().optional(),
   supplierName: z.string().min(1, 'Supplier is required'),
   description: z.string().min(1, 'Description is required'),
@@ -57,12 +57,12 @@ const billCheckSchema = z.object({
   invoiceNo: z.string().min(1, 'Invoice Number is required'),
   price: z.number().min(0, 'Price must be positive'),
 }).refine(data => {
-  if (data.targetType === 'Vehicle' && !data.vehicleNo?.trim()) {
+  if ((data.targetType === 'Vehicle' || data.targetType === 'Private Vehicle') && !data.vehicleNo?.trim()) {
     return false;
   }
   return true;
 }, {
-  message: "Vehicle selection is required",
+  message: "Vehicle number is required",
   path: ["vehicleNo"]
 });
 
@@ -103,6 +103,7 @@ const GatePassListPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [visitorDrawerOpen, setVisitorDrawerOpen] = useState(false);
   const [drawerLoading, setDrawerLoading] = useState(false);
+  const [editingVisitorId, setEditingVisitorId] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -218,7 +219,11 @@ const GatePassListPage: React.FC = () => {
   const handleCreateVisitorLog = async (data: VisitorFormData) => {
     try {
       setDrawerLoading(true);
-      await createVisitorLog(data);
+      if (editingVisitorId) {
+        await updateVisitorLog(editingVisitorId, data);
+      } else {
+        await createVisitorLog(data);
+      }
       resetVisitor({
         date: todayStr(),
         visitorType: 'Individual',
@@ -233,6 +238,7 @@ const GatePassListPage: React.FC = () => {
         purpose: '',
         hostName: ''
       });
+      setEditingVisitorId(null);
       setVisitorDrawerOpen(false);
       await loadAllData();
     } catch (err) {
@@ -241,6 +247,26 @@ const GatePassListPage: React.FC = () => {
     } finally {
       setDrawerLoading(false);
     }
+  };
+
+  const handleEditVisitor = (v: VisitorLog, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingVisitorId(v.id!);
+    resetVisitor({
+      date: v.date,
+      visitorName: v.visitorName,
+      organization: v.organization || '',
+      visitorType: v.visitorType,
+      nicNumber: v.nicNumber || '',
+      phone: v.phone,
+      vehicleNo: v.vehicleNo || '',
+      vehicleType: v.vehicleType || '',
+      purpose: v.purpose,
+      timeIn: v.timeIn,
+      hostName: v.hostName,
+      status: v.status
+    });
+    setVisitorDrawerOpen(true);
   };
 
   const handleVisitorCheckout = async (id: string, e: React.MouseEvent) => {
@@ -304,7 +330,7 @@ const GatePassListPage: React.FC = () => {
     <div className="space-y-10 group/page pb-20 relative">
       <PageHeader
         title="Security Command Book"
-        subtitle="Gate Exit Passes, External Visitors, and Yard store verification registry"
+        subtitle="Gate Exit Passes, External Visitors, and Goods Inward / Material Receiving registry"
       />
 
       {/* Modern Premium Tabs */}
@@ -337,6 +363,16 @@ const GatePassListPage: React.FC = () => {
               {visitorLogs.filter(v => v.status === 'On-site').length} ON-SITE
             </span>
           )}
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('bills'); setSearchQuery(''); }}
+          className={cn(
+            "pb-4 px-6 text-xs font-black uppercase tracking-[0.25em] transition-all relative shrink-0",
+            activeTab === 'bills' ? "text-indigo-600 border-b-2 border-indigo-600" : "text-gray-400 hover:text-gray-900"
+          )}
+        >
+          Goods Inward / Material Receiving
         </button>
 
       </div>
@@ -404,6 +440,7 @@ const GatePassListPage: React.FC = () => {
         ) : activeTab === 'visitors' ? (
           <button
             onClick={() => {
+              setEditingVisitorId(null);
               resetVisitor({
                 date: todayStr(),
                 visitorType: 'Individual',
@@ -431,7 +468,7 @@ const GatePassListPage: React.FC = () => {
             className="group/btn bg-emerald-600 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 transition-all shadow-2xl shadow-emerald-500/20 flex items-center gap-3 active:scale-95"
           >
             <Plus className="w-4 h-4 transition-transform group-hover/btn:rotate-90" />
-            Log Bill Check
+            Log Goods Inward
           </button>
         )}
       </div>
@@ -444,7 +481,7 @@ const GatePassListPage: React.FC = () => {
                 <tr>
                   <th className="px-10 py-6 font-black">Pass Details</th>
                   <th className="px-10 py-6 font-black">Vehicle & Crew</th>
-                  <th className="px-10 py-6 font-black">Timeline & Invoice</th>
+                  <th className="px-10 py-6 font-black">Timeline & Reason</th>
                   <th className="px-10 py-6 font-black text-center">Status</th>
                   <th className="px-10 py-6 font-black text-right">Actions</th>
                 </tr>
@@ -492,17 +529,9 @@ const GatePassListPage: React.FC = () => {
                             <Clock className="w-3 h-3 text-emerald-600" />
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Out: {gp.timeOut}</span>
                           </div>
-                          {gp.invoiceNotAvailable ? (
-                            <span className="px-2 py-0.5 text-[8px] bg-rose-50 text-rose-600 font-black rounded border border-rose-100 uppercase tracking-wider">
-                              No Invoice: {gp.invoiceReason || 'N/A'}
-                            </span>
-                          ) : (
-                            gp.invoiceNo && (
-                              <span className="px-2 py-0.5 text-[8px] bg-indigo-50 text-indigo-600 font-black rounded border border-indigo-100 uppercase tracking-wider">
-                                Invoice: {gp.invoiceNo}
-                              </span>
-                            )
-                          )}
+                          <span className="px-2 py-0.5 text-[8px] bg-gray-50 text-gray-500 font-black rounded border border-gray-100 uppercase tracking-wider line-clamp-1">
+                            Reason: {gp.reason || 'N/A'}
+                          </span>
                         </div>
                       </td>
                       <td className="px-10 py-6">
@@ -645,6 +674,13 @@ const GatePassListPage: React.FC = () => {
                             </button>
                           )}
                           <button
+                            onClick={(e) => handleEditVisitor(v, e)}
+                            className="p-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50 transition-all shadow-sm active:scale-95"
+                            title="Edit Visitor Log"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={(e) => handleDeleteVisitor(v.id!, e)}
                             className="p-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-rose-600 hover:border-rose-100 hover:bg-rose-50 transition-all shadow-sm active:scale-95"
                             title="Delete Visitor Log"
@@ -702,9 +738,13 @@ const GatePassListPage: React.FC = () => {
                           <p className="text-xs font-bold text-gray-900">{b.date}</p>
                           <span className={cn(
                             "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
-                            b.targetType === 'Vehicle' ? "bg-amber-50 text-amber-600 border border-amber-100" : "bg-purple-50 text-purple-600 border border-purple-100"
+                            b.targetType === 'Vehicle' ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                              b.targetType === 'Private Vehicle' ? "bg-indigo-50 text-indigo-600 border border-indigo-100" :
+                                "bg-purple-50 text-purple-600 border border-purple-100"
                           )}>
-                            {b.targetType === 'Vehicle' ? `Vehicle: ${b.vehicleNo}` : 'Stores Inward'}
+                            {b.targetType === 'Vehicle' ? `Vehicle: ${b.vehicleNo}` :
+                              b.targetType === 'Private Vehicle' ? `Private Vehicle: ${b.vehicleNo}` :
+                                'Stores Inward'}
                           </span>
                         </div>
                       </td>
@@ -746,8 +786,8 @@ const GatePassListPage: React.FC = () => {
                 <DollarSign className="w-8 h-8 text-gray-200" />
               </div>
               <div className="space-y-1">
-                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No Security Bills Checked</p>
-                <p className="text-[10px] text-gray-400 font-medium italic">Enforce goods security logs for all store & yard supplier inwards.</p>
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No Goods Inward Records</p>
+                <p className="text-[10px] text-gray-400 font-medium italic">Enforce invoice & billing verification for all store, yard and private vehicle material receiving.</p>
               </div>
             </div>
           )}
@@ -778,8 +818,8 @@ const GatePassListPage: React.FC = () => {
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Log Bill Check</h3>
-                    <p className="text-[9px] text-gray-400 font-black uppercase mt-0.5 tracking-wider">Gate Inward Security Verification</p>
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Goods Inward / Material Receiving</h3>
+                    <p className="text-[9px] text-gray-400 font-black uppercase mt-0.5 tracking-wider">Invoice & Billing Verification at the Gate</p>
                   </div>
                 </div>
                 <button
@@ -803,9 +843,9 @@ const GatePassListPage: React.FC = () => {
 
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Target Classification</label>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     <label className={cn(
-                      "flex items-center justify-center gap-3 p-4 rounded-2xl border text-xs font-black uppercase tracking-wider cursor-pointer transition-all",
+                      "flex items-center justify-center gap-2 p-4 rounded-2xl border text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all",
                       watchTargetType === 'Vehicle' ? "bg-amber-50 border-amber-200 text-amber-700 shadow-sm" : "bg-gray-50/50 border-gray-100 text-gray-400 hover:bg-gray-50"
                     )}>
                       <input
@@ -815,10 +855,23 @@ const GatePassListPage: React.FC = () => {
                         className="hidden"
                       />
                       <Truck className="w-4 h-4" />
-                      Vehicle No
+                      Fleet Vehicle
                     </label>
                     <label className={cn(
-                      "flex items-center justify-center gap-3 p-4 rounded-2xl border text-xs font-black uppercase tracking-wider cursor-pointer transition-all",
+                      "flex items-center justify-center gap-2 p-4 rounded-2xl border text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all",
+                      watchTargetType === 'Private Vehicle' ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm" : "bg-gray-50/50 border-gray-100 text-gray-400 hover:bg-gray-50"
+                    )}>
+                      <input
+                        type="radio"
+                        value="Private Vehicle"
+                        {...registerBill('targetType')}
+                        className="hidden"
+                      />
+                      <Truck className="w-4 h-4" />
+                      Private Vehicle
+                    </label>
+                    <label className={cn(
+                      "flex items-center justify-center gap-2 p-4 rounded-2xl border text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all",
                       watchTargetType === 'Stores' ? "bg-purple-50 border-purple-200 text-purple-700 shadow-sm" : "bg-gray-50/50 border-gray-100 text-gray-400 hover:bg-gray-50"
                     )}>
                       <input
@@ -845,6 +898,19 @@ const GatePassListPage: React.FC = () => {
                         <option key={v.id} value={v.plateNo} className="bg-white">{v.plateNo} - {v.type}</option>
                       ))}
                     </select>
+                    {billErrors.vehicleNo && <p className="text-[10px] font-bold text-rose-600 px-1">{billErrors.vehicleNo.message}</p>}
+                  </motion.div>
+                )}
+
+                {watchTargetType === 'Private Vehicle' && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Private Vehicle Plate No</label>
+                    <input
+                      type="text"
+                      {...registerBill('vehicleNo')}
+                      placeholder="e.g. WP CAA-9031"
+                      className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-mono font-bold text-gray-900 text-sm shadow-sm"
+                    />
                     {billErrors.vehicleNo && <p className="text-[10px] font-bold text-rose-600 px-1">{billErrors.vehicleNo.message}</p>}
                   </motion.div>
                 )}
@@ -942,7 +1008,7 @@ const GatePassListPage: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setVisitorDrawerOpen(false)}
+              onClick={() => { setVisitorDrawerOpen(false); setEditingVisitorId(null); }}
               className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
             />
             <motion.div
@@ -958,12 +1024,12 @@ const GatePassListPage: React.FC = () => {
                     <UserCheck className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Log Visitor / External</h3>
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">{editingVisitorId ? 'Edit Visitor / External' : 'Log Visitor / External'}</h3>
                     <p className="text-[9px] text-gray-400 font-black uppercase mt-0.5 tracking-wider">Yard Visitor & External Vehicle Entry</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => setVisitorDrawerOpen(false)}
+                  onClick={() => { setVisitorDrawerOpen(false); setEditingVisitorId(null); }}
                   className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-gray-900 transition-all active:scale-95 shadow-sm"
                 >
                   <X className="w-4 h-4" />
@@ -1123,7 +1189,7 @@ const GatePassListPage: React.FC = () => {
                   {drawerLoading ? <LoadingSpinner /> : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      Commit Visitor Log
+                      {editingVisitorId ? 'Update Visitor Log' : 'Commit Visitor Log'}
                     </>
                   )}
                 </button>
