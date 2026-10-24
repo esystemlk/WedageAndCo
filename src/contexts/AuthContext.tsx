@@ -59,10 +59,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Start listening to the Firestore user document for role changes
         const userDocRef = doc(db, 'users', firebaseUser.uid);
-        
+        // Once we've confirmed this doc is real (seen it exist, from any source),
+        // never auto-create a PENDING doc for it again this session — a later
+        // "not found" is a transient glitch (reconnect, resumed listen, cache
+        // quirk), not evidence the user is new. This is stronger than trusting
+        // `fromCache` alone, which is exactly what still let the role-reset bug
+        // through on some device-switch/offline-reconnect cases.
+        let confirmedReal = false;
+
         userDocUnsubscribe = onSnapshot(userDocRef, async (snapshot) => {
           const fromCache = snapshot.metadata.fromCache;
           if (snapshot.exists()) {
+            confirmedReal = true;
             const data = snapshot.data();
             setRole(data.role as UserRole);
             setPermissions(Array.isArray(data.permissions) ? (data.permissions as Permission[]) : null);
@@ -73,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // real doc may exist on the server. Creating a PENDING doc here would
             // overwrite the user's real role once the device reconnects. So only
             // treat it as a genuinely new user when the SERVER confirms absence.
-            if (fromCache) {
+            if (fromCache || confirmedReal) {
               return; // wait for the authoritative server snapshot
             }
             // New user registration in Firestore
