@@ -146,5 +146,14 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isAdmin() || hasRole('operations');
     }
+
+    // VEHICLE BOOKINGS
+    // No rule existed for this collection, so every read/write was denied by
+    // the default-deny block above — bookings couldn't be read back, so the
+    // notification alert for pending bookings always came up empty.
+    match /vehicle_bookings/{bookingId} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
   }
 }

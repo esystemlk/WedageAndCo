@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ShieldCheck,
   Save,
@@ -30,7 +30,9 @@ import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import SearchableSelect from '../../components/shared/SearchableSelect';
 import { cn, todayStr } from '../../lib/utils';
 
-const gatePassSchema = z.object({
+// `reason` is required for new entries only — an existing trip created before
+// this field became mandatory may have none, and must still be returnable.
+const buildGatePassSchema = (requireReason: boolean) => z.object({
   linkedLogSheetNo: z.string().optional(),
   date: z.string().min(1, 'Date is required'),
   vehicleNo: z.string().min(1, 'Vehicle is required'),
@@ -39,7 +41,7 @@ const gatePassSchema = z.object({
   helperNames: z.array(z.object({ name: z.string().optional() })).optional(),
   customerName: z.string().optional().or(z.literal('')),
   tripType: z.enum(['Customer', 'Test Run', 'Other']).optional(),
-  reason: z.string().min(1, 'Reason is required'),
+  reason: requireReason ? z.string().min(1, 'Reason is required') : z.string().optional().or(z.literal('')),
   timeOut: z.string().min(1, 'Time Out is required'),
   meterOut: z.number().optional().or(z.literal(null)).transform(v => v === null ? undefined : v),
   securityOfficer: z.string().min(1, 'Security Officer name is required'),
@@ -64,7 +66,7 @@ const gatePassSchema = z.object({
   return true;
 }, { message: 'Customer is required for customer trips', path: ['customerName'] });
 
-type GatePassFormData = z.infer<typeof gatePassSchema>;
+type GatePassFormData = z.infer<ReturnType<typeof buildGatePassSchema>>;
 
 function formatTime(date: Date) {
   let hours = date.getHours();
@@ -86,6 +88,7 @@ const GatePassFormPage: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
+  const gatePassSchema = useMemo(() => buildGatePassSchema(!id), [id]);
 
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<GatePassFormData>({
     resolver: zodResolver(gatePassSchema) as any,
@@ -407,10 +410,10 @@ const GatePassFormPage: React.FC = () => {
                 </motion.div>
               )}
 
-              {/* Reason — always mandatory */}
+              {/* Reason — mandatory for new entries; existing trips can still be returned without one */}
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-rose-600 uppercase tracking-widest px-1">
-                  Reason <span className="text-rose-400">(Required)</span>
+                  Reason {!id && <span className="text-rose-400">(Required)</span>}
                 </label>
                 <textarea
                   {...register('reason')}
