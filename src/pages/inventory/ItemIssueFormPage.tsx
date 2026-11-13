@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Package, Save, ArrowLeft, User, Truck } from 'lucide-react';
+import { Package, Save, ArrowLeft, User, Truck, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { createItemIssue } from '../../services/itemIssueService';
+import { createJobCard, generateWorkOrderNo } from '../../services/jobCardService';
 import { getInventoryItems, InventoryItem, CATEGORY_LABELS } from '../../services/inventoryService';
 import { getVehicles } from '../../services/fleetService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -34,6 +35,7 @@ const ItemIssueFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [createJobCardLink, setCreateJobCardLink] = useState(false);
 
   const { register, handleSubmit, watch, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
@@ -42,6 +44,7 @@ const ItemIssueFormPage: React.FC = () => {
 
   const stockItemId = watch('stockItemId');
   const quantityIssued = watch('quantityIssued') || 0;
+  const vehicleNo = watch('vehicleNo');
   const selectedItem = items.find(i => i.id === stockItemId);
   const closingStock = selectedItem ? Math.max(0, (selectedItem.currentStock || 0) - quantityIssued) : undefined;
 
@@ -58,7 +61,7 @@ const ItemIssueFormPage: React.FC = () => {
     if (!selectedItem) return;
     setLoading(true);
     try {
-      await createItemIssue({
+      const issueId = await createItemIssue({
         date: data.date,
         stockItemId: data.stockItemId,
         itemName: selectedItem.name,
@@ -70,6 +73,32 @@ const ItemIssueFormPage: React.FC = () => {
         issuingOfficer: data.issuingOfficer,
         notes: data.notes,
       }, user?.email || 'System');
+
+      if (createJobCardLink && data.vehicleNo && issueId) {
+        const vehicle = vehicles.find(v => v.plateNo === data.vehicleNo);
+        if (vehicle) {
+          await createJobCard({
+            workOrderNo: generateWorkOrderNo(),
+            date: data.date,
+            time: new Date().toTimeString().slice(0, 5),
+            vehicleId: vehicle.id,
+            vehicleNo: data.vehicleNo,
+            technicianName: data.issuingOfficer,
+            problemDescription: [{ text: data.notes || `Item issued: ${selectedItem.name}` }],
+            itemsFromStock: [{
+              stockItemId: data.stockItemId,
+              itemName: selectedItem.name,
+              quantity: data.quantityIssued,
+              unit: selectedItem.unitType,
+            }],
+            itemsFromOutside: [],
+            solutionDescription: [],
+            status: 'open',
+            linkedItemIssueId: issueId,
+          }, user?.email || 'System');
+        }
+      }
+
       navigate('/inventory', { state: { tab: 'items' } });
     } catch (err) {
       console.error(err);
@@ -167,6 +196,19 @@ const ItemIssueFormPage: React.FC = () => {
             )}
           />
         </div>
+
+        {vehicleNo && (
+          <label className="flex items-center gap-3 px-5 py-4 bg-indigo-50 border border-indigo-100 rounded-2xl cursor-pointer">
+            <input
+              type="checkbox"
+              checked={createJobCardLink}
+              onChange={e => setCreateJobCardLink(e.target.checked)}
+              className="w-4 h-4 accent-indigo-600"
+            />
+            <Wrench className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Create a job card for this repair on {vehicleNo}</span>
+          </label>
+        )}
 
         <div className="space-y-3">
           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Notes <span className="text-gray-300">(Optional)</span></label>

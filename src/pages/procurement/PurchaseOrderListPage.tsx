@@ -10,9 +10,11 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
-import { getPurchaseOrders, PurchaseOrder } from '../../services/poService';
+import { Trash2 } from 'lucide-react';
+import { getPurchaseOrders, deletePurchaseOrder, PurchaseOrder } from '../../services/poService';
 import { useSuppliers } from '../../hooks/useSuppliers';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import { useToast } from '../../contexts/ToastContext';
 import { cn } from '../../lib/utils';
 import { format } from 'date-fns';
 
@@ -50,6 +52,7 @@ function daysUntil(dateStr?: string): number {
 
 const PurchaseOrderListPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const { suppliers } = useSuppliers();
@@ -68,6 +71,20 @@ const PurchaseOrderListPage: React.FC = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (po: PurchaseOrder, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!po.id) return;
+    if (!confirm(`Delete purchase order ${po.poNumber}? This cannot be undone.`)) return;
+    try {
+      await deletePurchaseOrder(po.id);
+      setOrders(prev => prev.filter(o => o.id !== po.id));
+      toast.success('Purchase Order deleted', `${po.poNumber} was removed.`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete PO', 'Please try again.');
     }
   };
 
@@ -507,7 +524,16 @@ const PurchaseOrderListPage: React.FC = () => {
                         {po.status === 'Fully Received' && po.date ? format(new Date(po.date), 'MMM dd, yyyy') : '—'}
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-600 transition-colors inline-block" />
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={(e) => handleDelete(po, e)}
+                            className="p-1.5 rounded-lg text-gray-300 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-600 transition-colors inline-block" />
+                        </div>
                       </td>
                     </motion.tr>
                   ))}

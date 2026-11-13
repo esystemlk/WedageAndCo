@@ -53,6 +53,11 @@ const AdvancedFleetDashboard: React.FC = () => {
     const totalVehicles = vehicles.length;
     const totalMaintenanceCost = maintenance.reduce((sum, rec) => sum + rec.cost, 0);
 
+    const fuelWithData = fuelTransactions.filter(t => t.kmDriven > 0 && t.quantityIssuedL > 0);
+    const avgFuelEfficiency = fuelWithData.length
+      ? (fuelWithData.reduce((s, t) => s + t.kmDriven, 0) / fuelWithData.reduce((s, t) => s + t.quantityIssuedL, 0)).toFixed(1)
+      : '0.0';
+
     // Build monthly fuel data from actual transactions
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthMap: Record<string, { fuel: number; cost: number }> = {};
@@ -95,6 +100,7 @@ const AdvancedFleetDashboard: React.FC = () => {
       totalMaintenanceCost,
       fuelData,
       vehicleHealthData,
+      avgFuelEfficiency,
     };
   }, [vehicles, maintenance, fuelTransactions]);
 
@@ -129,8 +135,8 @@ const AdvancedFleetDashboard: React.FC = () => {
             suffix: 'Vehicles'
           },
           { 
-            label: 'Avg. Fuel Efficiency', 
-            value: '8.5', 
+            label: 'Avg. Fuel Efficiency',
+            value: stats.avgFuelEfficiency,
             icon: Fuel, 
             color: 'text-indigo-600', 
             bg: 'bg-indigo-50',

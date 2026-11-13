@@ -168,9 +168,9 @@ const JobCardFormPage: React.FC = () => {
         itemsFromOutside: data.itemsFromOutside.filter(i => (i.description || '').trim()),
       } as any;
       if (id) {
-        await updateJobCard(id, payload);
+        await updateJobCard(id, payload, user?.email || 'System');
       } else {
-        await createJobCard(payload);
+        await createJobCard(payload, user?.email || 'System');
       }
       navigate('/garage/job-cards');
     } catch (err) {

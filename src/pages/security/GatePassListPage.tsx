@@ -28,6 +28,7 @@ import { getSuppliers } from '../../services/supplierService';
 import {
   getSecurityBillChecks,
   createSecurityBillCheck,
+  updateSecurityBillCheck,
   deleteSecurityBillCheck,
   SecurityBillCheck
 } from '../../services/securityBillService';
@@ -104,6 +105,7 @@ const GatePassListPage: React.FC = () => {
   const [visitorDrawerOpen, setVisitorDrawerOpen] = useState(false);
   const [drawerLoading, setDrawerLoading] = useState(false);
   const [editingVisitorId, setEditingVisitorId] = useState<string | null>(null);
+  const [editingBillId, setEditingBillId] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -182,17 +184,22 @@ const GatePassListPage: React.FC = () => {
   const handleCreateBillCheck = async (data: BillCheckFormData) => {
     try {
       setDrawerLoading(true);
-      const payload = {
-        ...data,
-        enteredBy: user?.email || 'System Security'
-      };
-      await createSecurityBillCheck(payload);
+      if (editingBillId) {
+        await updateSecurityBillCheck(editingBillId, data);
+      } else {
+        const payload = {
+          ...data,
+          enteredBy: user?.email || 'System Security'
+        };
+        await createSecurityBillCheck(payload);
+      }
       resetBill({
         date: todayStr(),
         targetType: 'Vehicle',
         units: 1,
         price: 0
       });
+      setEditingBillId(null);
       setDrawerOpen(false);
       await loadAllData();
     } catch (err) {
@@ -201,6 +208,22 @@ const GatePassListPage: React.FC = () => {
     } finally {
       setDrawerLoading(false);
     }
+  };
+
+  const handleEditBillCheck = (b: SecurityBillCheck, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingBillId(b.id);
+    resetBill({
+      date: b.date,
+      targetType: b.targetType,
+      vehicleNo: b.vehicleNo || '',
+      supplierName: b.supplierName,
+      description: b.description,
+      units: b.units,
+      invoiceNo: b.invoiceNo,
+      price: b.price,
+    });
+    setDrawerOpen(true);
   };
 
   const handleDeleteBillCheck = async (id: string, e: React.MouseEvent) => {
@@ -464,7 +487,11 @@ const GatePassListPage: React.FC = () => {
           </button>
         ) : (
           <button
-            onClick={() => setDrawerOpen(true)}
+            onClick={() => {
+              setEditingBillId(null);
+              resetBill({ date: todayStr(), targetType: 'Vehicle', units: 1, price: 0 });
+              setDrawerOpen(true);
+            }}
             className="group/btn bg-emerald-600 text-white px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 transition-all shadow-2xl shadow-emerald-500/20 flex items-center gap-3 active:scale-95"
           >
             <Plus className="w-4 h-4 transition-transform group-hover/btn:rotate-90" />
@@ -765,13 +792,22 @@ const GatePassListPage: React.FC = () => {
                         <p className="text-sm font-black text-emerald-600 font-mono">LKR {(b.totalAmount || (b.units * b.price)).toLocaleString()}</p>
                       </td>
                       <td className="px-10 py-6 text-right">
-                        <button
-                          onClick={(e) => handleDeleteBillCheck(b.id, e)}
-                          className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-rose-600 hover:border-rose-100 hover:bg-rose-50 transition-all shadow-sm active:scale-95"
-                          title="Delete Record"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={(e) => handleEditBillCheck(b, e)}
+                            className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50 transition-all shadow-sm active:scale-95"
+                            title="Edit Record"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteBillCheck(b.id, e)}
+                            className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-rose-600 hover:border-rose-100 hover:bg-rose-50 transition-all shadow-sm active:scale-95"
+                            title="Delete Record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </motion.tr>
                   ))}
@@ -802,7 +838,7 @@ const GatePassListPage: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setDrawerOpen(false)}
+              onClick={() => { setDrawerOpen(false); setEditingBillId(null); }}
               className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
             />
             <motion.div
@@ -818,12 +854,12 @@ const GatePassListPage: React.FC = () => {
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Goods Inward / Material Receiving</h3>
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">{editingBillId ? 'Edit Goods Inward Record' : 'Goods Inward / Material Receiving'}</h3>
                     <p className="text-[9px] text-gray-400 font-black uppercase mt-0.5 tracking-wider">Invoice & Billing Verification at the Gate</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => setDrawerOpen(false)}
+                  onClick={() => { setDrawerOpen(false); setEditingBillId(null); }}
                   className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 hover:text-gray-900 transition-all active:scale-95 shadow-sm"
                 >
                   <X className="w-4 h-4" />
@@ -990,7 +1026,7 @@ const GatePassListPage: React.FC = () => {
                   {drawerLoading ? <LoadingSpinner /> : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      Commit Verification log
+                      {editingBillId ? 'Update Verification Log' : 'Commit Verification log'}
                     </>
                   )}
                 </button>

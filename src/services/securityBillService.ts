@@ -48,6 +48,19 @@ export const createSecurityBillCheck = async (data: Omit<SecurityBillCheck, 'id'
   }
 };
 
+export const updateSecurityBillCheck = async (id: string, data: Partial<Omit<SecurityBillCheck, 'id' | 'createdAt'>>) => {
+  try {
+    const totalAmount = (data.units !== undefined && data.price !== undefined) ? data.units * data.price : undefined;
+    await updateDoc(doc(db, COLLECTION_NAME, id), {
+      ...stripUndefined(data),
+      ...(totalAmount !== undefined && { totalAmount }),
+    });
+    await recordChange(OperationType.UPDATE, COLLECTION_NAME, id, `Updated security bill check for invoice ${data.invoiceNo || id}`);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION_NAME}/${id}`);
+  }
+};
+
 export const getSecurityBillChecks = async () => {
   try {
     const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));

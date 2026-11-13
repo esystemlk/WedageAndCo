@@ -19,6 +19,7 @@ interface SearchableSelectProps {
   className?: string;
   onAddNew?: () => void;
   addNewLabel?: string;
+  allowCustomValue?: boolean;
 }
 
 interface DropdownPos {
@@ -39,6 +40,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   className,
   onAddNew,
   addNewLabel,
+  allowCustomValue,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -109,6 +111,9 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   );
 
   const selectedOption = options.find(opt => opt.value === value);
+  const trimmedSearch = search.trim();
+  const showCustomValueOption = allowCustomValue && trimmedSearch.length > 0 &&
+    !options.some(opt => opt.value.toLowerCase() === trimmedSearch.toLowerCase());
 
   const dropdown = (
     <AnimatePresence>
@@ -145,7 +150,21 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
           {/* Options list */}
           <div className="overflow-y-auto p-2 space-y-1 scrollbar-thin" style={{ maxHeight: DROPDOWN_MAX_H - (onAddNew ? 116 : 64) }}>
-            {filteredOptions.length === 0 ? (
+            {showCustomValueOption && (
+              <button
+                type="button"
+                onMouseDown={e => {
+                  e.preventDefault();
+                  onChange(trimmedSearch);
+                  close();
+                }}
+                className="w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-2 border border-dashed border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 text-indigo-600"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-xs font-bold truncate">Use "{trimmedSearch}"</span>
+              </button>
+            )}
+            {filteredOptions.length === 0 && !showCustomValueOption ? (
               <div className="py-8 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">
                 No matches found
               </div>
@@ -229,7 +248,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
         )}
         <div className="truncate flex flex-col">
           <span className="text-sm font-bold text-gray-900 leading-tight">
-            {selectedOption ? selectedOption.label : placeholder}
+            {selectedOption ? selectedOption.label : (allowCustomValue && value) ? value : placeholder}
           </span>
           {selectedOption?.subLabel && (
             <span className="text-[10px] font-medium text-gray-400 leading-none mt-0.5">

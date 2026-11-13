@@ -11,7 +11,7 @@ import { motion } from 'motion/react';
 import { cn, todayStr } from '../../lib/utils';
 import { createBooking, checkVehicleAvailability, VehicleBooking } from '../../services/bookingService';
 import { getVehicles } from '../../services/fleetService';
-import { getStaffMembers } from '../../services/staffService';
+import { getStaffMembers, getDriverOptions } from '../../services/staffService';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import SearchableSelect from '../../components/shared/SearchableSelect';
@@ -267,8 +267,8 @@ const VehicleBookingFormPage: React.FC = () => {
               <Controller control={control} name="driverName"
                 render={({ field }) => (
                   <SearchableSelect
-                    options={staff.filter(s => s.category === 'Driver').map(s => ({
-                      value: s.fullName, label: s.fullName, subLabel: s.phone
+                    options={getDriverOptions(staff).map(s => ({
+                      value: s.fullName, label: s.fullName, subLabel: s.category === 'Driver' ? s.phone : s.category
                     }))}
                     value={field.value || ''}
                     onChange={field.onChange}

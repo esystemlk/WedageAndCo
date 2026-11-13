@@ -110,7 +110,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   // Load on mount (with a small delay so auth + Firestore are ready)
   useEffect(() => {
     const t = setTimeout(() => { refreshAlerts(); }, 2000);
-    return () => clearTimeout(t);
+    const poll = setInterval(() => { refreshAlerts(); }, 60_000);
+    return () => { clearTimeout(t); clearInterval(poll); };
   }, [refreshAlerts]);
 
   return (

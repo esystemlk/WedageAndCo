@@ -21,6 +21,7 @@ import { z } from 'zod';
 import { createDailyUpdate, getDailyUpdatesForVehicle } from '../../services/dailyUpdateService';
 import { useFleet } from '../../hooks/useFleet';
 import { useStaff } from '../../hooks/useStaff';
+import { getDriverOptions } from '../../services/staffService';
 import { useCustomers } from '../../hooks/useCustomers';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
@@ -158,7 +159,7 @@ const DailyUpdateFormPage: React.FC = () => {
    };
 
    const activeVehicles = vehicles.filter(v => v.status === 'active');
-   const activeDrivers = staff.filter(s => s.category === 'Driver');
+   const activeDrivers = getDriverOptions(staff);
    const activeHelpers = staff.filter(s => s.category === 'Helper');
 
    const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {

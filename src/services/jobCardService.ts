@@ -5,6 +5,7 @@ import {
 import { db } from '../firebase/config';
 import { handleFirestoreError, OperationType } from '../firebase/errorHandler';
 import { recordChange } from './auditService';
+import { adjustInventoryStock } from './inventoryService';
 
 const COLLECTION = 'job_cards';
 
@@ -52,6 +53,9 @@ export interface JobCard {
   headOfLogistic?: string;
   status: JobCardStatus;
   createdAt?: any;
+  /** Set when this job card was auto-generated from an Item Issue — that issue already
+   *  adjusted inventory, so this job card's own stock items must never adjust it again. */
+  linkedItemIssueId?: string;
 }
 
 export function generateWorkOrderNo(): string {
@@ -75,12 +79,22 @@ const stripUndefined = <T>(value: T): T => {
   return value;
 };
 
-export const createJobCard = async (data: Omit<JobCard, 'id' | 'createdAt'>) => {
+export const createJobCard = async (
+  data: Omit<JobCard, 'id' | 'createdAt'>,
+  updatedBy: string
+) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION), {
       ...stripUndefined(data),
       createdAt: serverTimestamp()
     });
+    if (!data.linkedItemIssueId) {
+      for (const item of data.itemsFromStock || []) {
+        if (item.stockItemId && (item.quantity || 0) > 0) {
+          await adjustInventoryStock(item.stockItemId, -item.quantity, updatedBy, data.date);
+        }
+      }
+    }
     await recordChange(OperationType.CREATE, COLLECTION, docRef.id,
       `Job card ${data.workOrderNo} created for ${data.vehicleNo}`);
     return docRef.id;
@@ -111,8 +125,26 @@ export const getJobCard = async (id: string): Promise<JobCard | null> => {
   }
 };
 
-export const updateJobCard = async (id: string, data: Partial<JobCard>) => {
+export const updateJobCard = async (id: string, data: Partial<JobCard>, updatedBy?: string) => {
   try {
+    const existing = data.itemsFromStock && updatedBy ? await getJobCard(id) : null;
+    if (data.itemsFromStock && updatedBy && existing && !existing.linkedItemIssueId) {
+      const before: Record<string, number> = {};
+      (existing?.itemsFromStock || []).forEach(item => {
+        if (item.stockItemId) before[item.stockItemId] = (before[item.stockItemId] || 0) + (item.quantity || 0);
+      });
+      const after: Record<string, number> = {};
+      data.itemsFromStock.forEach(item => {
+        if (item.stockItemId) after[item.stockItemId] = (after[item.stockItemId] || 0) + (item.quantity || 0);
+      });
+      const stockItemIds = new Set([...Object.keys(before), ...Object.keys(after)]);
+      for (const stockItemId of stockItemIds) {
+        const delta = (before[stockItemId] || 0) - (after[stockItemId] || 0);
+        if (delta !== 0) {
+          await adjustInventoryStock(stockItemId, delta, updatedBy, data.date || existing?.date);
+        }
+      }
+    }
     await updateDoc(doc(db, COLLECTION, id), { ...stripUndefined(data) });
     await recordChange(OperationType.UPDATE, COLLECTION, id, 'Updated job card');
   } catch (error) {
@@ -120,8 +152,18 @@ export const updateJobCard = async (id: string, data: Partial<JobCard>) => {
   }
 };
 
-export const deleteJobCard = async (id: string) => {
+export const deleteJobCard = async (id: string, updatedBy?: string) => {
   try {
+    if (updatedBy) {
+      const existing = await getJobCard(id);
+      if (!existing?.linkedItemIssueId) {
+        for (const item of existing?.itemsFromStock || []) {
+          if (item.stockItemId && (item.quantity || 0) > 0) {
+            await adjustInventoryStock(item.stockItemId, item.quantity, updatedBy, existing?.date);
+          }
+        }
+      }
+    }
     await deleteDoc(doc(db, COLLECTION, id));
     await recordChange(OperationType.DELETE, COLLECTION, id, 'Deleted job card');
   } catch (error) {

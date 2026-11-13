@@ -13,14 +13,15 @@ import {
   Info,
   Hash
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createGRN } from '../../services/grnService';
+import { createGRN, updateGRN, getGRN } from '../../services/grnService';
 import { getPurchaseOrders, PurchaseOrder } from '../../services/poService';
+import { getInventoryItems, InventoryItem } from '../../services/inventoryService';
 import { useSuppliers } from '../../hooks/useSuppliers';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
@@ -42,6 +43,8 @@ const grnSchema = z.object({
     orderedQuantity: z.number().min(0, 'Min 0'),
     receivedQuantity: z.number().min(0, 'Min 0'),
     unit: z.string().min(1, 'Required'),
+    stockItemId: z.string().optional(),
+    unitPrice: z.number().min(0, 'Min 0').optional(),
   })).min(1, 'At least one item is required'),
   remarks: z.string().optional(),
 });
@@ -50,13 +53,16 @@ type GRNFormData = z.infer<typeof grnSchema>;
 
 const GRNFormPage: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEdit = !!id;
   const { user } = useAuth();
   const { suppliers, refresh: refreshSuppliers } = useSuppliers();
   const [quickAdd, setQuickAdd] = useState<{ type: QuickAddType; onCreated: (id: string, label: string) => void } | null>(null);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [stockItems, setStockItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<GRNFormData>({
+  const { register, handleSubmit, control, watch, setValue, reset, formState: { errors } } = useForm<GRNFormData>({
     resolver: zodResolver(grnSchema),
     defaultValues: {
       date: todayStr(),
@@ -76,7 +82,36 @@ const GRNFormPage: React.FC = () => {
        setPurchaseOrders(pos || []);
     };
     fetchPOs();
+    getInventoryItems().then(items => setStockItems(items || []));
   }, []);
+
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const grn = await getGRN(id);
+      if (grn) {
+        reset({
+          date: grn.date,
+          supplierId: (grn as any).supplierId,
+          purchaseOrderRef: grn.purchaseOrderRef,
+          poDate: (grn as any).poDate,
+          supplierInvoiceNo: grn.supplierInvoiceNo,
+          voucherNo: grn.voucherNo,
+          voucherDate: (grn as any).voucherDate,
+          warehouseLocation: grn.warehouseLocation,
+          items: grn.items.map(i => ({
+            description: i.description,
+            orderedQuantity: i.quantityOrdered,
+            receivedQuantity: i.quantityReceived,
+            unit: i.unit,
+            stockItemId: i.stockItemId,
+            unitPrice: i.unitPrice,
+          })),
+          remarks: grn.remarks,
+        });
+      }
+    })();
+  }, [id, reset]);
 
   const handlePORefChange = (poNumber: string) => {
     const selectedPO = purchaseOrders.find(po => po.poNumber === poNumber);
@@ -98,17 +133,52 @@ const GRNFormPage: React.FC = () => {
     try {
       setLoading(true);
       const supplier = suppliers.find(s => s.id === data.supplierId);
+      const items = data.items.map(i => ({
+        description: i.description,
+        unit: i.unit,
+        quantityOrdered: i.orderedQuantity,
+        quantityReceived: i.receivedQuantity,
+        variance: i.receivedQuantity - i.orderedQuantity,
+        stockItemId: i.stockItemId,
+        unitPrice: i.unitPrice,
+        totalValue: i.unitPrice !== undefined ? i.receivedQuantity * i.unitPrice : undefined,
+      }));
 
-      await createGRN({
-        ...data,
-        supplierName: supplier?.name || 'Unknown',
-        receivedBy: user?.email || 'System'
-      } as any);
+      if (isEdit && id) {
+        await updateGRN(id, {
+          date: data.date,
+          supplierId: data.supplierId,
+          purchaseOrderRef: data.purchaseOrderRef,
+          poDate: data.poDate,
+          supplierInvoiceNo: data.supplierInvoiceNo,
+          voucherNo: data.voucherNo,
+          voucherDate: data.voucherDate,
+          warehouseLocation: data.warehouseLocation,
+          remarks: data.remarks,
+          items,
+          supplierName: supplier?.name || 'Unknown',
+        } as any, user?.email || 'System');
+      } else {
+        await createGRN({
+          date: data.date,
+          supplierId: data.supplierId,
+          purchaseOrderRef: data.purchaseOrderRef,
+          poDate: data.poDate,
+          supplierInvoiceNo: data.supplierInvoiceNo,
+          voucherNo: data.voucherNo,
+          voucherDate: data.voucherDate,
+          warehouseLocation: data.warehouseLocation,
+          remarks: data.remarks,
+          items,
+          supplierName: supplier?.name || 'Unknown',
+          receivedBy: user?.email || 'System'
+        } as any);
+      }
 
       navigate('/grn');
     } catch (err) {
       console.error(err);
-      alert('Failed to register Goods delivery');
+      alert(isEdit ? 'Failed to update Goods delivery' : 'Failed to register Goods delivery');
     } finally {
       setLoading(false);
     }
@@ -127,16 +197,18 @@ const GRNFormPage: React.FC = () => {
           <ArrowLeft className="w-5 h-5" />
          </button>
          <PageHeader
-          title="Goods Receipt Note"
+          title={isEdit ? 'Edit Goods Receipt Note' : 'Goods Receipt Note'}
           subtitle="Register and verify physical supply chain deliveries."
          />
       </div>
 
       {/* GRN Auto Number Banner */}
-      <div className="mb-6 flex items-center gap-3 px-6 py-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
-        <Hash className="w-4 h-4 text-indigo-600 shrink-0" />
-        <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">GRN Number will be auto-generated on submission (e.g. GRN-2026-XXXX)</p>
-      </div>
+      {!isEdit && (
+        <div className="mb-6 flex items-center gap-3 px-6 py-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+          <Hash className="w-4 h-4 text-indigo-600 shrink-0" />
+          <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">GRN Number will be auto-generated on submission (e.g. GRN-2026-XXXX)</p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         <motion.div
@@ -277,7 +349,31 @@ const GRNFormPage: React.FC = () => {
                         animate={{ opacity: 1, scale: 1 }}
                         className="grid grid-cols-12 gap-4 items-end bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-sm"
                        >
-                          <div className="col-span-12 md:col-span-5 space-y-2">
+                          <div className="col-span-12 md:col-span-4 space-y-2">
+                             <label className="text-[8px] font-black text-indigo-600 uppercase tracking-widest px-1">Link to Inventory Item <span className="text-gray-300">(Optional)</span></label>
+                             <Controller
+                              control={control}
+                              name={`items.${index}.stockItemId`}
+                              render={({ field: stockField }) => (
+                                <SearchableSelect
+                                  options={stockItems.map(si => ({ value: si.id!, label: si.name, subLabel: `${si.currentStock} ${si.unitType} in stock` }))}
+                                  value={stockField.value || ''}
+                                  onChange={(val) => {
+                                    stockField.onChange(val);
+                                    const si = stockItems.find(s => s.id === val);
+                                    if (si) {
+                                      setValue(`items.${index}.description`, si.name);
+                                      setValue(`items.${index}.unit`, si.unitType);
+                                      setValue(`items.${index}.unitPrice`, si.purchaseCost || 0);
+                                    }
+                                  }}
+                                  placeholder="Not linked to stock"
+                                  icon={<Package className="w-4 h-4 text-indigo-600" />}
+                                />
+                              )}
+                             />
+                          </div>
+                          <div className="col-span-12 md:col-span-3 space-y-2">
                              <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-1">Item Description</label>
                              <input
                               type="text"
@@ -286,28 +382,37 @@ const GRNFormPage: React.FC = () => {
                               className="w-full bg-white border border-gray-200 px-4 py-3 rounded-xl text-gray-900 text-xs font-bold outline-none focus:border-indigo-500/50 transition-all placeholder:text-gray-400 shadow-sm"
                              />
                           </div>
-                          <div className="col-span-4 md:col-span-2 space-y-2">
-                             <label className="text-[8px] font-black text-indigo-600 uppercase tracking-widest px-1">Ordered (Qty)</label>
+                          <div className="col-span-3 md:col-span-1 space-y-2">
+                             <label className="text-[8px] font-black text-indigo-600 uppercase tracking-widest px-1">Ordered</label>
                              <input
                               type="number"
                               {...register(`items.${index}.orderedQuantity`, { valueAsNumber: true })}
                               className="w-full bg-indigo-50 border border-indigo-100 px-3 py-3 rounded-xl text-gray-900 text-xs font-bold outline-none shadow-sm"
                              />
                           </div>
-                          <div className="col-span-4 md:col-span-2 space-y-2">
-                             <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest px-1">Received (Qty)</label>
+                          <div className="col-span-3 md:col-span-1 space-y-2">
+                             <label className="text-[8px] font-black text-emerald-600 uppercase tracking-widest px-1">Received</label>
                              <input
                               type="number"
                               {...register(`items.${index}.receivedQuantity`, { valueAsNumber: true })}
                               className="w-full bg-emerald-50 border border-emerald-100 px-3 py-3 rounded-xl text-gray-900 text-xs font-bold outline-none font-black shadow-sm"
                              />
                           </div>
-                          <div className="col-span-3 md:col-span-2 space-y-2">
+                          <div className="col-span-3 md:col-span-1 space-y-2">
                              <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-1">Unit</label>
                              <input
                               type="text"
                               {...register(`items.${index}.unit`)}
                               className="w-full bg-white border border-gray-200 px-3 py-3 rounded-xl text-gray-900 text-xs font-bold outline-none shadow-sm"
+                             />
+                          </div>
+                          <div className="col-span-3 md:col-span-1 space-y-2">
+                             <label className="text-[8px] font-black text-amber-600 uppercase tracking-widest px-1">Price</label>
+                             <input
+                              type="number"
+                              step="0.01"
+                              {...register(`items.${index}.unitPrice`, { valueAsNumber: true })}
+                              className="w-full bg-amber-50 border border-amber-100 px-3 py-3 rounded-xl text-gray-900 text-xs font-bold outline-none shadow-sm"
                              />
                           </div>
                           <div className="col-span-1 md:col-span-1 pb-1 flex justify-center">
@@ -350,7 +455,7 @@ const GRNFormPage: React.FC = () => {
                 {loading ? <LoadingSpinner /> : (
                   <>
                     <Save className="w-4 h-4" />
-                    Submit GRN
+                    {isEdit ? 'Save Changes' : 'Submit GRN'}
                   </>
                 )}
               </button>

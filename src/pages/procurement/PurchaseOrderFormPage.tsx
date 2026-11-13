@@ -16,13 +16,13 @@ import {
    CheckCircle,
    AlertCircle
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import QuickAddModal, { QuickAddType } from '../../components/shared/QuickAddModal';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createPurchaseOrder, getPurchaseOrders, POItem } from '../../services/poService';
+import { createPurchaseOrder, updatePurchaseOrder, getPurchaseOrder, getPurchaseOrders, POItem } from '../../services/poService';
 import { useSuppliers } from '../../hooks/useSuppliers';
 import { useFleet } from '../../hooks/useFleet';
 import { useAuth } from '../../contexts/AuthContext';
@@ -60,6 +60,8 @@ type POFormData = z.infer<typeof poSchema>;
 
 const PurchaseOrderFormPage: React.FC = () => {
    const navigate = useNavigate();
+   const { id } = useParams<{ id: string }>();
+   const isEdit = !!id;
    const toast = useToast();
    const { user } = useAuth();
    const { suppliers, refresh: refreshSuppliers } = useSuppliers();
@@ -69,7 +71,7 @@ const PurchaseOrderFormPage: React.FC = () => {
    const [monthlySpend, setMonthlySpend] = useState(0);
    const MONTHLY_LIMIT = 500000; // Default monthly PO limit in LKR
 
-   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<POFormData>({
+   const { register, handleSubmit, control, watch, setValue, reset, formState: { errors } } = useForm<POFormData>({
       resolver: zodResolver(poSchema) as any,
       defaultValues: {
          date: todayStr(),
@@ -115,6 +117,32 @@ const PurchaseOrderFormPage: React.FC = () => {
       fetchMonthlySpend();
    }, []);
 
+   useEffect(() => {
+      if (!id) return;
+      (async () => {
+         const po = await getPurchaseOrder(id);
+         if (po) {
+            reset({
+               date: po.date,
+               supplierId: po.supplierId,
+               deliveryAddress: po.deliveryAddress,
+               paymentTerms: po.paymentTerms,
+               requiredDeliveryDate: po.requiredDeliveryDate,
+               vehicleNo: (po as any).vehicleNo,
+               storesLocation: (po as any).storesLocation,
+               invoiceNo: (po as any).invoiceNo,
+               voucherNo: (po as any).voucherNo,
+               items: po.items,
+               taxAmount: po.taxAmount,
+               notes: po.notes,
+               status: po.status,
+               managerApproved: (po as any).managerApproved,
+               managerApprovedBy: (po as any).managerApprovedBy,
+            });
+         }
+      })();
+   }, [id, reset]);
+
    const calculateItemTotal = (index: number) => {
       const qty = watch(`items.${index}.quantity`);
       const price = watch(`items.${index}.unitPrice`);
@@ -127,19 +155,28 @@ const PurchaseOrderFormPage: React.FC = () => {
          setLoading(true);
          const supplier = suppliers.find(s => s.id === data.supplierId);
 
-         await createPurchaseOrder({
-            ...data,
-            supplierName: supplier?.name || 'Unknown',
-            requestedBy: user?.email || 'System',
-            subTotal,
-            grandTotal,
-         } as any);
-
-         toast.success('Purchase Order issued', `PO for ${supplier?.name || 'supplier'} was created.`);
+         if (isEdit && id) {
+            await updatePurchaseOrder(id, {
+               ...data,
+               supplierName: supplier?.name || 'Unknown',
+               subTotal,
+               grandTotal,
+            } as any);
+            toast.success('Purchase Order updated', `PO for ${supplier?.name || 'supplier'} was updated.`);
+         } else {
+            await createPurchaseOrder({
+               ...data,
+               supplierName: supplier?.name || 'Unknown',
+               requestedBy: user?.email || 'System',
+               subTotal,
+               grandTotal,
+            } as any);
+            toast.success('Purchase Order issued', `PO for ${supplier?.name || 'supplier'} was created.`);
+         }
          navigate('/purchase-orders');
       } catch (err) {
          console.error(err);
-         toast.error('Failed to issue PO', 'Could not create the purchase order. Please try again.');
+         toast.error(isEdit ? 'Failed to update PO' : 'Failed to issue PO', 'Please try again.');
       } finally {
          setLoading(false);
       }
@@ -151,14 +188,16 @@ const PurchaseOrderFormPage: React.FC = () => {
             <button onClick={() => navigate('/purchase-orders')} className="p-3 bg-gray-50 border border-gray-100 rounded-2xl text-gray-400 hover:text-gray-900 transition-all active:scale-95 shadow-sm">
                <ArrowLeft className="w-5 h-5" />
             </button>
-            <PageHeader title="Purchase Order" subtitle="Issue formal purchase authorization to supply chain partners." />
+            <PageHeader title={isEdit ? 'Edit Purchase Order' : 'Purchase Order'} subtitle="Issue formal purchase authorization to supply chain partners." />
          </div>
 
          {/* Auto-generated PO number notice */}
-         <div className="mb-6 flex items-center gap-3 px-6 py-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
-            <Hash className="w-4 h-4 text-indigo-600 shrink-0" />
-            <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">PO Number will be auto-generated on submission (e.g. PO-2026-XXXX)</p>
-         </div>
+         {!isEdit && (
+            <div className="mb-6 flex items-center gap-3 px-6 py-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+               <Hash className="w-4 h-4 text-indigo-600 shrink-0" />
+               <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">PO Number will be auto-generated on submission (e.g. PO-2026-XXXX)</p>
+            </div>
+         )}
 
          {/* Monthly Limit Banner */}
          <div className={cn(
@@ -453,7 +492,7 @@ const PurchaseOrderFormPage: React.FC = () => {
                      {loading ? <LoadingSpinner /> : (
                         <>
                            <Save className="w-4 h-4" />
-                           Issue Purchase Order
+                           {isEdit ? 'Save Changes' : 'Issue Purchase Order'}
                         </>
                      )}
                   </button>

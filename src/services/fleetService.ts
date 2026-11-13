@@ -68,6 +68,8 @@ export interface Vehicle {
   statusChangeReason?: string;
   statusConfirmedBy?: string; // Operations Manager
   ownership: 'owned' | 'rented';
+  /** Staff member this vehicle is permanently assigned to (e.g. a personal/company car for an employee). */
+  assignedStaffId?: string;
 
   // New fields
   dateOfManufacture?: string;

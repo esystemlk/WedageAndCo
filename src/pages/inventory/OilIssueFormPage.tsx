@@ -10,7 +10,7 @@ import { cn, litresPerUnit, todayStr } from '../../lib/utils';
 import { createOilTransaction, updateOilTransaction, getOilTransaction } from '../../services/oilStockService';
 import { getInventoryItems, InventoryItem } from '../../services/inventoryService';
 import { getVehicles } from '../../services/fleetService';
-import { getStaffMembers } from '../../services/staffService';
+import { getStaffMembers, getDriverOptions } from '../../services/staffService';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -280,7 +280,7 @@ const OilIssueFormPage: React.FC = () => {
                     <Controller control={control} name="driverName"
                       render={({ field }) => (
                         <SearchableSelect
-                          options={staff.filter(s => s.category === 'Driver').map(s => ({ value: s.fullName, label: s.fullName }))}
+                          options={getDriverOptions(staff).map(s => ({ value: s.fullName, label: s.fullName, subLabel: s.category === 'Driver' ? undefined : s.category }))}
                           value={field.value || ''}
                           onChange={field.onChange}
                           placeholder="Select driver"

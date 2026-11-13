@@ -20,7 +20,7 @@ import { getInventoryItems, InventoryItem } from '../../services/inventoryServic
 import { FUEL_TYPE_VALUES, FUEL_TYPE_SHORT, FUEL_TYPE_COLOR, FUEL_PILL_IDLE } from '../../config/fuelTypes';
 import { getCustomFuelTypes, addCustomFuelType, CustomFuelType } from '../../services/configService';
 import { getVehicles } from '../../services/fleetService';
-import { getStaffMembers } from '../../services/staffService';
+import { getStaffMembers, getDriverOptions } from '../../services/staffService';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -646,11 +646,12 @@ const FuelIssueFormPage: React.FC = () => {
                 <Controller control={control} name="driverName"
                   render={({ field }) => (
                     <SearchableSelect
-                      options={staff.filter(s => s.category === 'Driver').map(s => ({ value: s.fullName, label: s.fullName, subLabel: s.phone }))}
+                      options={getDriverOptions(staff).map(s => ({ value: s.fullName, label: s.fullName, subLabel: s.category === 'Driver' ? s.phone : s.category }))}
                       value={field.value || ''}
                       onChange={field.onChange}
-                      placeholder="Select driver"
+                      placeholder="Select or type driver name"
                       icon={<User className="w-4 h-4 text-indigo-600" />}
+                      allowCustomValue
                       onAddNew={() => setQuickAdd({ type: 'driver', onCreated: (id, label) => { field.onChange(label); setRefreshKey(k => k + 1); } })}
                       addNewLabel="Add New Driver"
                     />

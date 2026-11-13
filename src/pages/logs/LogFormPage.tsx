@@ -24,6 +24,7 @@ import { getLogSheet, createLogSheet, updateLogSheet } from '../../services/logS
 import { useCustomers } from '../../hooks/useCustomers';
 import { useFleet } from '../../hooks/useFleet';
 import { useStaff } from '../../hooks/useStaff';
+import { getDriverOptions } from '../../services/staffService';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -381,7 +382,7 @@ const LogFormPage: React.FC = () => {
     }
   };
 
-  const activeDrivers = staff.filter(s => s.category === 'Driver' && s.active);
+  const activeDrivers = getDriverOptions(staff);
   const activeHelpers = staff.filter(s => s.category === 'Helper' && s.active);
   const activeVehicles = vehicles.filter(v => v.status === 'active');
 

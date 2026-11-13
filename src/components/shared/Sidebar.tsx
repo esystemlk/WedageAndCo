@@ -99,6 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     { name: 'Documents',           path: '/documents',         icon: Folder,            permission: 'view_logs' },
     { name: 'Fleet',               path: '/fleet',             icon: Truck,             permission: 'view_fleet' },
     { name: 'Vehicle Bookings',    path: '/fleet/bookings',    icon: CalendarCheck,     permission: 'view_fleet' },
+    { name: 'Staff Vehicles',      path: '/fleet/staff-vehicles', icon: UserSquare2,    permission: 'view_fleet' },
     { name: 'Log Sheets',          path: '/logs',              icon: ScrollText,        permission: 'view_logs' },
     { name: 'Security Book',       path: '/security',          icon: ShieldCheck,       permission: 'view_logs' },
     { name: 'Garage',              path: '/garage',            icon: Wrench,            permission: 'view_garage' },

@@ -33,6 +33,7 @@ import { cn } from '../../lib/utils';
 import { getVehicle, createVehicle, updateVehicle } from '../../services/fleetService';
 import { FUEL_TYPE_VALUES, FUEL_TYPE_SHORT, FUEL_TYPE_COLOR, FUEL_PILL_IDLE } from '../../config/fuelTypes';
 import { getCustomFuelTypes, addCustomFuelType, CustomFuelType } from '../../services/configService';
+import { useStaff } from '../../hooks/useStaff';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import FileUpload from '../../components/shared/FileUpload';
@@ -52,6 +53,7 @@ const vehicleSchema = z.object({
   statusChangeReason: z.string().optional(),
   statusConfirmedBy: z.string().optional(),
   ownership: z.enum(['owned', 'rented']),
+  assignedStaffId: z.string().optional(),
   weightCapacity: z.number().min(0).optional().or(z.literal(null)).transform(v => v === null ? undefined : v).or(z.nan().transform(() => undefined)),
 
   dimensions: z.object({
@@ -189,6 +191,7 @@ const VehicleFormPage: React.FC = () => {
   const [addingFuel, setAddingFuel] = useState(false);
   const [newFuelName, setNewFuelName] = useState('');
   const [savingFuel, setSavingFuel] = useState(false);
+  const { staff } = useStaff();
 
   const { register, handleSubmit, setValue, watch, control, formState: { errors, isSubmitted } } = useForm<VehicleFormData>({
     resolver: zodResolver(vehicleSchema) as any,
@@ -919,6 +922,26 @@ const VehicleFormPage: React.FC = () => {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="space-y-4 lg:col-span-3">
+              <div className="flex items-center gap-2 mb-2">
+                <User className="w-4 h-4 text-violet-600" />
+                <span className="text-[10px] font-black text-violet-600 uppercase tracking-widest">Assigned Staff <span className="text-gray-300 normal-case tracking-normal">(Optional — for a personal/company vehicle given to an employee)</span></span>
+              </div>
+              <Controller
+                control={control}
+                name="assignedStaffId"
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={staff.filter(s => s.active).map(s => ({ value: s.id!, label: s.fullName, subLabel: s.category }))}
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    placeholder="Not assigned to a staff member"
+                    icon={<User className="w-4 h-4 text-violet-600" />}
+                  />
+                )}
+              />
             </div>
           </div>
 

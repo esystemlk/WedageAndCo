@@ -9,11 +9,14 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
-import { getGRNs, GRN } from '../../services/grnService';
+import { getGRNs, deleteGRN, GRN } from '../../services/grnService';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 import { cn } from '../../lib/utils';
 import { format } from 'date-fns';
 import { exportCSV } from '../../utils/mealExports';
+import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { Trash2 } from 'lucide-react';
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -49,6 +52,8 @@ const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
 
 const GRNListPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
+  const { user } = useAuth();
   const [grns, setGrns] = useState<GRN[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -60,6 +65,20 @@ const GRNListPage: React.FC = () => {
   useEffect(() => { (async () => {
     try { setGrns((await getGRNs()) || []); } catch (e) { console.error(e); } finally { setLoading(false); }
   })(); }, []);
+
+  const handleDelete = async (g: GRN, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!g.id) return;
+    if (!confirm(`Delete GRN ${g.grnNo}? This cannot be undone.`)) return;
+    try {
+      await deleteGRN(g.id, user?.email || 'System');
+      setGrns(prev => prev.filter(x => x.id !== g.id));
+      toast.success('GRN deleted', `${g.grnNo} was removed.`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete GRN', 'Please try again.');
+    }
+  };
 
   const locations = useMemo(
     () => Array.from(new Set(grns.map(g => g.warehouseLocation).filter(Boolean))) as string[],
@@ -315,7 +334,18 @@ const GRNListPage: React.FC = () => {
                         {hasVariance(g) && <span className="ml-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-700">Variance</span>}
                       </td>
                       <td className="px-5 py-4 text-[10px] text-gray-500 font-bold">{g.warehouseLocation || '—'}</td>
-                      <td className="px-5 py-4 text-right"><ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-600 transition-colors inline-block" /></td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={(e) => handleDelete(g, e)}
+                            className="p-1.5 rounded-lg text-gray-300 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-600 transition-colors inline-block" />
+                        </div>
+                      </td>
                     </motion.tr>
                   ))}
                 </AnimatePresence>

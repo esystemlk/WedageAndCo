@@ -23,7 +23,7 @@ import * as z from 'zod';
 import { createGatePass, getGatePass, updateGatePass } from '../../services/gatePassService';
 import FileUpload from '../../components/shared/FileUpload';
 import { getVehicles } from '../../services/fleetService';
-import { getStaffMembers } from '../../services/staffService';
+import { getStaffMembers, getDriverOptions } from '../../services/staffService';
 import { getCustomers } from '../../services/customerService';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -267,9 +267,8 @@ const GatePassFormPage: React.FC = () => {
                   name="driverName"
                   render={({ field }) => (
                     <SearchableSelect
-                      options={staff
-                        .filter(s => s.category === 'Driver' || (tripType === 'Test Run' && s.category === 'Garage'))
-                        .map(s => ({ value: s.fullName, label: s.fullName, subLabel: s.category === 'Garage' ? `Garage · ${s.phone || ''}` : s.phone }))}
+                      options={getDriverOptions(staff)
+                        .map(s => ({ value: s.fullName, label: s.fullName, subLabel: s.category === 'Driver' ? s.phone : `${s.category} · ${s.phone || ''}` }))}
                       value={field.value}
                       onChange={field.onChange}
                       placeholder={tripType === 'Test Run' ? 'Select Driver / Garage Tech' : 'Select Driver'}
@@ -580,7 +579,7 @@ const GatePassFormPage: React.FC = () => {
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Meter In</label>
                 <input
                   type="number"
-                  {...register('meterIn')}
+                  {...register('meterIn', { valueAsNumber: true })}
                   placeholder="00.00"
                   disabled={watch('status') !== 'Returned'}
                   className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all font-mono font-black text-gray-900 text-sm disabled:opacity-30 shadow-sm shadow-inner"

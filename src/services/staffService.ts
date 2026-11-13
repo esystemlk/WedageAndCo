@@ -83,6 +83,12 @@ export interface StaffMember {
   updatedAt?: any;
 }
 
+// All active staff, eligible to drive, sorted with Drivers first.
+export const getDriverOptions = (staff: StaffMember[]) =>
+  staff
+    .filter(s => s.active)
+    .sort((a, b) => (a.category === 'Driver' ? -1 : 1) - (b.category === 'Driver' ? -1 : 1));
+
 export const getStaffMembers = async () => {
   try {
     const q = query(collection(db, COLLECTION), orderBy('fullName', 'asc'));

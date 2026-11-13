@@ -11,6 +11,7 @@ import { PermissionGate } from '../../components/auth/RouteGuards';
 import { deleteJobCard, JobCardStatus } from '../../services/jobCardService';
 import { useJobCards } from '../../hooks/useJobCards';
 import { useFleet } from '../../hooks/useFleet';
+import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/shared/PageHeader';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
@@ -23,6 +24,7 @@ const STATUS_CONFIG: Record<JobCardStatus, { label: string; color: string; icon:
 const JobCardListPage: React.FC = () => {
   const { jobCards, loading, refresh } = useJobCards();
   const { vehicles } = useFleet();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobCardStatus | ''>('');
   const [vehicleFilter, setVehicleFilter] = useState('');
@@ -51,7 +53,7 @@ const JobCardListPage: React.FC = () => {
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm('Delete this job card permanently?')) {
-      await deleteJobCard(id);
+      await deleteJobCard(id, user?.email || 'System');
       refresh();
     }
   };

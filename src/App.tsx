@@ -49,6 +49,7 @@ import GatePassListPage from './pages/security/GatePassListPage';
 import GatePassFormPage from './pages/security/GatePassFormPage';
 import AuditLogPage from './pages/admin/AuditLogPage';
 import AdvancedFleetDashboard from './pages/fleet/AdvancedFleetDashboard';
+import StaffVehiclesPage from './pages/fleet/StaffVehiclesPage';
 import FinancialDashboard from './pages/financial/FinancialDashboard';
 import CalendarPage from './pages/calendar/CalendarPage';
 import DocumentsPage from './pages/documents/DocumentsPage';
@@ -91,8 +92,10 @@ function App() {
               <Route path="/suppliers/:id/edit" element={<SupplierFormPage />} />
               <Route path="/purchase-orders" element={<PurchaseOrderListPage />} />
               <Route path="/purchase-orders/new" element={<PurchaseOrderFormPage />} />
+              <Route path="/purchase-orders/:id" element={<PurchaseOrderFormPage />} />
               <Route path="/grn" element={<GRNListPage />} />
               <Route path="/grn/new" element={<GRNFormPage />} />
+              <Route path="/grn/:id" element={<GRNFormPage />} />
               <Route path="/inventory" element={<InventoryPage />} />
               <Route path="/inventory/new" element={<InventoryItemFormPage />} />
               <Route path="/inventory/:id/edit" element={<InventoryItemFormPage />} />
@@ -116,6 +119,7 @@ function App() {
               <Route path="/fleet" element={<FleetListPage />} />
               <Route path="/fleet/new" element={<VehicleFormPage />} />
               <Route path="/fleet/analytics" element={<AdvancedFleetDashboard />} />
+              <Route path="/fleet/staff-vehicles" element={<StaffVehiclesPage />} />
               <Route path="/fleet/bookings" element={<VehicleBookingPage />} />
               <Route path="/fleet/bookings/new" element={<VehicleBookingFormPage />} />
               <Route path="/fleet/:id" element={<VehicleDetailPage />} />
