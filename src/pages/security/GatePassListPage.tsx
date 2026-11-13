@@ -655,11 +655,11 @@ const GatePassListPage: React.FC = () => {
                       <td className="px-10 py-6">
                         {v.vehicleNo ? (
                           <div className="space-y-1">
-                            <span className="px-2 py-1 bg-gray-100 border border-gray-250 rounded font-mono font-black text-gray-700 text-[10px]">
+                            <span className="inline-block px-2 py-1 bg-gray-100 border border-gray-250 rounded font-mono font-black text-gray-700 text-[10px] whitespace-nowrap">
                               {v.vehicleNo}
                             </span>
                             {v.vehicleType && (
-                              <p className="text-[9px] text-gray-400 uppercase font-black tracking-wider">{v.vehicleType}</p>
+                              <p className="text-[9px] text-gray-400 uppercase font-black tracking-wider whitespace-nowrap">{v.vehicleType}</p>
                             )}
                           </div>
                         ) : (
@@ -682,7 +682,7 @@ const GatePassListPage: React.FC = () => {
                       </td>
                       <td className="px-10 py-6 text-center">
                         <span className={cn(
-                          "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border",
+                          "inline-block px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border whitespace-nowrap",
                           v.status === 'On-site' ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-gray-50 text-gray-400 border-gray-150"
                         )}>
                           {v.status}
